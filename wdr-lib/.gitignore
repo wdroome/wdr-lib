@@ -1,0 +1,7 @@
+## Directories with built files:
+/bin/
+/doc/
+/build-jars/
+
+## Debug & test directories:
+/test/
