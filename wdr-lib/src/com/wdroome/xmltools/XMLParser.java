@@ -9,7 +9,7 @@ import org.w3c.dom.*;
 import javax.xml.parsers.*;
 import org.xml.sax.*;
 
-//import com.lucent.sird.alto.util.IErrorLogger;
+import com.wdroome.util.IErrorLogger;
 
 /**
  *	Utility class to simplify reading and parsing XML files.
@@ -99,62 +99,62 @@ public class XMLParser
 	 *	For warnings and regular errors, continue without throwing an exception.
 	 *	Note that this object is embedded in an XMLParser instance.
 	 */
-//	public class LoggerHandler implements ErrorHandler
-//	{
-//		private IErrorLogger m_errorLogger = null;
-//		private boolean m_printWarnings = true;
-//		
-//		/**
-//		 * Create a new handler and set it as the XMLParser's error handler.
-//		 * @param errorLogger The error logger. If null, use System.err.
-//		 * @param printWarnings If true, log warnings. If false, ignore warnings.
-//		 */
-//		public LoggerHandler(IErrorLogger errorLogger, boolean printWarnings)
-//		{
-//			m_errorLogger = errorLogger;
-//			m_printWarnings = printWarnings;
-//			setErrorHandler(this);
-//		}
-//		
-//		@Override
-//		public void error(SAXParseException e) throws SAXParseException
-//		{
-//			prt("XML Error", e);
-//		}
-//
-//		@Override
-//		public void warning(SAXParseException e) throws SAXParseException
-//		{
-//			if (m_printWarnings)
-//				prt("XML Warning", e);
-//		}
-//
-//		@Override
-//		public void fatalError(SAXParseException e) throws SAXParseException
-//		{
-//			prt("XML Fatal Error", e);
-//			throw e;
-//		}
-//		
-//		private void prt(String prefix, SAXParseException e)
-//		{
-//			StringBuilder buf = new StringBuilder();
-//			buf.append(prefix);
-//			String d = getDescription();
-//			if (d != null && !d.equals("")) {
-//				buf.append(", ");
-//				buf.append(d);
-//			}
-//			buf.append(", line ");
-//			buf.append(e.getLineNumber());
-//			buf.append(": ");
-//			buf.append(e.getMessage());
-//			if (m_errorLogger != null)
-//				m_errorLogger.logError(buf.toString());
-//			else
-//				System.err.println(buf);
-//		}
-//	}
+	public class LoggerHandler implements ErrorHandler
+	{
+		private IErrorLogger m_errorLogger = null;
+		private boolean m_printWarnings = true;
+		
+		/**
+		 * Create a new handler and set it as the XMLParser's error handler.
+		 * @param errorLogger The error logger. If null, use System.err.
+		 * @param printWarnings If true, log warnings. If false, ignore warnings.
+		 */
+		public LoggerHandler(IErrorLogger errorLogger, boolean printWarnings)
+		{
+			m_errorLogger = errorLogger;
+			m_printWarnings = printWarnings;
+			setErrorHandler(this);
+		}
+		
+		@Override
+		public void error(SAXParseException e) throws SAXParseException
+		{
+			prt("XML Error", e);
+		}
+
+		@Override
+		public void warning(SAXParseException e) throws SAXParseException
+		{
+			if (m_printWarnings)
+				prt("XML Warning", e);
+		}
+
+		@Override
+		public void fatalError(SAXParseException e) throws SAXParseException
+		{
+			prt("XML Fatal Error", e);
+			throw e;
+		}
+		
+		private void prt(String prefix, SAXParseException e)
+		{
+			StringBuilder buf = new StringBuilder();
+			buf.append(prefix);
+			String d = getDescription();
+			if (d != null && !d.equals("")) {
+				buf.append(", ");
+				buf.append(d);
+			}
+			buf.append(", line ");
+			buf.append(e.getLineNumber());
+			buf.append(": ");
+			buf.append(e.getMessage());
+			if (m_errorLogger != null)
+				m_errorLogger.logError(buf.toString());
+			else
+				System.err.println(buf);
+		}
+	}
 
 	/**
 	 *	An XML ErrorHandler that saves errors and warnings in a buffer,
