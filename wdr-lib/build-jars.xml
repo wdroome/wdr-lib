@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Build jars for the WDR-LIB project. -->
+
+<project name="WDR-LIB.makejars" default="makejars" basedir=".">
+  <tstamp>
+	<format property="WDR-LIB.dateTime" pattern="yyyy-MM-dd HH:mm:ss zzz" />
+	<format property="WDR-LIB.date" pattern="dd-MMM-yyyy" />
+	<format property="WDR-LIB.time" pattern="HH:mm:ss zzz" />
+  </tstamp>
+  <property name="WDR-LIB.jars.manifestInfoFile" value="bin/WDR-LIB_MANIFEST_INFO.txt" />
+  <property name="WDR-LIB.jars.osUnamePropFile" value="bin/WDR-LIB_OS_UNAME.properties" />
+
+  <target name="makeManifestFiles" description="Setup common manifest files">
+  	
+  	<echo file="${WDR-LIB.jars.osUnamePropFile}" append="false" message="WDR-LIB.os.nodename=" />
+	<exec os="Mac OS X,unix,linux" output="${WDR-LIB.jars.osUnamePropFile}" append="true"
+		executable="uname">
+		<arg value="-n" />
+	</exec>
+  	<property file="${WDR-LIB.jars.osUnamePropFile}" />
+
+  	<manifest file="${WDR-LIB.jars.manifestInfoFile}">
+    	<section name="common">
+	      <attribute name="Specification-Title" value="Personal Utility Library"/>
+	      <attribute name="Implementation-Title" value="WDR-LIB Implementation"/>
+	      <attribute name="Implementation-Version" value="(${WDR-LIB.dateTime})"/>
+	      <attribute name="Implementation-Vendor" value="Wendy Roome"/>
+    	</section>
+    	<section name="buildInfo">
+  	      <attribute name="Build-Date" value="${WDR-LIB.dateTime}"/>
+   	      <attribute name="Java-Version" value="${java.version}"/>
+   	      <attribute name="Java-Vendor" value="${java.vendor}"/>
+   	      <attribute name="Build-User" value="${user.name}"/>
+    	  <attribute name="Build-OS" value="${os.name} ${os.version}"/>
+    	  <attribute name="Build-OS-Nodename" value="${WDR-LIB.os.nodename}"/>
+    	</section>
+    </manifest>
+  </target>
+
+  <target name ="makejars" description="Create WDR-LIB deliverable jar" depends="makeManifestFiles">
+  	<jar jarfile="build-jars/wdrlib.jar"
+    	manifest="${WDR-LIB.jars.manifestInfoFile}">
+  		<fileset dir="bin"
+  			includes="
+  					com/wdroome/*/*.class
+					com/wdroome/*/*/*.class
+					"
+  			excludes=""
+  		/>
+    </jar>
+  </target>
+</project>

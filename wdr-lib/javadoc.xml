@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- For the WDR-LIB project. -->
+
+<project default="javadoc">
+	<target name="javadoc">
+		<tstamp>
+		  <format property="myprops.dateTime" pattern="yyyy-MM-dd HH:mm:ss zzz" />
+		  <format property="myprops.date" pattern="dd-MMM-yyyy" />
+		  <format property="myprops.time" pattern="HH:mm:ss zzz" />
+		</tstamp>
+		
+		<delete dir="doc/com" quiet="true" />
+
+		<javadoc access="protected" author="true"
+			destdir="doc"
+			packagenames="com.wdroome.*"
+			sourcepath="src"
+			source="1.7" splitindex="true"
+			bottom="&lt;pre&gt;Page generated on ${myprops.date} at ${myprops.time}&lt;/pre&gt;"
+			nodeprecated="false" nodeprecatedlist="false" noindex="false"
+			nonavbar="false" notree="false"	use="true" version="true">
+			<link offline="true"
+				href="http://docs.oracle.com/javase/7/docs/api/"
+				packagelistLoc="external-package-lists/j2se" />
+		</javadoc>
+		
+		<zip destfile="build-jars/wdrlib-doc.zip" basedir="./doc" update="false" />
+	</target>
+</project>

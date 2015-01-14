@@ -81,7 +81,7 @@ public class NameValueResource extends HashMap<String,String>
 
 	/**
 	 * For testing, print all items in a build-info resource.
-	 * @param args The resource name. If omitted, use {@link #DEF_BUILD_INFO_RESOURCE}.
+	 * @param args The resource name.
 	 */
 	public static void main(String[] args)
 	{

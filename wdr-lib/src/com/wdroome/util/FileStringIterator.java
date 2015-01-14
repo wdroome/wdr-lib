@@ -154,7 +154,7 @@ public class FileStringIterator implements IteratorWithPosition<String>
 	/**
 	 * Return the line number of the current element, and the file name,
 	 * as a readable string.
-	 * @see com.lucent.sird.alto.util.IteratorWithPosition#getPositionDescription()
+	 * @see IteratorWithPosition#getPositionDescription()
 	 */
 	@Override
 	public String getPositionDescription()
