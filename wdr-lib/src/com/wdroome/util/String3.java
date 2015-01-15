@@ -106,7 +106,9 @@ public class String3 implements Comparable<String3>
 		return m_str3.compareTo(other.m_str3);
 	}
 
-	/* (non-Javadoc)
+	/**
+	 * Return a string representation of the set of strings.
+	 * @return The three strings, as &lt;S1,S2,S3&gt;.
 	 * @see java.lang.Object#toString()
 	 */
 	@Override

@@ -88,7 +88,9 @@ public class String2 implements Comparable<String2>
 		return m_str2.compareTo(other.m_str2);
 	}
 
-	/* (non-Javadoc)
+	/**
+	 * Return a string representation of the pair of strings.
+	 * @return The two strings, as &lt;S1,S2&gt;.
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
