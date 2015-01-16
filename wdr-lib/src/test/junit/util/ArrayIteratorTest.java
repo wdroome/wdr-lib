@@ -10,7 +10,6 @@ import com.wdroome.util.ArrayIterator;
 
 /**
  * @author wdr
- *
  */
 public class ArrayIteratorTest
 {
@@ -28,7 +27,7 @@ public class ArrayIteratorTest
 							iter.getPositionDescription());
 			i++;
 		}
-		assertEquals("test1[$] position", "item[" + testList.length + "]", iter.getPositionDescription());
+		assertEquals("test1[$] position", "item[" + (testList.length-1) + "]", iter.getPositionDescription());
 		assertEquals("test1 end", i, expectedList.length);
 	}
 
@@ -50,7 +49,7 @@ public class ArrayIteratorTest
 							iter.getPositionDescription());
 			i++;
 		}
-		assertEquals("test2[$] position", "item[" + testList.length + "]", iter.getPositionDescription());
+		assertEquals("test2[$] position", "item[" + (testList.length-1) + "]", iter.getPositionDescription());
 		assertEquals("test2 end", i, expectedList.length);
 	}
 	
@@ -61,7 +60,7 @@ public class ArrayIteratorTest
 		String[] expectedList = {"String1", "String2"};
 		String[] expectedPosition = {"item[0]", "item[3]"};
 		int i = 0;
-		ArrayIterator<String> iter = new ArrayIterator<String>(testList, true);
+		ArrayIterator<String> iter = new ArrayIterator<String>(testList, 0, -1, true);
 		assertEquals("test3[-1] position", "item[-1]", iter.getPositionDescription());
 		for (String actual: iter) {
 			assertEquals("test3[" + i + "]", expectedList[i], actual);
@@ -69,7 +68,7 @@ public class ArrayIteratorTest
 							iter.getPositionDescription());
 			i++;
 		}
-		assertEquals("test3[$] position", "item[" + testList.length + "]", iter.getPositionDescription());
+		assertEquals("test3[$] position", "item[" + 3 + "]", iter.getPositionDescription());
 		assertEquals("test3 end", i, expectedList.length);
 	}
 	
@@ -85,7 +84,7 @@ public class ArrayIteratorTest
 							iter.getPositionDescription());
 			i++;
 		}
-		assertEquals("test4[$] position", "item[0]", iter.getPositionDescription());
+		assertEquals("test4[$] position", "item[-1]", iter.getPositionDescription());
 		assertEquals("test4 end", i, expectedList.length);
 	}
 	
@@ -103,7 +102,7 @@ public class ArrayIteratorTest
 							iter.getPositionDescription());
 			i++;
 		}
-		assertEquals("test5[$] position", "item[" + testList.length + "]", iter.getPositionDescription());
+		assertEquals("test5[$] position", "item[" + (testList.length-1) + "]", iter.getPositionDescription());
 		assertEquals("test5 end", i, expectedList.length);
 	}
 	
@@ -114,7 +113,7 @@ public class ArrayIteratorTest
 		String[] expectedList = {};
 		String[] expectedPosition = {};
 		int i = 0;
-		ArrayIterator<String> iter = new ArrayIterator<String>(testList, true);
+		ArrayIterator<String> iter = new ArrayIterator<String>(testList, 0, -1, true);
 		assertEquals("test6[-1] position", "item[-1]", iter.getPositionDescription());
 		for (String actual: iter) {
 			assertEquals("test6[" + i + "]", expectedList[i], actual);
@@ -122,7 +121,7 @@ public class ArrayIteratorTest
 							iter.getPositionDescription());
 			i++;
 		}
-		assertEquals("test6[$] position", "item[" + testList.length + "]", iter.getPositionDescription());
+		assertEquals("test6[$] position", "item[" + -1 + "]", iter.getPositionDescription());
 		assertEquals("test6 end", i, expectedList.length);
 	}
 }
