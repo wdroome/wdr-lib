@@ -38,7 +38,7 @@ public class ArrayIterator<T>
 	 * @param array The array. If null, assume a 0-length array.
 	 * @param start Start index of subset of array.
 	 * @param length Length of subset of array. If -1, use remainder of array.
-	 * @throw IllegalArgumentException
+	 * @throws IllegalArgumentException
 	 * 			If the start index is not valid.
 	 */
 	public ArrayIterator(T[] array, int start, int length)
@@ -52,7 +52,7 @@ public class ArrayIterator<T>
 	 * @param start Start index of subset of array.
 	 * @param length Length of subset of array. If -1, use remainder of array.
 	 * @param skipNulls If true, next() skips null elements in the array.
-	 * @throw IllegalArgumentException
+	 * @throws IllegalArgumentException
 	 * 			If the start index is not valid.
 	 */
 	public ArrayIterator(T[] array, int start, int length, boolean skipNulls)
