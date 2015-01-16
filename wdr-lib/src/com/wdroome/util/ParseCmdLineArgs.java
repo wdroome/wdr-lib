@@ -30,8 +30,9 @@ public class ParseCmdLineArgs
 	 */
 	public ParseCmdLineArgs(String line)
 	{
-		if (line == null)
+		if (line == null) {
 			line = "";
+		}
 		this.m_line = line;
 		this.m_length = line.length();
 	}
@@ -61,11 +62,13 @@ public class ParseCmdLineArgs
 	{
 		for (; m_curOffset < m_length; m_curOffset++) {
 			char c = m_line.charAt(m_curOffset);
-			if (!isWhitespace(c))
+			if (!isWhitespace(c)) {
 				break;
+			}
 		}
-		if (m_curOffset >= m_length)
+		if (m_curOffset >= m_length) {
 			return null;
+		}
 		StringBuilder arg = new StringBuilder(100);
 		boolean inQuote = false;
 		char startQuote = 0;

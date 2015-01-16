@@ -1,7 +1,7 @@
 package com.wdroome.util;
 
 /**
- * An {@link IErrorLogger} that log messages to System.err.
+ * An {@link IErrorLogger} that logs messages to System.err.
  * @author wdr
  */
 public class SystemErrorLogger implements IErrorLogger
@@ -16,5 +16,4 @@ public class SystemErrorLogger implements IErrorLogger
 	{
 		System.err.println(msg);
 	}
-
 }
