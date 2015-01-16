@@ -29,6 +29,19 @@ public class ArrayIteratorTest
 		}
 		assertEquals("test1[$] position", "item[" + (testList.length-1) + "]", iter.getPositionDescription());
 		assertEquals("test1 end", i, expectedList.length);
+		
+		try { iter.next(); } catch (Exception e) {}
+		assertEquals("test1[$] position", "item[" + testList.length + "]", iter.getPositionDescription());		
+		
+		while (iter.hasPrevious()) {
+			String actual = iter.previous();
+			--i;
+			assertEquals("test1[" + i + "]", expectedList[i], actual);
+			assertEquals("test1[" + i + "] position", "item[" + i + "]",
+							iter.getPositionDescription());
+		}
+		assertEquals("test1[0] position", "item[0]", iter.getPositionDescription());
+		assertEquals("test1 end", i, 0);
 	}
 
 	@Test
