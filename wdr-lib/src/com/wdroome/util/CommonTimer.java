@@ -28,12 +28,12 @@ import java.util.Date;
 public class CommonTimer
 {
 	// Timer is created on demand by getTimer().
-	private static Timer timer = null;
-	private static Boolean timerCreateLock = new Boolean(true);
+	private static Timer g_timer = null;
+	private static Boolean g_timerCreateLock = new Boolean(true);
 
 	// Parameters for creating the Timer.
-	private static boolean isDeamon = true;
-	private static String threadName = CommonTimer.class.getName();
+	private static boolean g_isDeamon = true;
+	private static String g_threadName = CommonTimer.class.getName();
 
 	/** Dummy no-args constructor. */
 	private CommonTimer() {}
@@ -43,14 +43,14 @@ public class CommonTimer
 	 */
 	public static Timer getTimer()
 	{
-		if (timer == null) {
-			synchronized (timerCreateLock) {
-				if (timer == null) {
-					timer = new Timer(threadName, isDeamon);
+		if (g_timer == null) {
+			synchronized (g_timerCreateLock) {
+				if (g_timer == null) {
+					g_timer = new Timer(g_threadName, g_isDeamon);
 				}
 			}
 		}
-		return timer;
+		return g_timer;
 	}
 
 	/** Short for getTimer().schedule(task, time). */

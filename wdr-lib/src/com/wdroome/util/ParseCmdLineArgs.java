@@ -21,9 +21,9 @@ import java.util.ArrayList;
  */
 public class ParseCmdLineArgs
 {
-	private final String line;
-	private int curOffset = 0;
-	private final int length;
+	private final String m_line;
+	private int m_curOffset = 0;
+	private final int m_length;
 
 	/**
 	 *	Create a new parser for the indicated string.
@@ -32,8 +32,8 @@ public class ParseCmdLineArgs
 	{
 		if (line == null)
 			line = "";
-		this.line = line;
-		this.length = line.length();
+		this.m_line = line;
+		this.m_length = line.length();
 	}
 
 	/**
@@ -59,21 +59,21 @@ public class ParseCmdLineArgs
 	 */
 	public String nextArg()
 	{
-		for (; curOffset < length; curOffset++) {
-			char c = line.charAt(curOffset);
+		for (; m_curOffset < m_length; m_curOffset++) {
+			char c = m_line.charAt(m_curOffset);
 			if (!isWhitespace(c))
 				break;
 		}
-		if (curOffset >= length)
+		if (m_curOffset >= m_length)
 			return null;
 		StringBuilder arg = new StringBuilder(100);
 		boolean inQuote = false;
 		char startQuote = 0;
-		for (; curOffset < length; curOffset++) {
-			char c = line.charAt(curOffset);
-			if (isEscape(c) && curOffset+1 < length) {
-				curOffset++;
-				arg.append(line.charAt(curOffset));
+		for (; m_curOffset < m_length; m_curOffset++) {
+			char c = m_line.charAt(m_curOffset);
+			if (isEscape(c) && m_curOffset+1 < m_length) {
+				m_curOffset++;
+				arg.append(m_line.charAt(m_curOffset));
 			} else if (inQuote) {
 				if (isEndQuote(c, startQuote)) {
 					inQuote = false;
