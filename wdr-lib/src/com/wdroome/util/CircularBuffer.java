@@ -96,22 +96,4 @@ public class CircularBuffer<T> implements Iterable<T>
 	{
 		return new IterableWrapper<T>(m_list.iterator()).iterator();
 	}
-
-	/**
-	 *	Test driver: add some strings, then get the array.
-	 */
-	public static void main(String[] args)
-	{
-		CircularBuffer<String> b = new CircularBuffer<String>(5);
-		int n = 6;
-		System.out.println("Add " + n + " strings to a buffer of length 5.");
-		for (int i = 1; i <= n; i++) {
-			b.add("s" + i);
-		}
-		System.out.println("Dump array:");
-		String[] arr = b.toArray(new String[0]);
-		for (int i = 0; i < arr.length; i++) {
-			System.out.println("[" + i + "]: \"" + arr[i] + "\"");
-		}
-	}
 }

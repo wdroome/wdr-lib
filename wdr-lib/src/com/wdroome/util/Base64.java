@@ -48,6 +48,21 @@ public class Base64
 	private static final byte DEC_BYTE_PAD = 0x41;
 
 	/**
+	 *	Startup initialization: setup the DEC_BYTES array.
+	 */
+	static {
+		byte[] arr = new byte[256];
+		for (int i = 0; i < 256; i++) {
+			arr[i] = (byte)DEC_BYTE_INVALID;
+		}
+		for (int i = 0; i < 64; i++) {
+			arr[ENC_CHARS[i]] = (byte)i;
+		}
+		arr[ENC_PAD] = (byte)DEC_BYTE_PAD;
+		DEC_BYTES = arr;
+	}
+
+	/**
 	 *	Short for encodeToBytes(src, 0, src.length).
 	 */
 	public static byte[] encodeToBytes(byte[] src)
@@ -58,7 +73,7 @@ public class Base64
 	/**
 	 *	Return the base 64 encoding of src, as a byte array.
 	 *<p>
-	 *	Note that this method returns a contiguous array of encoded bytes:
+	 *	Note that this method returns a continuous array of encoded bytes:
 	 *	the returned array has 4 bytes for every 3 source bytes,
 	 *	plus the "=" padding at the end.
 	 *	This method does NOT put newlines, returns, or other white space
@@ -183,21 +198,6 @@ public class Base64
 			}
 			return ret;
 		}
-	}
-
-	/**
-	 *	Startup initialization: setup the DEC_BYTES array.
-	 */
-	static {
-		byte[] arr = new byte[256];
-		for (int i = 0; i < 256; i++) {
-			arr[i] = (byte)DEC_BYTE_INVALID;
-		}
-		for (int i = 0; i < 64; i++) {
-			arr[ENC_CHARS[i]] = (byte)i;
-		}
-		arr[ENC_PAD] = (byte)DEC_BYTE_PAD;
-		DEC_BYTES = arr;
 	}
 
 	/**
