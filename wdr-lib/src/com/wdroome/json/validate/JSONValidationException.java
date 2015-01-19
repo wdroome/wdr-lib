@@ -6,6 +6,8 @@ package com.wdroome.json.validate;
  */
 public class JSONValidationException extends Exception
 {
+	private static final long serialVersionUID = 2003751443730340570L;
+
 	/**
 	 * A validation error in a JSON value.
 	 * @param msg A description of the error,
