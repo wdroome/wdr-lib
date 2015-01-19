@@ -64,35 +64,4 @@ public class SystemErrorLogger implements IErrorLogger
 		}
 		m_ostream.println(msg);
 	}
-
-	/**
-	 *	Append the current time stamp, in the specified date format,
-	 *	to a buffer.
-	 *
-	 *	@param b The buffer. If null, create a new StringBuilder.
-	 *	@param dateFormat The format for the timestamp.
-	 *	@return The parameter b, or, if null, a new StringBuilder.
-	 *	@see #appendDate(StringBuilder)
-	 */
-	public static StringBuilder appendDate(StringBuilder b, DateFormat dateFormat)
-	{
-		if (b == null)
-			b = new StringBuilder();
-		b.append(dateFormat.format(new Date()));
-		return b;
-	}
-
-	/**
-	 *	Append the current time stamp to a buffer.
-	 *	Use the date format "MM/dd/yyyy HH:mm:ss.SSS ".
-	 *
-	 *	@param b The buffer. If null, create a new StringBuilder.
-	 *	@return The parameter b, or, if null, a new StringBuilder.
-	 *	@see #appendDate(StringBuilder,DateFormat)
-	 *	@see SimpleDateFormat
-	 */
-	public static StringBuilder appendDate(StringBuilder b)
-	{
-		return appendDate(b, new SimpleDateFormat("MM/dd/yyyy HH:mm:ss.SSS "));
-	}
 }
