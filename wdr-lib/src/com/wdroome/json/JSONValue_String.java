@@ -58,6 +58,13 @@ public class JSONValue_String implements JSONValue
 	/**
 	 * Return a string as a quoted JSON string constant.
 	 * Surround with quotes, and escape appropriate characters.
+	 * <p>
+	 * Note that this method generates escapes, but does not read them.
+	 * That is, it converts an internal string to an escaped external string.
+	 * The method that recognizes escapes and
+	 * converts an external escaped string into an internal string
+	 * is in the {@link JSONLexan} class.
+	 * 
 	 * @param value The string.
 	 * @return value as a quoted, escaped string.
 	 */

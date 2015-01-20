@@ -42,7 +42,7 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	 * and use toString() to convert the map's keys to Strings. 
 	 * @param src A map whose mappings are to be placed in this map.
 	 */
-	public JSONValue_Object(Map<? extends Object, ? extends JSONValue> src)
+	public JSONValue_Object(Map<? extends Object, ? extends Object> src)
 	{
 		super(src != null ? src.size() : 0);
 		putObjects(src);

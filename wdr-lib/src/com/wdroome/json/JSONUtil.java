@@ -21,7 +21,6 @@ public class JSONUtil
 	 * @param obj The object to be converted to a JSONValue.
 	 * @return The JSONValue of "obj".
 	 */
-	@SuppressWarnings("unchecked")
 	public static JSONValue toValue(Object obj)
 	{
 		if (obj == null) {
@@ -36,10 +35,10 @@ public class JSONUtil
 			return ((Boolean)obj) ? JSONValue_Boolean.TRUE : JSONValue_Boolean.FALSE;
 		} else if (obj instanceof Object[]) {
 			return new JSONValue_Array((Object[])obj);
-		} else if (obj instanceof Collection) {
-			return new JSONValue_Array((Collection)obj);
-		} else if (obj instanceof Map) {
-			return new JSONValue_Object((Map)obj);
+		} else if (obj instanceof Collection<?>) {
+				return new JSONValue_Array((Collection<?>)obj);
+		} else if (obj instanceof Map<?,?>) {
+			return new JSONValue_Object((Map<?,?>)obj);
 		} else {
 			return new JSONValue_String(obj.toString());
 		}
