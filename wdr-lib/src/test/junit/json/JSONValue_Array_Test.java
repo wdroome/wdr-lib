@@ -2,8 +2,6 @@ package test.junit.json;
 
 import static org.junit.Assert.*;
 
-import java.util.HashMap;
-
 import org.junit.Test;
 
 import com.wdroome.json.*;
