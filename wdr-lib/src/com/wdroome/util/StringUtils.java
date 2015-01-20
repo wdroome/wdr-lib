@@ -5,7 +5,7 @@ import java.util.Set;
 import java.util.HashSet;
 
 /**
- * Miscellaneous String utility functions.
+ * Miscellaneous static String utility functions.
  * @author wdr
  */
 public class StringUtils
@@ -71,10 +71,12 @@ public class StringUtils
 	 */
 	public static String removeBackslashes(String src)
 	{
-		if (src == null)
+		if (src == null) {
 			return src;
-		if (!src.contains("\\"))
+		}
+		if (!src.contains("\\")) {
 			return src;
+		}
 		int srcLen = src.length();
 		StringBuilder b = new StringBuilder(srcLen);
 		for (int iSrc = 0; iSrc < srcLen; iSrc++) {
@@ -105,8 +107,9 @@ public class StringUtils
 	public static String[] escapedSplit(String src, char[] stopChars)
 	{
 		int srcLen = src.length();
-		if (stopChars == null)
+		if (stopChars == null) {
 			stopChars = new char[0];
+		}
 		int stopCharsLen = stopChars.length;
 		StringBuilder b = new StringBuilder();
 		for (int iSrc = 0; iSrc < srcLen; iSrc++) {
@@ -141,10 +144,12 @@ public class StringUtils
 	 */
 	public static String escapeSimpleJSONString(String src)
 	{
-		if (src == null)
+		if (src == null) {
 			return src;
-		if (!src.contains("\\") && !src.contains("\""))
+		}
+		if (!src.contains("\\") && !src.contains("\"")) {
 			return src;
+		}
 		int srcLen = src.length();
 		StringBuilder b = new StringBuilder(srcLen);
 		for (int iSrc = 0; iSrc < srcLen; iSrc++) {
@@ -172,11 +177,13 @@ public class StringUtils
 	 */
 	public static boolean contains(String[] list, String value)
 	{
-		if (list == null)
+		if (list == null) {
 			return true;
-		for (String s:list) {
-			if (value.equals(s))
+		}
+		for (String s:list) { 
+			if (value.equals(s)) {
 				return true;
+			}
 		}
 		return false;
 	}
