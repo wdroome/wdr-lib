@@ -10,7 +10,7 @@ import com.wdroome.json.*;
 
 /**
  * Validate a JSON string.
- * The various constructors specify different types of validation.
+ * The various constructors specify different requirements on the string value.
  * @author wdr
  */
 public class JSONValidate_String extends JSONValidate

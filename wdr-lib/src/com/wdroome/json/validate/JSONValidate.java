@@ -9,17 +9,24 @@ import com.wdroome.json.*;
  * <p>
  * Validate a JSON value against a specification.
  * This is the base class for all validation.
- * For each JSON type, there's a type-specific validator that extends
- * this class and overrides {@link #validate(JSONValue,String)}.
+ * This package defines a validator class for each JSON data type.
+ * Those validator classes extend this class
+ * and override {@link #validate(JSONValue,String)}.
+ * Those validator classes be customized by constructor parameters.
+ * For example, a client can create an instance of {@link JSONValidate_String}
+ * that only allows Strings that match a specified regular expression.
  * </p>
  * <p>
  * There are two models for reporting validation errors.
- * The default is {@link #validate(JSONValue,String)}
- * throws a {@link JSONValidationException} when it finds
- * the first error.
- * The alternative is to append all validation errors to a List,
- * and return false if there are any problems.
- * To use the List approach, call {@link #collectErrors(List)}.
+ * The first is "stop on first error." For this model,
+ * {@link #validate(JSONValue,String)} throws a
+ * {@link JSONValidationException} when it finds an error.
+ * The second is "find all errors". For this model,
+ * {@link #validate(JSONValue,String)} appends the validation errors
+ * to a List. When done, the client can print or examine that list.
+ * <p>
+ * The default is "stop on first error."
+ * To save all errors in a List, call {@link #collectErrors(List)}.
  * </p>
  * @author wdr
  */
@@ -53,6 +60,9 @@ public abstract class JSONValidate
 	
 	/**
 	 * Append validation errors to a specified List.
+	 * If the client had previously specified an error collection list,
+	 * and if the new list is not null, this method appends
+	 * any previously collected errors to the new list.
 	 * @param errors
 	 * 		If not null, {@link #validate(JSONValue,String) validate()}
 	 * 		will append errors to this List.
@@ -62,6 +72,11 @@ public abstract class JSONValidate
 	 */
 	public void collectErrors(List<String> errors)
 	{
+		if (m_errors != null && errors != null) {
+			for (String error: m_errors) {
+				errors.add(error);
+			}
+		}
 		m_errors = errors;
 	}
 	
@@ -83,8 +98,9 @@ public abstract class JSONValidate
 	 * @param value The JSON value to validate against this requirement.
 	 * @return True iff value passes validation.
 	 * @throws JSONValidationException
-	 * 		If "value" fails validation and you did not give
-	 * 		an error list to {@link #collectErrors(List)} to
+	 * 		If "value" fails validation and the client did not call
+	 * 		{@link #collectErrors(List)} to request
+	 * 		the validation errors to be collected in a list.
 	 */
 	public final boolean validate(JSONValue value) throws JSONValidationException
 	{
@@ -95,15 +111,25 @@ public abstract class JSONValidate
 	 * Validate a JSONValue. If valid, return true.
 	 * If not, either throw an exception,
 	 * or else add the error to the List given to {@link #collectErrors(List)}.
+	 * <p>
+	 * The base class returns true as long as "value"
+	 * is an instance of the JSONValue class passed to the constructor.
+	 * A child class may override this method to do additional tests,
+	 * although the child class validator should call the base class method first,
+	 * and only proceed if it returns true.
+	 * 
 	 * @param value The JSON value to validate against this requirement.
 	 * @param path The JSON path for this value.
 	 * 		Used in the exception message to identify the invalid element
 	 * 		of a possibly large compound JSON object.
 	 * 		Use "" if this is a root element.
 	 * @return True iff "value" passes validation.
+	 * 		The base class returns true as long as "value"
+	 * 		is an instance of the JSONValue class passed to the constructor.
 	 * @throws JSONValidationException
-	 * 		If "value" fails validation and you did not give
-	 * 		an error list to {@link #collectErrors(List)} to
+	 * 		If "value" fails validation and the client did not call
+	 * 		{@link #collectErrors(List)} to request
+	 * 		the validation errors to be collected in a list.
 	 */
 	public boolean validate(JSONValue value, String path) throws JSONValidationException
 	{
