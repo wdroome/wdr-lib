@@ -24,6 +24,7 @@ import com.wdroome.json.*;
  * The second is "find all errors". For this model,
  * {@link #validate(JSONValue,String)} appends the validation errors
  * to a List. When done, the client can print or examine that list.
+ * </p>
  * <p>
  * The default is "stop on first error."
  * To save all errors in a List, call {@link #collectErrors(List)}.
