@@ -6,7 +6,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * An {@link IErrorLogger} that logs messages to System.err.
+ * An {@link IErrorLogger} that writes messages to a PrintStream.
+ * The default constructor uses System.err.
+ * Other c'tors can use different streams,
+ * and can define an optional time-stamp for each message.
  * @author wdr
  */
 public class SystemErrorLogger implements IErrorLogger
@@ -21,7 +24,7 @@ public class SystemErrorLogger implements IErrorLogger
 	
 	/**
 	 * Create a new logger that writes each message to {@link System#err}
-	 * as a separate line, without a time stamp.
+	 * as a separate line, without a time stamp, to {@link System#err}.
 	 */
 	public SystemErrorLogger()
 	{
@@ -52,9 +55,12 @@ public class SystemErrorLogger implements IErrorLogger
 	}
 	
 	/**
-	 * Log an error message to System.err.
-	 * This does not supply a time stamp; it simply calls System.err.println(msg).
-	 * @see IErrorLogger#logError(java.lang.String)
+	 * Log an error message using {@link PrintStream#println(String)}.
+	 * The constructor specifies the PrintStream
+	 * and the format of the optional time-stamp.
+	 * This method does not call {@link PrintStream#flush()};
+	 * it assumes println() does that.
+\	 * @see IErrorLogger#logError(java.lang.String)
 	 */
 	@Override
 	public void logError(String msg)
