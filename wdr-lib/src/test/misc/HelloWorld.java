@@ -1,9 +1,7 @@
-/**
- * 
- */
 package test.misc;
 
 /**
+ * Obligatory test program.
  * @author wdr
  */
 public class HelloWorld
