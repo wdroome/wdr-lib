@@ -54,7 +54,8 @@ public class IterableWrapperTest
 	public void test3()
 	{
 		int i = 0;
-		for (String actual: new IterableWrapper<String>((ArrayList<String>)null)) {
+		for (@SuppressWarnings("unused")
+				String actual: new IterableWrapper<String>((ArrayList<String>)null)) {
 			i++;
 		}
 		assertEquals("test3 end", i, 0);
@@ -67,7 +68,8 @@ public class IterableWrapperTest
 	public void test4()
 	{
 		int i = 0;
-		for (String actual: new IterableWrapper<String>((Iterator<String>)null)) {
+		for (@SuppressWarnings("unused")
+				String actual: new IterableWrapper<String>((Iterator<String>)null)) {
 			i++;
 		}
 		assertEquals("test3 end", i, 0);
