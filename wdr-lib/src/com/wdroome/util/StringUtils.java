@@ -1,6 +1,7 @@
 package com.wdroome.util;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 
@@ -216,5 +217,55 @@ public class StringUtils
 	public static Set<String> makeSet(String[] arr)
 	{
 		return addToSet(arr, null);
+	}
+	
+	/**
+	 * Return a type-safe {@link List} of Strings from an arbitrary List.
+	 * Returns a new ArrayList with the {@link Object#toString} value
+	 * of each object in the source list.
+	 * @param src A list of objects. May be null.
+	 * @return A List guaranteed to contain the String representation
+	 * 		of each item in the source list.
+	 * 		Never null; if src is null, return an empty List.
+	 */
+	public static List<String> makeStringList(List src)
+	{
+		if (src == null) {
+			return new ArrayList<String>();
+		}
+		ArrayList<String> strList = new ArrayList<String>(src.size());
+		for (Object elem: src) {
+			if (elem == null) {
+				strList.add("null");
+			} else {
+				strList.add(elem.toString());
+			}
+		}
+		return strList;
+	}
+	
+	/**
+	 * Return a type-safe {@link Set} of Strings from an arbitrary Set.
+	 * Returns a new HashSet with the {@link Object#toString} value
+	 * of each object in the source set.
+	 * @param src A set of objects. May be null.
+	 * @return A Set guaranteed to contain the String representation
+	 * 		of each item in the source set.
+	 * 		Never null; if src is null, return an empty Set.
+	 */
+	public static Set<String> makeStringSet(Set src)
+	{
+		if (src == null) {
+			return new HashSet<String>();
+		}
+		HashSet<String> strSet = new HashSet<String>(src.size());
+		for (Object elem: src) {
+			if (elem == null) {
+				strSet.add("null");
+			} else {
+				strSet.add(elem.toString());
+			}
+		}
+		return strSet;
 	}
 }

@@ -6,6 +6,11 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
+
 /**
  * @author wdr
  *
@@ -63,6 +68,72 @@ public class StringUtilsTest
 		assertArrayEquals("3", new String[] {"abcd", "/", "xyz"}, StringUtils.escapedSplit("abcd/xyz", stopChars));
 		assertArrayEquals("4", new String[] {"ab\\/cd", "/", "xyz"}, StringUtils.escapedSplit("ab\\/cd/xyz", stopChars));
 		assertArrayEquals("5", new String[] {"ab\\/\\=cd", "=", ""}, StringUtils.escapedSplit("ab\\/\\=cd=", stopChars));
+	}
+	
+	@Test
+	public void makeStringList_test1()
+	{
+		List<Object> src = new ArrayList<Object>();
+		src.add("Element 1");
+		src.add(2);
+		src.add("Element 3");
+		src.add(null);
+		List<String> res = StringUtils.makeStringList(src);
+		assertEquals("size", src.size(), res.size());
+		for (int i = 0; i < src.size(); i++) {
+			String s = (src.get(i) != null) ? src.get(i).toString() : "null";
+			assertEquals("["+i+"]", s, res.get(i));
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Test
+	public void makeStringList_test2()
+	{
+		List src = new ArrayList();
+		src.add("Element 1");
+		src.add(2);
+		src.add("Element 3");
+		src.add(null);
+		List<String> res = StringUtils.makeStringList(src);
+		assertEquals("size", src.size(), res.size());
+		for (int i = 0; i < src.size(); i++) {
+			String s = (src.get(i) != null) ? src.get(i).toString() : "null";
+			assertEquals("["+i+"]", s, res.get(i));
+		}
+	}
+	
+	@Test
+	public void makeStringSet_test1()
+	{
+		Set<Object> src = new HashSet<Object>();
+		src.add("Element 1");
+		src.add(2);
+		src.add("Element 3");
+		src.add(null);
+		Set<String> res = StringUtils.makeStringSet(src);
+		assertEquals("size", src.size(), res.size());
+		for (Object o: src) {
+			String s = (o != null) ? o.toString() : "null";
+			assertTrue("'" + s + "':", res.contains(s));
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Test
+	public void makeStringSet_test2()
+	{
+		Set src = new HashSet<Object>();
+		src.add("Element 1");
+		src.add(2);
+		src.add("Element 3");
+		src.add(null);
+		Set<String> res = StringUtils.makeStringSet(src);
+		assertEquals("size", src.size(), res.size());
+		for (Object o: src) {
+			String s = (o != null) ? o.toString() : "null";
+			assertTrue("'" + s + "':", res.contains(s));
+		}
 	}
 	
 	public static void main(String[] args)
