@@ -17,9 +17,10 @@ import org.w3c.dom.*;
  * 
  * @author wdr
  */
-@SuppressWarnings("serial")
 public class ElementArrayList extends ArrayList<Element>
 {
+	private static final long serialVersionUID = 4184268555379137457L;
+
 	public ElementArrayList(Node parent)
 	{
 		this(parent.getChildNodes());

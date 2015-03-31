@@ -19,6 +19,7 @@ import javax.xml.transform.stream.*;
  * Reformat and "pretty print" an XML file.
  * To use, create an instance and specify the output stream.
  * Then call one or more of the "print" methods.
+ * 
  * @author wdr
  */
 public class Reformat

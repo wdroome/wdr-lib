@@ -58,6 +58,15 @@ public class JSONValue_Boolean implements JSONValue
 	{
 		return true;
 	}
+	
+	/**
+	 * @see JSONValue#jsonType()
+	 */
+	@Override
+	public String jsonType()
+	{
+		return "Boolean";
+	}
 
 	/**
 	 * Return the hashcode for the boolean value.

@@ -17,6 +17,12 @@ public interface JSONValue
 	public boolean isSimple();
 	
 	/**
+	 * Return the name of this JSON type.
+	 * E.g., String, Number, Object, etc.
+	 */
+	public String jsonType();
+	
+	/**
 	 * Write JSON for this value.
 	 * @param writer A JSON-specific writer.
 	 * @throws IOException If an I/O error occurs.

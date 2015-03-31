@@ -85,6 +85,7 @@ public class ArrayIteratorTest
 		assertEquals("test3 end", i, expectedList.length);
 	}
 	
+	@Test
 	public void test4()
 	{
 		String[] expectedList = {};

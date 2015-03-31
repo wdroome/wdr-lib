@@ -60,7 +60,7 @@ public class SystemErrorLogger implements IErrorLogger
 	 * and the format of the optional time-stamp.
 	 * This method does not call {@link PrintStream#flush()};
 	 * it assumes println() does that.
-\	 * @see IErrorLogger#logError(java.lang.String)
+	 * @see IErrorLogger#logError(java.lang.String)
 	 */
 	@Override
 	public void logError(String msg)

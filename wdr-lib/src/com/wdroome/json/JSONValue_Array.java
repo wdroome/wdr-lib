@@ -11,9 +11,10 @@ import java.util.Collection;
  * This is simply a java ArrayList that implements the JSONValue marker interface.
  * @author wdr
  */
-@SuppressWarnings("serial")
 public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 {
+	private static final long serialVersionUID = 3869583752810778476L;
+
 	/**
 	 * Create an empty JSON array.
 	 */
@@ -368,6 +369,15 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 		return false;
 	}
 	
+	/**
+	 * @see JSONValue#jsonType()
+	 */
+	@Override
+	public String jsonType()
+	{
+		return "Array";
+	}
+
 	/**
 	 * Return a compact JSON encoding of this array.
 	 */

@@ -4,9 +4,10 @@ package com.wdroome.json;
  * Represent a missing field error.
  * @author wdr
  */
-@SuppressWarnings("serial")
 public class JSONFieldMissingException extends JSONException
 {
+	private static final long serialVersionUID = -3602342507343909230L;
+	
 	private final String m_field;
 
 	/**

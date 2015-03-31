@@ -50,6 +50,15 @@ public class JSONValue_String implements JSONValue
 		return true;
 	}
 	
+	/**
+	 * @see JSONValue#jsonType()
+	 */
+	@Override
+	public String jsonType()
+	{
+		return "String";
+	}
+	
 	private static final char[] HEX_DIGITS = {
 				'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 				'a', 'b', 'c', 'd', 'e', 'f'		
@@ -59,7 +68,7 @@ public class JSONValue_String implements JSONValue
 	 * Return a string as a quoted JSON string constant.
 	 * Surround with quotes, and escape appropriate characters.
 	 * <p>
-	 * Note that this method generates escapes, but does not read them.
+	 * Note that this class generates escapes, but does not read them.
 	 * That is, it converts an internal string to an escaped external string.
 	 * The method that recognizes escapes and
 	 * converts an external escaped string into an internal string

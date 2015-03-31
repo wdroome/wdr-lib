@@ -181,7 +181,7 @@ public class StringUtils
 		if (list == null) {
 			return true;
 		}
-		for (String s:list) { 
+		for (String s:list) {
 			if (value.equals(s)) {
 				return true;
 			}

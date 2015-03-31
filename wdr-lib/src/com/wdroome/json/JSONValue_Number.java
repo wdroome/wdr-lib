@@ -63,6 +63,15 @@ public class JSONValue_Number implements JSONValue
 	{
 		return true;
 	}
+	
+	/**
+	 * @see JSONValue#jsonType()
+	 */
+	@Override
+	public String jsonType()
+	{
+		return "Number";
+	}
 
 	/**
 	 * Return the hashcode for the double value.

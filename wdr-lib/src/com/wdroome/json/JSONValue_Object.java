@@ -12,10 +12,11 @@ import java.util.TreeMap;
  * This is simply a java HashMap that implements the JSONValue marker interface.
  * @author wdr
  */
-@SuppressWarnings("serial")
 public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONValue
 {
-    /**
+	private static final long serialVersionUID = 7951974441619152479L;
+	
+	/**
      * The pathname for this object, or null.
      * @see #usePathNames(boolean)
      */
@@ -442,6 +443,15 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	public boolean isSimple()
 	{
 		return false;
+	}
+	
+	/**
+	 * @see JSONValue#jsonType()
+	 */
+	@Override
+	public String jsonType()
+	{
+		return "Object";
 	}
 	
 	/**

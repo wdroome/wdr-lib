@@ -6,7 +6,8 @@ package com.wdroome.json;
  */
 public class JSONException extends Exception
 {
-	private static final long serialVersionUID = 0;
+	private static final long serialVersionUID = -4379377294365319870L;
+	
 	private Throwable cause;
 
     /**

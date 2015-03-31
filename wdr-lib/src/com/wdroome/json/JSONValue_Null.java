@@ -41,6 +41,15 @@ public class JSONValue_Null implements JSONValue
 	}
 	
 	/**
+	 * @see JSONValue#jsonType()
+	 */
+	@Override
+	public String jsonType()
+	{
+		return "Null";
+	}
+	
+	/**
 	 * Return the same hashcode for all NULL objects,
 	 * namely the hashcode of "null".
 	 * @return The hash code.

@@ -17,9 +17,10 @@ import org.w3c.dom.*;
  * 
  * @author wdr
  */
-@SuppressWarnings("serial")
 public class NodeArrayList extends ArrayList<Node>
 {
+	private static final long serialVersionUID = -8296553033086089583L;
+
 	/**
 	 * Create an ArrayList with Nodes in NodeList.
 	 * @param childNodes A set of Nodes.

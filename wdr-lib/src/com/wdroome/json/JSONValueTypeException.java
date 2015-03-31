@@ -5,9 +5,10 @@ package com.wdroome.json;
  * Represent the error of JSON field having the wrong type.
  * @author wdr
  */
-@SuppressWarnings("serial")
 public class JSONValueTypeException extends JSONException
 {
+	private static final long serialVersionUID = -750806928398437768L;
+	
 	private final String m_field;
 
 	/**

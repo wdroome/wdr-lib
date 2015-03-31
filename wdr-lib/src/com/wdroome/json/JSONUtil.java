@@ -36,7 +36,7 @@ public class JSONUtil
 		} else if (obj instanceof Object[]) {
 			return new JSONValue_Array((Object[])obj);
 		} else if (obj instanceof Collection<?>) {
-				return new JSONValue_Array((Collection<?>)obj);
+			return new JSONValue_Array((Collection<?>)obj);
 		} else if (obj instanceof Map<?,?>) {
 			return new JSONValue_Object((Map<?,?>)obj);
 		} else {
