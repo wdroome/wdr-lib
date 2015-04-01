@@ -14,7 +14,7 @@ import java.util.ArrayList;
 public class BasicStringIteratorTest
 {
 	/**
-	 * Test method for {@link com.lucent.sird.alto.util.BasicStringIterator#next()}.
+	 * Test method for {@link BasicStringIterator#next()}.
 	 */
 	@Test
 	public void testListCtor()
@@ -32,7 +32,7 @@ public class BasicStringIteratorTest
 	}
 	
 	/**
-	 * Test method for {@link com.lucent.sird.alto.util.BasicStringIterator#BasicStringIterator(String)}.
+	 * Test method for {@link BasicStringIterator#BasicStringIterator(String)}.
 	 */
 	@Test
 	public void testStringCtor()
@@ -51,7 +51,7 @@ public class BasicStringIteratorTest
 	}
 	
 	/**
-	 * Test method for {@link com.lucent.sird.alto.util.BasicStringIterator#BasicStringIterator(String)}.
+	 * Test method for {@link BasicStringIterator#BasicStringIterator(String)}.
 	 */
 	@Test
 	public void testNullListCtor()
@@ -62,7 +62,7 @@ public class BasicStringIteratorTest
 	}
 	
 	/**
-	 * Test method for {@link com.lucent.sird.alto.util.BasicStringIterator#BasicStringIterator(String)}.
+	 * Test method for {@link BasicStringIterator#BasicStringIterator(String)}.
 	 */
 	@Test
 	public void testNullStringCtor()

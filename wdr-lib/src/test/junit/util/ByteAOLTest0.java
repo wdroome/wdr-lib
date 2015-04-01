@@ -16,7 +16,7 @@ public class ByteAOLTest0
 {
 
 	/**
-	 * Test method for {@link com.lucent.steplet.util.ByteAOL#ByteAOL(java.lang.String,java.io.UnknownHostException)}.
+	 * Test method for {@link ByteAOL#ByteAOL(java.lang.String,java.io.UnknownHostException)}.
 	 * @throws UnknownHostException 
 	 */
 	@Test

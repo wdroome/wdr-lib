@@ -17,7 +17,7 @@ public class FileStringIteratorTest
 {
 
 	/**
-	 * Test method for {@link com.lucent.sird.alto.util.FileStringIterator#next()}.
+	 * Test method for {@link FileStringIterator#next()}.
 	 */
 	@Test
 	public void testNext()
