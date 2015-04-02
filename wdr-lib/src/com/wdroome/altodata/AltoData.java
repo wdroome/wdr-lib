@@ -17,6 +17,8 @@ import com.wdroome.util.String2;
 import com.wdroome.util.String3;
 
 /**
+ * The repository of the Network Maps, Cost Maps and Property Maps
+ * for an ALTO server.
  * @author wdr
  */
 public class AltoData
@@ -486,11 +488,25 @@ public class AltoData
 		}
 	}
 	
+	/**
+	 * Return the global endpoint properties in this ALTO server.
+	 * @return
+	 * 		The global endpoint properties in this ALTO server.
+	 * 		If none, returns an empty List instead of null.
+	 */
 	public List<EndpointPropertyTable.PropValue> getEndpointProps()
 	{
 		return m_endpointProps.getAllProps(null);
 	}
-	
+
+	/**
+	 * Return the endpoint properties for a Network Map.
+	 * @param networkMapId
+	 * 		The resource id of a Network Map. If null, use the default map.
+	 * @return
+	 * 		The endpoint properties for that Network Map.
+	 * 		If none, returns an empty List instead of null.
+	 */
 	public List<EndpointPropertyTable.PropValue> getEndpointProps(String networkMapId)
 	{
 		NetworkGroup group = getGroup(networkMapId);
@@ -500,6 +516,18 @@ public class AltoData
 		return group.getEndpointProps();
 	}
 	
+	/**
+	 * Return the pid properties for a Network Map.
+	 * @param networkMapId
+	 * 		The resource id of a Network Map. If null, use the default map.
+	 * @return
+	 * 		The pid properties for that Network Map, as a List of
+	 * 		(pid-name, prop-name, prop-value) triples.
+	 * 		The pid-names are prefixed with "pid:",
+	 * 		and the property names are prefixed
+	 * 		with the resource id of this Network Map.
+	 * 		If none, returns an empty List instead of null.
+	 */
 	public List<String3> getPidProps(String networkMapId)
 	{
 		NetworkGroup group = getGroup(networkMapId);
