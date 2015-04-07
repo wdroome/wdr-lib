@@ -12,14 +12,19 @@ import com.wdroome.util.ImmutableSet;
 
 /**
  * A generalized Property Map for an entity class.
+ * It stores values for entities, with no additional semantics
+ * or inheritance rules.
  * This class is fully synchronized.
+ * Child classes may extend this class to add inheritance.
  * 
  * @author wdr
  *
- * @param <E> The entity-name type.
- * @param <V> The value type.
+ * @param <E>
+ *		The class for entity names.
+ * 		Objects will be used as hash table keys,
+ * 		so the class must implement hashCode() & equals() properly.
  */
-public class PropertyMap<E,V>
+public class PropertyMap<E> implements IPropertyMap<E>
 {
 	/**
 	 * The master property table.
@@ -29,7 +34,7 @@ public class PropertyMap<E,V>
 	 * is more efficient than a single-level map from (entity-name,prop-name)
 	 * pairs to property values.
 	 */
-	private final Map<String, Map<E,V>> m_propNameMaps = new HashMap<String, Map<E,V>>();
+	private final Map<String, Map<E,String>> m_propNameMaps = new HashMap<String, Map<E,String>>();
 	
 	// If true, use TreeMaps for the secondary entity->value maps in m_propNameMaps,
 	// so they iterate over entity names in ascending order. If false, use HashMaps.
@@ -37,6 +42,8 @@ public class PropertyMap<E,V>
 	
 	// The name of the entity type (ipv4, pid, etc).
 	private final String m_entityType;
+	
+	private final MakeEntity<E> m_entityMaker;
 	
 	// The distinct property names. That is, the keys for m_propNameMaps.
 	// If null, getPropNames() sets it to a clone of m_propNameMaps.keyset(),
@@ -56,26 +63,64 @@ public class PropertyMap<E,V>
 	/**
 	 * Create a new Property Map.
 	 * @param entityType
-	 * 		The entity type name, for descriptive purposes.
+	 * 		The entity type name (without the ':' suffix).
+	 * @param entityMaker
+	 * 		An object that creates a new E object from a string.
+	 * 		If null, E must be String.
 	 * @param sortEntityNames
 	 * 		If true, the methods that iterate over entity names
 	 * 		will return the entities in ascending order,
 	 * 		using the entity class's natural ordering.
 	 * 		If false, the methods will return entity names in any order.
 	 */
-	public PropertyMap(String entityType, boolean sortEntityNames)
+	public PropertyMap(String entityType, MakeEntity<E> entityMaker, boolean sortEntityNames)
 	{
 		m_entityType = entityType;
+		m_entityMaker = entityMaker;
 		m_sortEntityNames = sortEntityNames;
 	}
 	
 	/**
-	 * Return the entity type name.
-	 * @return The entity type name.
+	 * Return the entity type prefix.
+	 * @return The entity type prefix (without the ':').
 	 */
+	@Override
 	public String getEntityType()
 	{
 		return m_entityType;
+	}
+	
+	/**
+	 * Create an object of class E from a String.
+	 * @param str The string
+	 * @return An instance of the entity name type.
+	 * @throws IllegalArgumentException
+	 * 		If str is not a valid string representation
+	 * 		of an entity of class E.
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	public E makeEntity(String str)
+	{
+		if (m_entityMaker != null) {
+			return m_entityMaker.makeEntity(str, getEntityType());
+		} else {
+			// In this case, E should be String.
+			return (E)str;
+		}
+	}
+	
+	/**
+	 * Return an entity name as a string with the appropriate type prefix.
+	 * @param entity An entity.
+	 * @return
+	 * 		The entity name as a typed string.
+	 * 		E.g., {@link #getEntityType()} + ":" + entity.toString().
+	 */
+	@Override
+	public String getTypedName(E entity)
+	{
+		return getEntityType() + ":" + entity.toString();
 	}
 	
 	/**
@@ -87,11 +132,16 @@ public class PropertyMap<E,V>
 	 * 		or null if no value has been set.
 	 * 		Note that null may also mean the property value
 	 * 		was set to null.
-	 * @see #valueExists(Object, String)
+	 * 		If getProp() returns null, but propExists() returns true,
+	 * 		the property is defined to no value for this entity.
+	 * 		In this case the client should not use inheritance rules
+	 * 		to impute a value.
+	 * @see #propExists(Object, String)
 	 */
-	public synchronized V getProp(E entityName, String propName)
+	@Override
+	public synchronized String getProp(E entityName, String propName)
 	{
-		Map<E,V> entMap = m_propNameMaps.get(propName);
+		Map<E,String> entMap = m_propNameMaps.get(propName);
 		if (entMap != null) {
 			return entMap.get(entityName);
 		}
@@ -99,17 +149,23 @@ public class PropertyMap<E,V>
 	}
 	
 	/**
-	 * Return true iff a value (possibly null) has been set for a property.
+	 * Return true iff this property has been set.
+	 * If propExists() returns true, but getProp() returns null,
+	 * then then property is explicitly defined to have
+	 * no value for this entity.
+	 * 
 	 * @param entityName The entity name. Cannot be null.
 	 * @param propName The property name. Cannot be null.
 	 * @return
-	 * 		True iff a (possibly null) value has been set
+	 * 		True iff a value has been set
 	 * 		for that property for that entity.
+	 * 		Note that the value may be null.
 	 * 		If not, return false.
 	 */
-	public synchronized boolean valueExists(E entityName, String propName)
+	@Override
+	public synchronized boolean propExists(E entityName, String propName)
 	{
-		Map<E,V> entMap = m_propNameMaps.get(propName);
+		Map<E,String> entMap = m_propNameMaps.get(propName);
 		if (entMap != null) {
 			return entMap.containsKey(entityName);
 		}
@@ -123,15 +179,16 @@ public class PropertyMap<E,V>
 	 * @param value
 	 * 		The new value. If null, the property will exist,
 	 * 		but {@link #getProp(Object, String)} will return null.
-	 * 		Use {@link #valueExists(Object, String)} to determine
+	 * 		Use {@link #propExists(Object, String)} to determine
 	 * 		if the property has been set to null.
 	 * @return The previous value of this property, or null.
 	 */
-	public synchronized V setProp(E entityName, String propName, V value)
+	@Override
+	public synchronized String setProp(E entityName, String propName, String value)
 	{
-		Map<E,V> entMap = m_propNameMaps.get(propName);
+		Map<E,String> entMap = m_propNameMaps.get(propName);
 		if (entMap == null) {
-			entMap = m_sortEntityNames ? new TreeMap<E,V>() : new HashMap<E,V>();
+			entMap = m_sortEntityNames ? new TreeMap<E,String>() : new HashMap<E,String>();
 			m_propNameMaps.put(propName, entMap);
 			m_propNames = null;
 		}
@@ -144,13 +201,14 @@ public class PropertyMap<E,V>
 	 * @param propName The property name. Cannot be null.
 	 * @return The previous value, or null.
 	 */
-	public synchronized V removeProp(E entityName, String propName)
+	@Override
+	public synchronized String removeProp(E entityName, String propName)
 	{
-		Map<E,V> entMap = m_propNameMaps.get(propName);
+		Map<E,String> entMap = m_propNameMaps.get(propName);
 		if (entMap == null) {
 			return null;
 		}
-		V prevValue = entMap.remove(entityName);
+		String prevValue = entMap.remove(entityName);
 		if (entMap.isEmpty()) {
 			m_propNameMaps.remove(propName);
 			m_propNames = null;
@@ -166,7 +224,7 @@ public class PropertyMap<E,V>
 	public synchronized int size()
 	{
 		int size = 0;
-		for (Map<E,V> entMap: m_propNameMaps.values()) {
+		for (Map<E,String> entMap: m_propNameMaps.values()) {
 			size += entMap.size();
 		}
 		return size;
@@ -179,6 +237,7 @@ public class PropertyMap<E,V>
 	 * @return
 	 * 		The property names.
 	 */
+	@Override
 	public synchronized Set<String> getPropNames()
 	{
 		if (m_propNames == null) {
@@ -197,9 +256,10 @@ public class PropertyMap<E,V>
 	 * @return
 	 * 		The entity names.
 	 */
+	@Override
 	public synchronized List<E> getEntityNames(String propName)
 	{
-		Map<E,V> entMap = m_propNameMaps.get(propName);
+		Map<E,String> entMap = m_propNameMaps.get(propName);
 		if (entMap != null) {
 			return new ArrayList<E>(entMap.keySet());
 		} else {
@@ -208,36 +268,9 @@ public class PropertyMap<E,V>
 	}
 	
 	/**
-	 * A callback interface for the methods that iterate
-	 * over property values.
-	 *
-	 * @param <E> The entity-name type.
-	 * @param <V> The value type.
-	 */
-	public interface PropValueCB<E,V>
-	{
-		/**
-		 * Called to present a new property value to the client.
-		 * Note that the iterator calls this method while holding
-		 * a synchronization lock on the property map.
-		 * Hence this method MUST NOT change properties,
-		 * and SHOULD return quickly.
-		 * 
-		 * @param entityName The entity name.
-		 * @param propName The property name.
-		 * @param value The property value.
-		 * 
-		 * @return
-		 * 		True to continue iterating over the properties,
-		 * 		or false to stop.
-		 */
-		public boolean propValue(E entityName, String propName, V value);
-	};
-	
-	/**
 	 * Iterate over all (entity-name, prop-name, value) triples
 	 * for a specific property name. If the property table
-	 * is sorted (see {@link #PropertyMap(String, boolean)},
+	 * is sorted (see {@link #PropertyMap(String, IPropertyMap.MakeEntity, boolean)},
 	 * the iterator presents the property values in ascending order,
 	 * using the entity-name class's natural ordering.
 	 * Otherwise the order is unpredictable.
@@ -251,11 +284,12 @@ public class PropertyMap<E,V>
 	 * 		or false if the iterator terminated early because
 	 *		the callback returned false.
 	 */
-	public synchronized boolean getProperties(PropValueCB<E,V> propValueCB, String propName)
+	@Override
+	public synchronized boolean getProperties(PropValueCB<E> propValueCB, String propName)
 	{
-		Map<E,V> entMap = m_propNameMaps.get(propName);
+		Map<E,String> entMap = m_propNameMaps.get(propName);
 		if (entMap != null) {
-			for (Map.Entry<E,V> entValue: entMap.entrySet()) {
+			for (Map.Entry<E,String> entValue: entMap.entrySet()) {
 				if (!propValueCB.propValue(entValue.getKey(), propName, entValue.getValue())) {
 					return false;
 				}
@@ -278,7 +312,8 @@ public class PropertyMap<E,V>
 	 * 		or false if the iterator terminated early because
 	 *		the callback returned false.
 	 */
-	public synchronized boolean getProperties(PropValueCB<E,V> propValueCB)
+	@Override
+	public synchronized boolean getProperties(PropValueCB<E> propValueCB)
 	{
 		for (String propName: m_propNameMaps.keySet()) {
 			if (!getProperties(propValueCB, propName)) {
