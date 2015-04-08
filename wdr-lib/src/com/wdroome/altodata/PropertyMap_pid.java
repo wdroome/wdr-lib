@@ -9,15 +9,27 @@ import com.wdroome.util.inet.CIDRAddress;
 import com.wdroome.util.inet.CIDRSet;
 
 /**
+ * A PropertyMap for PID properties.
+ * This map does NOT store PID properties directly.
+ * Instead, it derives them from CIDR Property Maps.
+ * Specifically, a PID has a property iff
+ * all CIDRs in that PID define (or inherit)
+ * the same value for that property.
  * @author wdr
  */
-public class ProperyMap_pid implements IPropertyMap<String>
+public class PropertyMap_pid implements IPropertyMap<String>
 {
 	private final NetworkMap m_networkMap;
 	private final PropertyMap_CIDRv4 m_cidr4Props;
 	private final PropertyMap_CIDRv6 m_cidr6Props;
 	
-	public ProperyMap_pid(NetworkMap networkMap,
+	/**
+	 * Create a new PID Property Map
+	 * @param networkMap The Network Map defining the PIDs.
+	 * @param cidr4Props The CIDR v4 properties. May be null.
+	 * @param cidr6Props The CIDR v6 properties. May be null.
+	 */
+	public PropertyMap_pid(NetworkMap networkMap,
 						  PropertyMap_CIDRv4 cidr4Props,
 						  PropertyMap_CIDRv6 cidr6Props)
 	{
