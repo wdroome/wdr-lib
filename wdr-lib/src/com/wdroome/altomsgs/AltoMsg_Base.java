@@ -130,16 +130,19 @@ public abstract class AltoMsg_Base
 	{
 		ArrayList<String> errors = null;
 		if (validator != null && json != null) {
-			errors = new ArrayList<String>();
-			validator.collectErrors(errors);
-			try {
-				validator.validate(json);
-			} catch (Exception e) {
-				// Shouldn't happen, but just in case ....
-				errors.add(e.toString());
-			}
-			if (errors.isEmpty()) {
-				errors = null;
+			synchronized (validator) {
+				validator.collectErrors(null);
+				errors = new ArrayList<String>();
+				validator.collectErrors(errors);
+				try {
+					validator.validate(json);
+				} catch (Exception e) {
+					// Shouldn't happen, but just in case ....
+					errors.add(e.toString());
+				}
+				if (errors.isEmpty()) {
+					errors = null;
+				}
 			}
 		}
 		return errors;
