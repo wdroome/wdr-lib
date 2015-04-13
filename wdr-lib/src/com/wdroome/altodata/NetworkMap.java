@@ -10,12 +10,10 @@ import java.net.UnknownHostException;
 
 import com.wdroome.json.JSONException;
 import com.wdroome.altomsgs.AltoResp_NetworkMap;
-
 import com.wdroome.util.FileStringIterator;
 import com.wdroome.util.IterableWrapper;
 import com.wdroome.util.IteratorWithPosition;
 import com.wdroome.util.StringUtils;
-
 import com.wdroome.util.inet.CIDRAddress;
 import com.wdroome.util.inet.CIDRSet;
 import com.wdroome.util.inet.NamedCIDRSet;
@@ -965,17 +963,29 @@ public class NetworkMap
 	 *	Return an ascii string with the MD5 digest of a canonical
 	 *	representation of the pids & cidrs in this map.
 	 *	If we cannot do MD5 digests at all, return the current time stamp as a string.
+	 *	@param prefix
+	 *		If not null, prefix the returned vtag with this string.
+	 *	@return
+	 *		A cannonical vtag for the network map.
 	 */
 	private String makeVtag(String prefix)
 	{
+		StringBuilder hashStr = new StringBuilder();
+		if (prefix != null) {
+			hashStr.append(prefix);
+		}
+		
 		MessageDigest md5Digest = null;
 		try {
 			md5Digest = MessageDigest.getInstance("MD5");
 		} catch (java.security.NoSuchAlgorithmException e) {
 			md5Digest = null;
 		}
-		if (md5Digest == null)
-			return Long.toString(System.currentTimeMillis(), Character.MAX_RADIX);
+		if (md5Digest == null) {
+			hashStr.append(Long.toString(System.currentTimeMillis(), Character.MAX_RADIX));
+			return hashStr.toString();
+		}
+		
 		// NOTE: Because m_cidr2pid is a TreeMap, entrySet() returns
 		// the CIDRs in predictable, repeatable order.
 		for (Map.Entry<CIDRAddress, String> ent:m_cidr2pid.entrySet()) {
@@ -985,9 +995,6 @@ public class NetworkMap
 			md5Digest.update((byte)'\n');
 		}
 		byte[] hash = md5Digest.digest();
-		StringBuilder hashStr = new StringBuilder();
-		if (prefix != null)
-			hashStr.append(prefix);
 		String[] hex = {"0", "1", "2", "3", "4", "5", "6", "7",
 						"8", "9", "a", "b", "c", "d", "e", "f"};
 		for (byte b:hash) {

@@ -1,9 +1,11 @@
 package com.wdroome.util.inet;
 
-import java.net.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.TreeSet;
 import java.util.Comparator;
+import java.net.UnknownHostException;
+import java.net.InetAddress;
 import java.security.MessageDigest;
 
 /**
@@ -47,6 +49,14 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 			(byte)0x80, (byte)0xc0, (byte)0xe0, (byte)0xf0,
 			(byte)0xf8, (byte)0xfc, (byte)0xfe,
 		};
+	
+	/**
+	 * A cache of CIDR masks. The index is the mask length.
+	 * Masks are created when needed; a null entry means a mask
+	 * has not yet been created for that mask length.
+	 * @see #createMask(int)
+	 */
+	private static final ArrayList<byte[]> g_masks = new ArrayList<byte[]>(129);
 
 	/**
 	 * Create a CIDR from a string. The string must be a valid IPV4 or IPV6 address
@@ -205,17 +215,32 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	}
 
 	/**
-	 * Return a new byte array with the first maskLen bits on.
+	 * Return a byte array with the first maskLen bits on.
+	 * Cache the masks, and when possible, return a previously created mask.
+	 * Hence clients must not modify the returned masks!
 	 * @param maskLen The number of leading 1 bits.
 	 * @return An array with the maskLen leading 1 bits.
 	 */
 	private byte[] createMask(int maskLen)
 	{
-		byte[] mask = new byte[(maskLen + 7)/8];
-		for (int i = 0; i < mask.length - 1; i++)
-			mask[i] = (byte)0xff;
-		if (maskLen > 0) {
-			mask[mask.length-1] = g_lastMaskByte[maskLen % 8];
+		byte[] mask;
+		synchronized (g_masks) {
+			if (maskLen >= g_masks.size()) {
+				g_masks.ensureCapacity(maskLen+1);
+				for (int i = g_masks.size(); i < maskLen+1; i++) {
+					g_masks.add(null);
+				}
+			}
+			mask = g_masks.get(maskLen);
+			if (mask == null) {
+				mask = new byte[(maskLen + 7)/8];
+				for (int i = 0; i < mask.length - 1; i++)
+					mask[i] = (byte)0xff;
+				if (maskLen > 0) {
+					mask[mask.length-1] = g_lastMaskByte[maskLen % 8];
+				}
+				g_masks.set(maskLen, mask);
+			}
 		}
 		return mask;
 	}
