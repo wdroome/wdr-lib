@@ -45,9 +45,15 @@ public class AltoValidators
 		AltoReq_FilteredCostMap.MEDIA_TYPE,
 		AltoReq_FilteredNetworkMap.MEDIA_TYPE,
 	};
+	
+	/** A regex pattern for printable, non-blank ascii strings, 1-64 charactors long. */
+	public static final String NON_BLANK_ASCII_PAT_64 = "[\u0021-\u007e]{1,64}";
 
 	/** A regex pattern for legal cost-metric names. */
 	public static final String COST_METRIC_PAT = "[-_:.a-zA-Z0-9]{1,32}";
+
+	/** A regex pattern for legal cost-type names. */
+	public static final String COST_TYPE_NAME_PAT = NON_BLANK_ASCII_PAT_64;
 	
 	/** A regex pattern for legal PID names. */
 	public static final String PID_NAME_PAT = "[-:@_.a-zA-Z0-9]{1,64}";
@@ -57,9 +63,6 @@ public class AltoValidators
 
 	/** A regex pattern for legal Property names. */
 	public static final String PROPERTY_NAME_PAT = "([-:@_.a-zA-Z0-9]{1,64}\\.)?[-:_a-zA-Z0-9]{1,64}";
-	
-	/** A regex pattern for printable, non-blank ascii strings, 1-64 charactors long. */
-	public static final String NON_BLANK_ASCII_PAT_64 = "[\u0021-\u007e]{1,64}";
 	
 	/** A regex pattern for ipv4 addresses, with ipv4 prefix. */
 	public static final String IPV4_ADDR_PAT = "ipv4:[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}";
@@ -101,7 +104,7 @@ public class AltoValidators
 	
 	/** A validator for cost type names. */
 	public static final JSONValidate VALID_COST_TYPE_NAME
-				= new JSONValidate_String(RESOURCE_ID_PAT, false,
+				= new JSONValidate_String(COST_TYPE_NAME_PAT, false,
 						"\"%s\" is not a legal cost-type name");
 	
 	/** A validator for tag strings. */

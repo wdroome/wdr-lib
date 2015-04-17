@@ -421,7 +421,7 @@ public class AltoResp_InfoResourceDir extends AltoResp_Base
 					new SimpleKey(FN_COST_TYPES, false),
 					new JSONValidate_Object(new FieldSpec[] {
 						new FieldSpec(
-							new RegexKey(AltoValidators.RESOURCE_ID_PAT),
+							new RegexKey(AltoValidators.COST_TYPE_NAME_PAT),
 							AltoValidators.EXTENDED_COST_TYPE),
 						new FieldSpec(
 							new RegexKey(".*"),
