@@ -101,6 +101,16 @@ public abstract class AltoMsg_Base
 	}
 	
 	/**
+	 * Write the JSON message using client-specified formatting.
+	 * @param writer A JSON writer provided by the client.
+	 * @throws IOException If writer throws an I/O error.
+	 */
+	public void writeJSON(JSONWriter writer) throws IOException
+	{
+		m_json.writeJSON(writer);
+	}
+	
+	/**
 	 * Validate the JSON object using the validator supplied by the child class.
 	 * @return A list of errors, or null if the message passed validation.
 	 */
