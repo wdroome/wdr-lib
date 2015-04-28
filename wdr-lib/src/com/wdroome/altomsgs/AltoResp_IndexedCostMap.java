@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Stack;
 
+
 // import com.wdroome.json.*;
 import com.wdroome.json.JSONException;
 import com.wdroome.json.JSONParseException;
@@ -26,7 +27,7 @@ import com.wdroome.json.JSONValue_Array;
 import com.wdroome.json.JSONValue_Number;
 import com.wdroome.json.JSONValue_String;
 import com.wdroome.json.JSONValue_Null;
-
+import com.wdroome.json.JSONWriter;
 import com.wdroome.util.Ordinalizer;
 import com.wdroome.util.StringIndexer;
 import com.wdroome.util.FloatMatrix;
@@ -396,6 +397,88 @@ public class AltoResp_IndexedCostMap extends AltoResp_Base
 				}
 			}
 		}
+	}
+	
+	/**
+	 * Write the JSON message using client-specified formatting.
+	 * Because this class does NOT store the costs in the m_json field,
+	 * we must override the base-class method.
+	 * @param writer A JSON writer provided by the client.
+	 * @throws IOException If writer throws an I/O error.
+	 * @see RT_Base#writeJSON(JSONWriter)
+	 */
+	@Override
+	public void writeJSON(JSONWriter writer) throws IOException
+	{
+		boolean indent = writer.isIndented();
+		writer.write('{');
+		if (indent) {
+			writer.writeNewline();
+			writer.incrIndent(1);
+		}
+		
+		writer.write("\"" + FN_COST_MAP + "\": {");
+		writer.incrIndent(1);
+
+		int nSrc = m_srcPids.size();
+		int nDest = m_destPids.size();
+		for (int iSrc = 0; iSrc < nSrc; iSrc++) {
+			if (indent) {
+				writer.writeNewline();
+			};
+			writer.write('"');
+			writer.write(StringUtils.escapeSimpleJSONString(m_srcPids.getString(iSrc)));
+			writer.write("\": {");
+			if (indent) {
+				writer.writeNewline();
+				writer.incrIndent(1);
+			}
+			int nEntries = 0;
+			for (int iDest = 0; iDest < nDest; iDest++) {
+				float cost = m_costs.get(iSrc, iDest);
+				if (!Float.isNaN(cost) && cost != m_defaultCost) {
+					if (nEntries > 0) {
+						writer.write(',');
+					}
+					if (indent && ((nEntries) % 4) == 0) {
+						writer.writeNewline();
+					} else {
+						writer.write(' ');
+					}
+					writer.write("\"");
+					writer.write(StringUtils.escapeSimpleJSONString(m_destPids.getString(iDest)));
+					writer.write("\": ");
+					writer.write(Float.toString(cost));
+					nEntries++;
+				}
+			}
+			if (indent) {
+				writer.writeNewline();
+			}
+			writer.write('}');
+			if (iSrc+1 < nSrc) {
+				writer.write(',');
+			}
+			writer.incrIndent(-1);
+		}
+		if (indent) {
+			writer.writeNewline();
+		};
+		
+		writer.write("},");
+		if (indent) {
+			writer.writeNewline();
+			writer.incrIndent(-1);
+		}
+		
+		writer.write("\"" + FN_META + "\": ");
+		getMeta().writeJSON(writer);
+		
+		if (indent) {
+			writer.writeNewline();
+			writer.incrIndent(-1);
+		}
+		writer.write('}');
 	}
 			
 	/**
