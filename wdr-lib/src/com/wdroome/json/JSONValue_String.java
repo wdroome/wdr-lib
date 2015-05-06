@@ -106,6 +106,7 @@ public class JSONValue_String implements JSONValue
 					case '\n':	buff.append("\\n"); break;
 					case '\b':	buff.append("\\b"); break;
 					case '\f':	buff.append("\\f"); break;
+					case '/':	buff.append("\\/"); break;
 					default:
 						if (c <= 0x1f || c >= 0x7e) {
 							buff.append("\\u");

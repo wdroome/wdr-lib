@@ -405,7 +405,7 @@ public class AltoResp_IndexedCostMap extends AltoResp_Base
 	 * we must override the base-class method.
 	 * @param writer A JSON writer provided by the client.
 	 * @throws IOException If writer throws an I/O error.
-	 * @see RT_Base#writeJSON(JSONWriter)
+	 * @see AltoMsg_Base#writeJSON(JSONWriter)
 	 */
 	@Override
 	public void writeJSON(JSONWriter writer) throws IOException

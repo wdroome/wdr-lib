@@ -18,7 +18,7 @@ public class JSONValue_String_Test
 		check("simple", "hello there", "\"hello there\"");
 		check("esc1", "hello \"there\"", "\"hello \\\"there\\\"\"");
 		check("esc1b", "hello 'there'", "\"hello 'there'\"");
-		check("esc2", "\t \b \n \r \f \\ ", "\"\\t \\b \\n \\r \\f \\\\ \"");
+		check("esc2", "\t \b \n \r \f \\ /", "\"\\t \\b \\n \\r \\f \\\\ \\/\"");
 		check("esc3", "\u1234 \u8765 \u9abc \u0fed", "\"\\u1234 \\u8765 \\u9abc \\u0fed\"");
 	}
 	
