@@ -6,12 +6,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.net.MalformedURLException;
 import java.net.URL;
-
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -383,6 +381,33 @@ public class MiscUtil
 			res = new String(cb, 0, ncb);
 		}
 		return res;
+	}
+
+	/**
+	 * Read a stream into str. Stop at EOF or after maxLen bytes.
+	 * @param istr The stream to read.
+	 * @param maxLen Number of bytes to read. If -1, read to EOF.
+	 * @param str Append the data to this buffer.
+	 * @throws IOException
+	 */
+	public static void readInputStream(InputStream istr, int maxLen, StringBuilder str)
+			throws IOException
+	{
+		if (maxLen < 0) {
+			maxLen = Integer.MAX_VALUE;
+		}
+		if (istr != null) {
+			int n;
+			byte[] buff = new byte[8192];
+			int nx = buff.length;
+			if (nx > maxLen) {
+				nx = maxLen;
+			}
+			while ((n = istr.read(buff, 0, nx)) > 0) {
+				str.append(new String(buff, 0, n));
+				maxLen -= n;
+			}
+		}
 	}
 
 	/**
