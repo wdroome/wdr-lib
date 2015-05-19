@@ -145,6 +145,7 @@ public class AltoResp_NetworkMap extends AltoResp_Base implements Iterable<Strin
 	 * Return an array with the PIDs.
 	 * Not sorted.
 	 * @return An array with the PIDs. Never returns null.
+	 *		Each caller gets a new array.
 	 */
 	public String[] getPIDs()
 	{
@@ -162,6 +163,7 @@ public class AltoResp_NetworkMap extends AltoResp_Base implements Iterable<Strin
 	 * 		An address type, such as {@link EndpointAddress#IPV4_PREFIX}
 	 * 		or {@link EndpointAddress#IPV6_PREFIX}.
 	 * @return The CIDRs for pid of that address type.
+	 *		Each caller gets a new array.
 	 * @throws JSONException If pid doesn't exist.
 	 */
 	public String[] getCIDRs(String pid, String addrType) throws JSONException
@@ -177,6 +179,7 @@ public class AltoResp_NetworkMap extends AltoResp_Base implements Iterable<Strin
 	 * Each string is prefixed with its address type.
 	 * @param pid The pid.
 	 * @return All cidrs for that pid, with address type prefixes.
+	 *		Each caller gets a new array.
 	 * @throws JSONException If pid doesn't exist.
 	 */
 	public String[] getCIDRs(String pid) throws JSONException

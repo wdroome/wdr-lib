@@ -154,6 +154,7 @@ public class AltoResp_EndpointProp extends AltoResp_Base implements Iterable<Str
 	 * Return an array with the endpoint IP addrs.
 	 * Not sorted.
 	 * @return An array with the endpoint IP addrs.
+	 * 		Each caller gets a new array.
 	 */
 	public String[] getEndpointAddrs()
 	{
@@ -164,6 +165,7 @@ public class AltoResp_EndpointProp extends AltoResp_Base implements Iterable<Str
 	 * Return the property names for an IP addr.
 	 * @param addr The IP addr.
 	 * @return An (unsorted) array with the property names for "src."
+	 * 		Each caller gets a new array.
 	 * @throws JSONException If "src" doesn't exist.
 	 */
 	public String[] getPropertyNames(String addr) throws JSONException

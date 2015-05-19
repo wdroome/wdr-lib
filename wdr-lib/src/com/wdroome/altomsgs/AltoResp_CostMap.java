@@ -165,6 +165,7 @@ public class AltoResp_CostMap extends AltoResp_Base implements Iterable<String>
 	 * Return an array with the source PIDs.
 	 * Not sorted.
 	 * @return An array with the source PIDs.
+	 * 		Each caller gets a new array.
 	 */
 	public String[] getSrcPIDs()
 	{
@@ -183,6 +184,7 @@ public class AltoResp_CostMap extends AltoResp_Base implements Iterable<String>
 	 * Return the destination PIDs for a source PID.
 	 * @param src The source PID.
 	 * @return An (unsorted) array with the destination PIDs for "src."
+	 * 		Each caller gets a new array.
 	 * @throws JSONException If "src" doesn't exist.
 	 */
 	public String[] getDestPIDs(String src) throws JSONException
@@ -193,6 +195,7 @@ public class AltoResp_CostMap extends AltoResp_Base implements Iterable<String>
 	/**
 	 * Return an array with all destination PIDs referenced in this message.
 	 * @return An array with all destination PIDs referenced in this message.
+	 * 		Each caller gets a new array.
 	 */
 	public String[] getDestPIDs()
 	{

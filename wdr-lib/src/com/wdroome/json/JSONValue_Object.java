@@ -374,7 +374,8 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
     }
  
     /**
-     * Return the keys as an array. The array is not sorted.
+     * Return a new array with the keys. The array is not sorted,
+     * but since each caller gets a new array, the client may sort it.
      * @return An array of key names. Returns a zero-length array if there are no keys.
      */
     public String[] keyArray()

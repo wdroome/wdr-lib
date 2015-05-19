@@ -172,7 +172,9 @@ public abstract class AltoMsg_Base
 	/**
 	 * Given a JSONValue_Array of Strings, return a String[] with those strings.
 	 * @param jsonArray The JSON array.
-	 * @return An array with the Strings in jsonArray. Returns zero-length array if no strings.
+	 * @return An array with the Strings in jsonArray.
+	 * 		Returns zero-length array if no strings.
+	 * 		Each caller gets a new array.
 	 */
 	public static String[] getStringArray(JSONValue_Array jsonArray)
 	{
