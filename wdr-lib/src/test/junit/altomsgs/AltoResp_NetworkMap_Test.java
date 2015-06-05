@@ -1,5 +1,6 @@
 package test.junit.altomsgs;
 
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -19,7 +20,7 @@ import static org.junit.Assert.*;
 public class AltoResp_NetworkMap_Test extends CommonTestMethods
 {
 	@Test
-	public void testNetworkMap() throws JSONException
+	public void testNetworkMap() throws JSONException, UnknownHostException
 	{
 		AltoResp_NetworkMap map0 = new AltoResp_NetworkMap();
 		map0.setThisVtag("map", "12349876");
@@ -83,6 +84,9 @@ public class AltoResp_NetworkMap_Test extends CommonTestMethods
 				catArray(sort(iterToArray(map1.getAddressTypes("PID?")))));
 		
 		assertEquals("Initial-cost", -1, map1.getInitialCost(), .001);
+
+		assertEquals("findPID/1", "PID1", map1.findPID(new EndpointAddress("192.0.2.1"), null, null));
+		assertEquals("findPID/2", "PID3", map1.findPID(new EndpointAddress("192.0.4.1"), null, null));
 	}
 	
 	@Test

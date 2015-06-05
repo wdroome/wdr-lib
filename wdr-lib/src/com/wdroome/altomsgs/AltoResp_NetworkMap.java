@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.io.PrintStream;
 import java.io.Reader;
+import java.net.UnknownHostException;
 
 import com.wdroome.json.JSONException;
 import com.wdroome.json.IJSONLexan;
@@ -250,6 +251,55 @@ public class AltoResp_NetworkMap extends AltoResp_Base implements Iterable<Strin
 		if (!m_map.has(pid)) {
 			m_map.put(pid, new JSONValue_Object());
 		}
+	}
+	
+	/**
+	 * Return the PID for an endpoint address.
+	 * That is, the PID with the longest CIDR that covers the address.
+	 * Note that is method uses linear search,
+	 * so it is inefficient for large network maps.
+	 * @param addr The endpoint address.
+	 * @param bestCIDR If not null, append the longest CIDR that covers
+	 * 		the address to this list. If no CIDR covers the address,
+	 * 		append nothing.
+	 * @param errors If not null, and if there are invalid CIDRs in this map,
+	 * 		append a string for each bad CIDR.  If null, quietly ignore
+	 * 		invalid CIDRs.
+	 * @return The PID for "addr", or null if no CIDR covers the address.
+	 */
+	public String findPID(EndpointAddress addr, List<CIDRAddress> bestCIDR, List<String> errors)
+	{
+		boolean firstPid = true;
+		String bestPid = null;
+		CIDRAddress longestCIDR = null;
+		for (String pid: getPIDs()) {
+			try {
+				for (String cidrStr: getCIDRs(pid)) {
+					try {
+						CIDRAddress cidr = new CIDRAddress(cidrStr);
+						if (addr.isContainedIn(cidr)) {
+							if (longestCIDR == null
+									|| longestCIDR.getMaskLen() < cidr.getMaskLen()) {
+								longestCIDR = cidr;
+								bestPid = pid;
+							}
+						}
+					} catch (UnknownHostException e) {
+						if (firstPid && errors != null) {
+							errors.add("Network Map has invalid CIDR '"
+									+ cidrStr + "' for PID '" + pid + "'");
+						}
+					}
+				}
+				firstPid = false;
+			} catch (JSONException e) {
+				// Internal error; shouldn't happen.
+			}
+		}
+		if (longestCIDR != null && bestCIDR != null) {
+			bestCIDR.add(longestCIDR);
+		}
+		return bestPid;
 	}
 	
 	/**
