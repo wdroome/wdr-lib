@@ -169,9 +169,7 @@ public class AltoResp_NetworkMap extends AltoResp_Base implements Iterable<Strin
 	 */
 	public String[] getCIDRs(String pid, String addrType) throws JSONException
 	{
-		JSONValue_Object cidrsForPid = m_map.getObject(pid, null);
-		if (cidrsForPid == null)
-			return new String[0];
+		JSONValue_Object cidrsForPid = m_map.getObject(pid);
 		return getStringArray(cidrsForPid.getArray(addrType, null));
 	}
 	
@@ -185,9 +183,7 @@ public class AltoResp_NetworkMap extends AltoResp_Base implements Iterable<Strin
 	 */
 	public String[] getCIDRs(String pid) throws JSONException
 	{
-		JSONValue_Object cidrsForPid = m_map.getObject(pid, null);
-		if (cidrsForPid == null)
-			return new String[0];
+		JSONValue_Object cidrsForPid = m_map.getObject(pid);
 		ArrayList<String> cidrs = new ArrayList<String>();
 		for (Iterator<String> iter = cidrsForPid.keys(); iter.hasNext(); ) {
 			String addrType = iter.next();
