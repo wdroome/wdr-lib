@@ -2,7 +2,6 @@ package com.wdroome.util.inet;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-
 import java.util.Arrays;
 import java.util.Set;
 
@@ -15,6 +14,28 @@ import java.util.Set;
  */
 public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 {
+	public static final String USE_DOUBLE_COLON_ENV
+									= EndpointAddress.class.getName() + ".USE_DOUBLE_COLON";
+	public static final String USE_UPPER_CASE_ENV
+									= EndpointAddress.class.getName() + ".USE_UPPER_CASE";
+
+	private static final boolean g_useDoubleColon;
+	private static final boolean g_useUpperCase;
+	static {
+		String val = System.getProperty(USE_DOUBLE_COLON_ENV);
+		if (val != null && (val.startsWith("f") || val.startsWith("F") || val.equals("0"))) {
+			g_useDoubleColon = false;
+		} else {
+			g_useDoubleColon = true;
+		}
+		val = System.getProperty(USE_UPPER_CASE_ENV);
+		if (val != null && (val.startsWith("f") || val.startsWith("F") || val.equals("0"))) {
+			g_useUpperCase = false;
+		} else {
+			g_useUpperCase = true;
+		}
+	}
+	
 	public static final String IPV4_PREFIX = "ipv4";
 	
 	public static final String IPV6_PREFIX = "ipv6";
@@ -466,7 +487,8 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 				} else {
 					if (needSep)
 						buff.append(':');
-					buff.append(Integer.toHexString(values[i]).toUpperCase());
+					String hex = Integer.toHexString(values[i]);
+					buff.append(g_useUpperCase ? hex.toUpperCase() : hex);
 					needSep = true;
 				}
 			}
@@ -487,6 +509,9 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 	 */
 	private static int findLongestZeroString(int[] values)
 	{
+		if (!g_useDoubleColon) {
+			return -1;
+		}
 		int[] zeroCounts = new int[values.length];
 		for (int i = 0; i < values.length; i++) {
 			if (values[i] == 0) {
