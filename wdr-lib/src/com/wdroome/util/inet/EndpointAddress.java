@@ -14,8 +14,17 @@ import java.util.Set;
  */
 public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 {
+	/**
+	 * If this property is "false", do not use "::" short-cut in IPV6 addresses.
+	 * The default is "true".
+	 */
 	public static final String USE_DOUBLE_COLON_ENV
 									= EndpointAddress.class.getName() + ".USE_DOUBLE_COLON";
+
+	/**
+	 * If this property is "false", use lower-case rather than upper-case hex in IPV6 addresses.
+	 * The default is "true".
+	 */
 	public static final String USE_UPPER_CASE_ENV
 									= EndpointAddress.class.getName() + ".USE_UPPER_CASE";
 
