@@ -15,15 +15,15 @@ import java.util.Set;
 public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 {
 	/**
-	 * If this property is "false", do not use "::" short-cut in IPV6 addresses.
+	 * If this property is "true", use "::" short-cut in IPV6 addresses.
 	 * The default is "true".
 	 */
 	public static final String USE_DOUBLE_COLON_ENV
 									= EndpointAddress.class.getName() + ".USE_DOUBLE_COLON";
 
 	/**
-	 * If this property is "false", use lower-case rather than upper-case hex in IPV6 addresses.
-	 * The default is "true".
+	 * If this property is "true", use upper-case rather than lower-case hex in IPV6 addresses.
+	 * The default is "false".
 	 */
 	public static final String USE_UPPER_CASE_ENV
 									= EndpointAddress.class.getName() + ".USE_UPPER_CASE";
@@ -32,16 +32,20 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 	private static final boolean g_useUpperCase;
 	static {
 		String val = System.getProperty(USE_DOUBLE_COLON_ENV);
-		if (val != null && (val.startsWith("f") || val.startsWith("F") || val.equals("0"))) {
-			g_useDoubleColon = false;
-		} else {
+		if (val == null) {
 			g_useDoubleColon = true;
+		} else if (val.startsWith("t") || val.startsWith("T") || val.equals("1")) {
+			g_useDoubleColon = true;
+		} else {
+			g_useDoubleColon = false;
 		}
 		val = System.getProperty(USE_UPPER_CASE_ENV);
-		if (val != null && (val.startsWith("f") || val.startsWith("F") || val.equals("0"))) {
+		if (val == null) {
 			g_useUpperCase = false;
-		} else {
+		} else if (val.startsWith("t") || val.startsWith("T") || val.equals("1")) {
 			g_useUpperCase = true;
+		} else {
+			g_useUpperCase = false;
 		}
 	}
 	
@@ -54,6 +58,27 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 	public static final String PID_PREFIX = "pid";
 	
 	public static final String PREFIX_SEP = ":";
+	
+	public static final char PREFIX_SEP_CHAR = PREFIX_SEP.charAt(0);
+	
+	/**
+	 * The prefix for IPv4-mapped IPv6 addresses.
+	 */
+	public static final String IPV4_MAPPED_IPV6_ADDRS = IPV6_PREFIX + PREFIX_SEP +  "::ffff:0:0/96";
+	
+	/**
+	 * The CIDRAddress for {@link #IPV4_MAPPED_IPV6_ADDRS}.
+	 */
+	public static final CIDRAddress IPV4_MAPPED_IPV6_CIDR;
+	static {
+		CIDRAddress cidr = null;
+		try {
+			cidr = new CIDRAddress(IPV4_MAPPED_IPV6_ADDRS);
+		} catch (UnknownHostException e) {
+			// Shouldn't happen ....
+		}
+		IPV4_MAPPED_IPV6_CIDR = cidr;
+	}
 	
 	private static String[] g_addrTypes = new String[] {
 					IPV4_PREFIX,
@@ -212,8 +237,9 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 		m_address = new byte[address.length];
 		m_strprefix = null;
 		m_strvalue = null;
-		for (int i = 0; i < address.length; i++)
+		for (int i = 0; i < address.length; i++) {
 			m_address[i] = address[i];
+		}
 		m_hashCode = Arrays.hashCode(m_address);
 	}
 	
@@ -287,8 +313,9 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 			throw new IllegalStateException("Endpoint.getAddress() is undefined for pid names.");
 		}
 		byte[] v = new byte[m_address.length];
-		for (int i = 0; i < m_address.length; i++)
+		for (int i = 0; i < m_address.length; i++) {
 			v[i] = m_address[i];
+		}
 		return v;
 	}
 	
@@ -390,10 +417,11 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 	public Object clone()
 	{
 		try {
-			if (m_address != null)
+			if (m_address != null) {
 				return new EndpointAddress(m_address);
-			else
+			} else {
 				return new EndpointAddress(m_strprefix + PREFIX_SEP + m_strvalue, true);
+			}
 		} catch (Exception e) {
 			// Shouldn't happen!
 			return null;
@@ -462,50 +490,93 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 		if (m_address == null) {
 			throw new IllegalStateException("Endpoint.getAddress() is undefined for pid names.");
 		}
-		if (buff == null)
+		if (buff == null) {
 			buff = new StringBuilder(5*m_address.length);
+		}
 		if (m_address.length == 4 || (m_address.length & 1) != 0) {
-			for (int i = 0; i < m_address.length; i++) {
-			  	byte b = m_address[i];
-			  	if (i > 0)
-					buff.append('.');
-			  	buff.append(b & 0xff);
-			}
+			appendDottedDecimal(buff, m_address, 0, m_address.length);
 		} else if (m_address.length == 6) {
 			for (int i = 0; i < m_address.length; i++) {
-				if (i > 0)
+				if (i > 0) {
 					buff.append(PREFIX_SEP);
+				}
 				int b = g_reversedBits[m_address[i] & 0xff] & 0xff;
 				buff.append(g_hexDigits[b >> 4]);
 				buff.append(g_hexDigits[b & 0xf]);
 			}
+		} else if (isIPV6()
+				&& IPV4_MAPPED_IPV6_CIDR != null
+				&& isContainedIn(IPV4_MAPPED_IPV6_CIDR)) {
+			int prefixLen = IPV4_MAPPED_IPV6_CIDR.getMaskLen()/8;
+			appendColonHex(buff, m_address, 0, prefixLen);
+			buff.append(':');
+			appendDottedDecimal(buff, m_address, prefixLen, m_address.length - prefixLen);
 		} else {
-			int values[] = new int[m_address.length/2];
-			for (int i = 0; i < values.length; i++)
-				values[i] = ((m_address[2*i] & 0xff) << 8) | (m_address[2*i+1] & 0xff);
-			boolean needSep = false;
-			int doubleColonStartIndex = findLongestZeroString(values);
-			for (int i = 0; i < values.length; i++) {
-				if (i == doubleColonStartIndex) {
-					buff.append("::");
-					needSep = false;
-					for (i++; i < values.length && values[i] == 0; i++)
-						;
-					if (i < values.length)
-						--i;
-				} else {
-					if (needSep)
-						buff.append(':');
-					String hex = Integer.toHexString(values[i]);
-					buff.append(g_useUpperCase ? hex.toUpperCase() : hex);
-					needSep = true;
-				}
-			}
-			// Special case for all-zero address.
-			// if (doubleColonStartIndex == 0 && !needSep)
-			//	buff.append('0');
+			appendColonHex(buff, m_address, 0, m_address.length);
 		}
 		return buff;
+	}
+	
+	/**
+	 * Append dotted-decimal format bytes to a buffer.
+	 * @param buff The string buffer.
+	 * @param addr The bytes.
+	 * @param start The starting index in "addr".
+	 * @param len The number of bytes to use.
+	 */
+	private static void appendDottedDecimal(StringBuilder buff,
+											byte[] addr,
+											int start,
+											int len)
+	{
+		for (int i = 0; i < len; i++) {
+		  	byte b = addr[start + i];
+		  	if (i > 0) {
+				buff.append('.');
+		  	}
+		  	buff.append(b & 0xff);
+		}
+	}
+	
+	/**
+	 * Append colon-hex format bytes to a buffer.
+	 * @param buff The string buffer.
+	 * @param addr The bytes.
+	 * @param start The starting index in "addr".
+	 * @param len The number of bytes to use.
+	 */
+	private static void appendColonHex(StringBuilder buff,
+									   byte[] addr,
+									   int start,
+									   int len)
+	{
+		int values[] = new int[len/2];
+		for (int i = 0; i < values.length; i++) {
+			values[i] = ((addr[start + 2*i] & 0xff) << 8) | (addr[start + 2*i+1] & 0xff);
+		}
+		boolean needSep = false;
+		int doubleColonStartIndex = findLongestZeroString(values);
+		for (int i = 0; i < values.length; i++) {
+			if (i == doubleColonStartIndex) {
+				buff.append("::");
+				needSep = false;
+				for (i++; i < values.length && values[i] == 0; i++) {
+				}
+				if (i < values.length) {
+					--i;
+				}
+			} else {
+				if (needSep) {
+					buff.append(':');
+				}
+				String hex = Integer.toHexString(values[i]);
+				buff.append(g_useUpperCase ? hex.toUpperCase() : hex);
+				needSep = true;
+			}
+		}
+		// Special case for all-zero address.
+		// if (doubleColonStartIndex == 0 && !needSep)
+		//	buff.append('0');
 	}
 	
 	/**
@@ -525,8 +596,9 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 		for (int i = 0; i < values.length; i++) {
 			if (values[i] == 0) {
 				int iend;
-				for (iend = i+1; iend < values.length && values[iend] == 0; iend++) 
+				for (iend = i+1; iend < values.length && values[iend] == 0; iend++) {
 					;
+				}
 				zeroCounts[i] = iend - i;
 				i = iend - 1;
 			}
@@ -572,24 +644,27 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 	{
 		if (m_strprefix != null && other.m_strprefix != null) {
 			int v = m_strprefix.compareTo(other.m_strprefix);
-			if (v != 0)
+			if (v != 0) {
 				return v;
-			else
+			} else {
 				return m_strvalue.compareTo(other.m_strvalue);
+			}
 		} else if (m_address != null && other.m_address != null) {
 			int len = m_address.length;
 			int otherLen = other.m_address.length;
-			if (len < otherLen)
+			if (len < otherLen) {
 				return -1;
-			if (len > otherLen)
+			} else if (len > otherLen) {
 				return +1;
+			}
 			for (int i = 0; i < len; i++) {
 				int b1 = m_address[i] & 0xff;
 				int b2 = other.m_address[i] & 0xff;
-				if (b1 < b2)
+				if (b1 < b2) {
 					return -1;
-				if (b1 > b2)
+				} else if (b1 > b2) {
 					return +1;
+				}
 			}
 			return 0;
 		} else if (m_strprefix != null) {
@@ -718,10 +793,11 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 			arr = new byte[4];
 			for (int i = 0; i < numbers.length && i < arr.length; i++) {
 				String s = numbers[i];
-				if (s.equals(""))
+				if (s.equals("")) {
 					arr[i] = 0;
-				else
+				} else {
 					arr[i] = (byte)myParseInt(numbers[i], 10, 0xff, origSrc);
+				}
 			}
   		} else {
   			String[] numbers = src.split(":", -1);
@@ -754,11 +830,13 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 						arr[iByte++] = (byte)v;
 					}
 				} else {
-					if (iNum == 0 && iNum+1 < numbersLength && numbers[iNum+1].equals(""))
+					if (iNum == 0 && iNum+1 < numbersLength && numbers[iNum+1].equals("")) {
 						++iNum;
+					}
   					int zerofill = arrLen - iByte - 2*(numbersLength - iNum - 1);
-  					for (int iz = 0; iz < zerofill; iz++)
+  					for (int iz = 0; iz < zerofill; iz++) {
   						arr[iByte++] = 0;
+  					}
   				}
   			}		  					
   		}
@@ -832,8 +910,9 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 	public static String stripSuffix(String addr)
 	{
 		int i = addr.indexOf('%');
-		if (i > 0)
+		if (i > 0) {
 			addr = addr.substring(0, i);
+		}
 		return addr;
 	}
 	
@@ -880,8 +959,9 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 	private static boolean charOccursTwice(String s, char c)
 	{
 		int first = s.indexOf(c);
-		if (first < 0)
+		if (first < 0) {
 			return false;
+		}
 		return s.indexOf(c, first+1) > first;
 	}
 	
