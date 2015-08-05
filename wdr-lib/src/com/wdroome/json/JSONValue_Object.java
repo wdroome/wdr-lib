@@ -2,6 +2,7 @@ package com.wdroome.json;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
@@ -53,7 +54,7 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	 * Add a key-value pair to the dictionary.
 	 * Use the base class put() method,
 	 * but if "value" is a JSON Object and path names are enabled,
-	 * set it's path name.
+	 * set its path name.
 	 * @param key The key.
 	 * @param value The value.
 	 * @return The previous value associated with "key", or null if none.
@@ -68,6 +69,37 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 		return prevValue;
 	}
 	
+	/**
+	 * Add a key-value pair at the end of a JSON Object path,
+	 * creating objects on the path as needed.
+	 * Specifically, ensure that this object has a value for key path[0],
+	 * and it is another object. If the object exists, leave it;
+	 * if not, replace it with a new JSON Object.
+	 * Then ensure that object has a value for key path[1],
+	 * and it is another object. Continue up to the last
+	 * key in the path. For that key, set the value to "value".
+	 * @param path The path to the value.
+	 * @param value The value to be added at the end of the path.
+	 */
+	public void putPath(List<String> path, JSONValue value)
+	{
+		int n;
+		if (value == null || path == null || (n = path.size()) == 0) {
+			return;
+		}
+		JSONValue_Object curElem = this;
+		for (int i = 0; i < n-1; i++) {
+			String key = path.get(i);
+			JSONValue_Object nextElem = curElem.getObject(key, null);
+			if (nextElem == null) {
+				nextElem = new JSONValue_Object();
+				curElem.put(key, nextElem);
+			}
+			curElem = nextElem;
+		}
+		curElem.put(path.get(n-1), value);
+	}
+
 	/**
 	 * Add a string value to the dictionary.
 	 * Create a {@link JSONValue_String} from the argument.
@@ -148,6 +180,35 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 			put(srcEntry.getKey(), new JSONValue_Number(srcEntry.getValue().doubleValue()));
 		}
 		return this;
+	}
+	
+	/**
+	 * Remove the value at the end of an object path.
+	 * @param path
+	 * 		A list of keys representing the object path.
+	 *		See {@link #putPath(List, JSONValue)} for the definition
+	 *		of the object path.
+	 * @return
+	 * 		The previous value at the end of the path,
+	 *		or null if there was no such value or if
+	 *		the path did not exist.
+	 */
+	public JSONValue removePath(List<String> path)
+	{
+		int n;
+		if (path == null || (n = path.size()) == 0) {
+			return null;
+		}
+		JSONValue_Object curElem = this;
+		for (int i = 0; i < n-1; i++) {
+			String key = path.get(i);
+			JSONValue_Object nextElem = curElem.getObject(key, null);
+			if (nextElem == null) {
+				return null;
+			}
+			curElem = nextElem;
+		}
+		return curElem.remove(path.get(n-1));
 	}
 	
 	/**
@@ -332,6 +393,46 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	{
 		JSONValue value = get(key);
 		return (value != null && value instanceof JSONValue_Object) ? (JSONValue_Object)value : def;
+	}
+	
+	/**
+	 * If a value exists for a key, return it; otherwise, return an alternate value.
+	 * @param key The key.
+	 * @param def The alternate value.
+	 * @return The value of key, if it exists, or "def", if it does not.
+	 */
+	public JSONValue get(String key, JSONValue def)
+	{
+		JSONValue value = get(key);
+		return value != null ? value : def;
+	}
+	
+	/**
+	 * Return the value at the end of a path.
+	 * @param path A list of keys.
+	 * @param def The default value.
+	 * @return
+	 * 		The value at the end of the object path,
+	 * 		or "def" if that path does not exist.
+	 *		See {@link #putPath(List, JSONValue)} for the definition
+	 *		of the object path.
+	 */
+	public JSONValue getPath(List<String> path, JSONValue def)
+	{
+		int n;
+		if (path == null || (n = path.size()) == 0) {
+			return def;
+		}
+		JSONValue_Object curElem = this;
+		for (int i = 0; i < n-1; i++) {
+			String key = path.get(i);
+			JSONValue_Object nextElem = curElem.getObject(key, null);
+			if (nextElem == null) {
+				return def;
+			}
+			curElem = nextElem;
+		}
+		return curElem.get(path.get(n-1), def);
 	}
 
 	/**
@@ -553,5 +654,46 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	public String toString()
 	{
 		return JSONUtil.toJSONString(this, false);
+	}
+	
+	/**
+	 * Apply a JSON Merge-Patch update to this object.
+	 * For details, see RFC 7386 and {@link JSONMergePatchScanner}.
+	 * @param patch The Merge-Patch update.
+	 */
+	public void applyMergePatch(JSONValue_Object patch)
+	{
+		new ApplyMergePatch(patch);
+	}
+	
+	/**
+	 * Apply a Merge-Patch update to this object.
+	 * Create an instance and give the c'tor the merge-patch object.
+	 * The c'tor applies the update and then returns.
+	 */
+	private class ApplyMergePatch extends JSONMergePatchScanner
+	{
+		/**
+		 * Apply a merge-patch update to the base object.
+		 * @param patch The merge-patch update.
+		 */
+		private ApplyMergePatch(JSONValue_Object patch)
+		{
+			scan(patch);
+		}
+
+		/**
+		 * Add or delete a patched value.
+		 * @see JSONMergePatchScanner#newValue(List, JSONValue)
+		 */
+		@Override
+		protected void newValue(List<String> path, JSONValue value)
+		{
+			if (value instanceof JSONValue_Null) {
+				removePath(path);
+			} else {
+				putPath(path, value);
+			}
+		}
 	}
 }
