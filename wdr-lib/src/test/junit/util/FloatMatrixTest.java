@@ -1,6 +1,7 @@
 package test.junit.util;
 
 import static org.junit.Assert.*;
+
 import org.junit.Test;
 
 import com.wdroome.util.FloatMatrix;
@@ -47,6 +48,53 @@ public class FloatMatrixTest
 		
 		assertEquals("nRows", nrows, m.getNrows());
 		assertEquals("nCols", ncols, m.getNcols());
+	}
+	
+	@Test
+	public void testSkip1()
+	{
+		FloatMatrix m = new FloatMatrix(8192);
+		int nrows = 6000;
+		int ncols = 4000;
+		int rowSkip = 6;
+		int colSkip = 5;
+		float defVal = -1;
+		m.setDefaultValue(defVal);
+		
+		float v = 0;
+		for (int i = 0; i < nrows; i += rowSkip) {
+			for (int j = 0; j < ncols; j += colSkip) {
+				m.set(i, j, ++v);
+			}
+		}
+		
+		v = 0;
+		for (int i = 0; i < nrows; i++) {
+			for (int j = 0; j < ncols; j++) {
+				float expected = defVal;
+				if ((i % rowSkip == 0) && (j % colSkip) == 0) {
+					expected = ++v;
+				}
+				assertEquals("scan get " + i + "," + j, expected, m.get(i, j), .0001);
+				assertEquals("scan isSet " + i + "," + j, expected > 0, m.isSet(i, j));
+			}
+		}
+		
+		v = 0;
+		defVal = -2;
+		m.setDefaultValue(defVal);
+		for (int i = 0; i < nrows; i++) {
+			for (int j = 0; j < ncols; j++) {
+				float expected = defVal;
+				if ((i % rowSkip == 0) && (j % colSkip) == 0) {
+					expected = ++v;
+				}
+				float prev = m.unset(i, j);
+				assertEquals("unset prev " + i + "," + j, expected, prev, .0001);
+				assertEquals("unset isSet " + i + "," + j, false, m.isSet(i, j));
+				assertEquals("unset get " + i + "," + j, defVal, m.get(i, j), .0001);
+			}
+		}
 	}
 	
 	@Test

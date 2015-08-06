@@ -19,7 +19,8 @@ public class FloatMatrix
 	private final int m_n2;
 	private final int m_n3;
 	
-	private final float m_data[][][];
+	private final float[][][] m_data;
+	private final BitArray[][] m_valueSetBits;
 	
 	private float m_defaultValue = 0;
 	
@@ -44,9 +45,11 @@ public class FloatMatrix
 		m_n2 = n2 > 0 ? n2 : DEF_LVL2_ARRAY_SIZE;
 		m_n3 = n3 > 0 ? n3 : DEF_LVL3_ARRAY_SIZE;
 		m_n1 = (m_maxIndex*m_maxIndex + m_n2*m_n3 - 1) / (m_n2*m_n3);
-		if (m_n1 <= 0)
+		if (m_n1 <= 0) {
 			throw new IllegalArgumentException("Invalid config parameters");
+		}
 		m_data = new float[m_n1][][];
+		m_valueSetBits = new BitArray[m_n1][];
 	}
 	
 	/**
@@ -94,41 +97,49 @@ public class FloatMatrix
 	 */
 	public float set(int i, int j, float v)
 	{
-		if (i < 0 || i >= m_maxIndex || j < 0 || j >= m_maxIndex)
+		if (i < 0 || i >= m_maxIndex || j < 0 || j >= m_maxIndex) {
 			throw new IndexOutOfBoundsException(i + "," + j + " out of bounds");
+		}
 		boolean debug = false;
 		int k = i*m_maxIndex + j;
-		if (debug)
+		if (debug) {
 			System.out.println(i + "," + j + " -> " + k);
+		}
 		int x = k / (m_n2*m_n3);
-		if (debug)
+		if (debug) {
 			System.out.println("  x " + x);
+		}
 		float[][] v2 = m_data[x];
+		BitArray[] bits2 = m_valueSetBits[x];
 		if (v2 == null) {
 			m_data[x] = v2 = new float[m_n2][];
+			m_valueSetBits[x] = bits2 = new BitArray[m_n2];
 			m_lvl2Arrays++;
 		}
 		int y = (k % (m_n2*m_n3)) / m_n3;
-		if (debug)
+		if (debug) {
 			System.out.println("  y " + y);
+		}
 		float[] v3 = v2[y];
+		BitArray bits3 = bits2[y];
 		if (v3 == null) {
 			v2[y] = v3 = new float[m_n3];
+			bits2[y] = bits3 = new BitArray(m_n3);
 			m_lvl3Arrays++;
-			if (m_defaultValue != 0) {
-				for (int n = 0; n < m_n3; n++)
-					v3[n] = m_defaultValue;
-			}
 		}
 		int z = k % m_n3;
-		if (debug)
+		if (debug) {
 			System.out.println("  z " + z);
-		float prev = v3[z];
+		}
+		float prev = bits3.isSet(z) ? v3[z] : m_defaultValue;
 		v3[z] = v;
-		if (i+1 >= m_nrows)
+		bits3.set(z, true);
+		if (i+1 >= m_nrows) {
 			m_nrows = i+1;
-		if (j+1 >= m_ncols)
+		}
+		if (j+1 >= m_ncols) {
 			m_ncols = j+1;
+		}
 		return prev;
 	}
 	
@@ -141,20 +152,91 @@ public class FloatMatrix
 	 */
 	public float get(int i, int j)
 	{
-		if (i < 0 || i >= m_maxIndex || j < 0 || j >= m_maxIndex)
+		if (i < 0 || i >= m_maxIndex || j < 0 || j >= m_maxIndex) {
 			throw new IndexOutOfBoundsException(i + "," + j + " out of bounds");
+		}
 		int k = i*m_maxIndex + j;
 		int x = k / (m_n2*m_n3);
 		float[][] v2 = m_data[x];
 		if (v2 == null) {
 			return m_defaultValue;
 		}
+		BitArray[] bits2 = m_valueSetBits[x];
 		int y = (k % (m_n2*m_n3)) / m_n3;
 		float[] v3 = v2[y];
 		if (v3 == null) {
 			return m_defaultValue;
 		}
-		return v3[k % m_n3];
+		BitArray bits3 = bits2[y];
+		int z = k % m_n3;
+		return bits3.isSet(z) ? v3[z] : m_defaultValue;
+	}
+	
+	/**
+	 * Unset a matrix element. Note that index still exists.
+	 * But get(i,j) will return the default value,
+	 * and (if possible) we reclaim the space the element occupied.
+	 * @param i The row index.
+	 * @param j The column index.
+	 * @return The previous value at [i,j], or the default value if never set.
+	 * @throws IndexOutOfBoundsException If i or j exceed the maximum allowable index.
+	 */
+	public float unset(int i, int j)
+	{
+		if (i < 0 || i >= m_maxIndex || j < 0 || j >= m_maxIndex) {
+			throw new IndexOutOfBoundsException(i + "," + j + " out of bounds");
+		}
+		int k = i*m_maxIndex + j;
+		int x = k / (m_n2*m_n3);
+		float[][] v2 = m_data[x];
+		if (v2 == null) {
+			return m_defaultValue;
+		}
+		BitArray[] bits2 = m_valueSetBits[x];
+		int y = (k % (m_n2*m_n3)) / m_n3;
+		float[] v3 = v2[y];
+		if (v3 == null) {
+			return m_defaultValue;
+		}
+		BitArray bits3 = bits2[y];
+		int z = k % m_n3;
+		float prev = bits3.isSet(z) ? v3[z] : m_defaultValue;
+		bits3.set(z, false);
+		if (bits3.allClear()) {
+			v2[y] = null;
+			bits2[y] = null;
+		}
+		return prev;
+	}
+	
+	/**
+	 * Unset all elements in a row.
+	 * @param i The row index.
+	 * @throws IndexOutOfBoundsException If i exceeds the maximum allowable index.
+	 */
+	public void unsetRow(int i)
+	{
+		if (i < 0 || i >= m_maxIndex) {
+			throw new IndexOutOfBoundsException(i + " out of bounds");
+		}
+		for (int j = 0; j < m_ncols; j++) {
+			unset(i, j);
+		}
+	}
+	
+	/**
+	 * Unset all elements in a column.
+	 * @param j The column index.
+	 * @throws IndexOutOfBoundsException If i exceeds the maximum allowable index.
+	 */
+	public void unsetCol(int j)
+	{
+		if (j < 0 || j >= m_maxIndex) {
+			throw new IndexOutOfBoundsException(j + " out of bounds");
+		}
+		for (int i = 0; i < m_nrows; i++) {
+			unset(i, j);
+		}
 	}
 	
 	/**
@@ -167,10 +249,11 @@ public class FloatMatrix
 	public double getDouble(int i, int j)
 	{
 		float v = get(i, j);
-		if (Float.isNaN(v))
+		if (Float.isNaN(v)) {
 			return Double.NaN;
-		else
+		} else {
 			return ((double)Math.round(1000000*(double)v)) / 1000000;
+		}
 	}
 	
 	/**
@@ -182,25 +265,27 @@ public class FloatMatrix
 	 */
 	public boolean isSet(int i, int j)
 	{
-		if (i < 0 || i >= m_maxIndex || j < 0 || j >= m_maxIndex)
+		if (i < 0 || i >= m_maxIndex || j < 0 || j >= m_maxIndex) {
 			throw new IndexOutOfBoundsException(i + "," + j + " out of bounds");
+		}
 		int k = i*m_maxIndex + j;
 		int x = k / (m_n2*m_n3);
-		float[][] v2 = m_data[x];
-		if (v2 == null) {
+		BitArray[] bits2 = m_valueSetBits[x];
+		if (bits2 == null) {
 			return false;
 		}
 		int y = (k % (m_n2*m_n3)) / m_n3;
-		float[] v3 = v2[y];
-		if (v3 == null) {
+		BitArray bits3 = bits2[y];
+		if (bits3 == null) {
 			return false;
 		}
-		return true;
+		return bits3.isSet(k % m_n3);
 	}
 	
 	/**
 	 * Return number of rows.
-	 * @return The index (plus 1) of the highest row with an element that was set.
+	 * @return The index (plus 1) of the highest row
+	 * 		with an element that has ever been set.
 	 */
 	public int getNrows()
 	{
@@ -209,7 +294,8 @@ public class FloatMatrix
 
 	/**
 	 * Return the number of columns.
-	 * @return The index (plus 1) of the highest column with an element that was set.
+	 * @return The index (plus 1) of the highest column
+	 * 		with an element that has ever been set.
 	 */
 	public int getNcols()
 	{
