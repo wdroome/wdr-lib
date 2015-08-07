@@ -99,6 +99,15 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 		}
 		curElem.put(path.get(n-1), value);
 	}
+	
+	/**
+	 * Call {@link #putPath(List, JSONValue)} on a path/value pair.
+	 * @param pathValue A path and a value.
+	 */
+	public void putPath(JSONPathValuePair pathValue)
+	{
+		putPath(pathValue.m_path, pathValue.m_value);
+	}
 
 	/**
 	 * Add a string value to the dictionary.
