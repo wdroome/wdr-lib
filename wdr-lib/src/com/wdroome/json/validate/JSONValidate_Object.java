@@ -168,7 +168,7 @@ public class JSONValidate_Object extends JSONValidate
 			m_fieldSpecs = new FieldSpec[] {new FieldSpec(new RegexKey(".*"),null)};
 		}
 		HashSet<String> requiredFields = new HashSet<String>();
-		for (FieldSpec fs: fieldSpecs) {
+		for (FieldSpec fs: m_fieldSpecs) {
 			List<String> rf = fs.m_keyTest.requiredKeys();
 			if (rf != null) {
 				requiredFields.addAll(rf);
