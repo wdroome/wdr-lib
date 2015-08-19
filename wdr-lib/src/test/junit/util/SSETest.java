@@ -94,7 +94,9 @@ public class SSETest
 		SSESender sender = new SSESender(pout);
 		for (SSEEvent event: m_events1) {
 			sender.sendEvent(event);
-			try { Thread.sleep(2000); } catch (Exception e) {}
+			try { Thread.sleep(1000); } catch (Exception e) {}
+			sender.sendKeepAlive();
+			try { Thread.sleep(1000); } catch (Exception e) {}
 		}
 		pout.close();
 		try { Thread.sleep(2000); } catch (Exception e) {}
@@ -120,7 +122,9 @@ public class SSETest
 				sender.bufferData(b.toString());
 			}
 			sender.sendEvent(event.m_event, event.m_id);
-			try { Thread.sleep(2000); } catch (Exception e) {}
+			try { Thread.sleep(1000); } catch (Exception e) {}
+			sender.sendKeepAlive();
+			try { Thread.sleep(1000); } catch (Exception e) {}
 		}
 		pout.close();
 		try { Thread.sleep(2000); } catch (Exception e) {}
@@ -152,7 +156,9 @@ public class SSETest
 				sender.streamDataEnd();
 			}
 			sender.sendEvent(event.m_event, event.m_id);
-			try { Thread.sleep(2000); } catch (Exception e) {}
+			try { Thread.sleep(1000); } catch (Exception e) {}
+			sender.sendKeepAlive();
+			try { Thread.sleep(1000); } catch (Exception e) {}
 		}
 		pout.close();
 		try { Thread.sleep(2000); } catch (Exception e) {}

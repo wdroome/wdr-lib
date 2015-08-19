@@ -23,6 +23,11 @@ public class SSESender
 	private static final byte[] EVENT_FIELD_BYTES
 				= (SSEEvent.EVENT_FIELD_NAME + SSEEvent.FIELD_SEP_CHAR + " ").getBytes();
 	
+	private static final byte[] KEEP_ALIVE_BYTES = new byte[] {
+					(byte)SSEEvent.FIELD_SEP_CHAR,
+					(byte)'\n'
+				};
+	
 	private final OutputStream m_outStream;
 
 	/**
@@ -285,5 +290,14 @@ public class SSESender
 			}
 		}
 		sendEvent(event.m_event, event.m_id);
+	}
+	
+	/**
+	 * Send a keep-alive message.
+	 * @throws IOException If an I/O error occurs.
+	 */
+	public void sendKeepAlive() throws IOException
+	{
+		m_outStream.write(KEEP_ALIVE_BYTES);
 	}
 }
