@@ -142,6 +142,62 @@ public class SSESender
 		}
 	}
 	
+	/** True iff we are in the middle of a streaming data block. */
+	private boolean m_inStreamingDataBlock = false;
+	
+	/**
+	 * Send a continuous stream of data, as a sequence of chunks,
+	 * without introducing a new-line at the end of chunk.
+	 * The stream ends when you call {@link #streamDataEnd()},
+	 * {@link #sendEvent(String)} or {@link #sendEvent(String, String)}.
+	 * @param data The byte data.
+	 * @param offset The starting index in data.
+	 * @param len The number of bytes to send.
+	 * @throws IOException
+	 * 		If a write error occurs.
+	 */
+	public void streamDataBlock(byte[] data, int offset, int len)
+			throws IOException
+	{
+		if (data != null && len > 0) {
+			for (int i = 0; i < len; i++) {
+				int j = i;
+				for (; j < len; j++) {
+					byte c = data[offset+j];
+					if (c == '\r' || c == '\n') {
+						break;
+					}
+				}
+				if (j > i) {
+					if (!m_inStreamingDataBlock) {
+						m_outStream.write(DATA_FIELD_BYTES);
+						m_inStreamingDataBlock = true;
+					}
+					m_outStream.write(data, offset + i, j - i);
+					if (j < len) {
+						m_outStream.write(EOL_CHAR);
+						m_inStreamingDataBlock = false;
+					}
+				}
+				i = j;
+			}
+		}
+	}
+	
+	/**
+	 * Finish sending a continuous stream of data, as a sequence of chunks.
+	 * @see #streamDataBlock(byte[], int, int) 
+	 * @throws IOException
+	 * 		If a write error occurs.
+	 */
+	public void streamDataEnd() throws IOException
+	{
+		if (m_inStreamingDataBlock) {
+			m_outStream.write(EOL_CHAR);
+			m_inStreamingDataBlock = false;
+		}
+	}
+	
 	/**
 	 * Return true iff a string contains a new-line or a carriage return.
 	 * @param s The string
@@ -174,6 +230,7 @@ public class SSESender
 		if (id != null && hasNLorCR(id)) {
 			throw new IllegalArgumentException("SSESender.sendEvent(): id cannot have NL or CR");
 		}
+		streamDataEnd();
 		if (event != null) {
 			m_outStream.write(EVENT_FIELD_BYTES);
 			m_outStream.write(event.getBytes());
