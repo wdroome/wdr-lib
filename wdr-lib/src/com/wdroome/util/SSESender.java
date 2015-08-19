@@ -2,6 +2,7 @@ package com.wdroome.util;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.InputStream;
 import java.io.BufferedOutputStream;
 import java.util.List;
 import java.util.ArrayList;
@@ -57,32 +58,86 @@ public class SSESender
 	 * which may or may not be buffered, but the client will not
 	 * treat the data as an event until you call
 	 * {@link #sendEvent(String)} or {@link #sendEvent(String, String)}.
-	 * @param dataLine
-	 * 		The data. It is recommended that dataLine NOT contain
-	 * 		any new-lines or carriage-returns. If dataLine does contain
-	 * 		CRs or NLs, it will be split into multiple SSE data fields.
-	 *		Note that trailing NLs and CRs are ignored, and a sequence
-	 *		of NL's and CR's within the string will be treated as one NL.
-	 *		If you want a data field with a new line, set dataLine to "".
+	 * If the data to be sent contains CRs or NLs, it will be split
+	 * into multiple SSE data fields. Note that trailing NLs and CRs are ignored,
+	 * and a sequence of NL's and CR's within the string will be treated as one NL.
+	 * If you want a data field with a new line, set the length to 0.
+	 * 
+	 * @see #bufferData(byte[], int, int)
+	 * 
+	 * @param data
 	 * @throws IOException
 	 * 		If a write error occurs.
 	 */
-	public void bufferData(String dataLine)
+	public void bufferData(String data)
 			throws IOException
 	{
-		if (dataLine == null) {
-			return;
+		if (data != null) {
+			byte[] bytes = data.getBytes();
+			bufferData(bytes, 0, bytes.length);
 		}
-		if (!hasNLorCR(dataLine)) {
-			m_outStream.write(DATA_FIELD_BYTES);
-			m_outStream.write(dataLine.getBytes());
-			m_outStream.write(EOL_CHAR);
-		} else {
-			String[] lines = dataLine.split("[\r\n]+");
-			for (String line: lines) {
+	}
+	
+	/**
+	 * Send a data field. The data is written to the output stream,
+	 * which may or may not be buffered, but the client will not
+	 * treat the data as an event until you call
+	 * {@link #sendEvent(String)} or {@link #sendEvent(String, String)}.
+	 * If the data to be sent contains CRs or NLs, it will be split
+	 * into multiple SSE data fields. Note that trailing NLs and CRs are ignored,
+	 * and a sequence of NL's and CR's within the string will be treated as one NL.
+	 * If you want a data field with a new line, set the length to 0.
+	 * 
+	 * @param data The byte data.
+	 * @throws IOException
+	 * 		If a write error occurs.
+	 */
+	public void bufferData(byte[] data) throws IOException
+	{
+		if (data != null) {
+			bufferData(data, 0, data.length);
+		}
+	}
+	
+	/**
+	 * Send a data field. The data is written to the output stream,
+	 * which may or may not be buffered, but the client will not
+	 * treat the data as an event until you call
+	 * {@link #sendEvent(String)} or {@link #sendEvent(String, String)}.
+	 * If the data to be sent contains CRs or NLs, it will be split
+	 * into multiple SSE data fields. Note that trailing NLs and CRs are ignored,
+	 * and a sequence of NL's and CR's within the string will be treated as one NL.
+	 * If you want a data field with a new line, set the length to 0.
+	 * 
+	 * @param data The byte data.
+	 * @param offset The starting index in data.
+	 * @param len The number of bytes to send.
+	 * @throws IOException
+	 * 		If a write error occurs.
+	 */
+	public void bufferData(byte[] data, int offset, int len)
+			throws IOException
+	{
+		if (data != null) {
+			if (len <= 0) {
 				m_outStream.write(DATA_FIELD_BYTES);
-				m_outStream.write(line.getBytes());
 				m_outStream.write(EOL_CHAR);
+			} else {
+				for (int i = 0; i < len; i++) {
+					int j = i;
+					for (; j < len; j++) {
+						byte c = data[offset+j];
+						if (c == '\r' || c == '\n') {
+							break;
+						}
+					}
+					if (j > i) {
+						m_outStream.write(DATA_FIELD_BYTES);
+						m_outStream.write(data, offset + i, j - i);
+						m_outStream.write(EOL_CHAR);
+					}
+					i = j;
+				}
 			}
 		}
 	}
