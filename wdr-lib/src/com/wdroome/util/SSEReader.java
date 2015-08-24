@@ -9,7 +9,7 @@ import java.util.ArrayList;
  * A thread that reads Server Sent Events from a stream.
  * To get SSEs, create an instance of this class,
  * and give the c'tor the input stream and a callback object
- * which implements the {@link EventCB} interface.
+ * which implements the {@link EventCB}  or {@link LineCB} interface.
  * The thread calls methods of that object when new SSEs arrive,
  * or when an error occurs or when the stream is closed.
  * @author wdr
@@ -18,7 +18,11 @@ public class SSEReader extends Thread
 {
 
 	/**
-	 * Callback interface for Server Sent Event arrival.
+	 * Event-oriented callback interface for Server Sent Event arrival.
+	 * With this interface, the reader collects all fields
+	 * for one event and calls {@link #newSSE(SSEEvent)}
+	 * when the event is complete.
+	 * @see LineCB
 	 */
 	public interface EventCB
 	{
@@ -40,22 +44,124 @@ public class SSEReader extends Thread
 		public void errorSSE(IOException e);
 	}
 	
+	/**
+	 * Line-oriented callback interface for Server Sent Event arrival.
+	 * With this interface, the reader calls a method
+	 * when each field (data, event or id) arrives,
+	 * and the client must put the fields together.
+	 * Note that fields may arrive in any order,
+	 * and an event may have more than one data field.
+	 * @see EventCB
+	 */
+	public interface LineCB
+	{
+		/**
+		 * Called when all lines for an event have been received.
+		 */
+		public void eventCompleteSSE();
+		
+		/**
+		 * Called when a new data line arrives.
+		 * @param data The new data line.
+		 */
+		public void dataLineSSE(String data);
+
+		/**
+		 * Called when a new event line arrives.
+		 * @param event The new event line.
+		 */
+		public void eventLineSSE(String event);
+
+		/**
+		 * Called when a new id line arrives.
+		 * @param id The new id line.
+		 */
+		public void idLineSSE(String id);
+		
+		/**
+		 * Called when the stream is closed.
+		 */
+		public void eofSSE();
+		
+		/**
+		 * Called when a permanent I/O error occurs on the SSE stream.
+		 * {@link #eofSSE()} is called after this method returns.
+		 */
+		public void errorSSE(IOException e);
+	}
+	
 	/** The stream on which SSE's arrive. */
 	private final InputStream m_inStream;
 	
-	/** The method to call when an event arrives. */
-	private final EventCB m_callback;
+	/**
+	 * The methods to call when an event or line arrives.
+	 * Only one is non-null.
+	 */
+	private final EventCB m_eventCB;
+	private final LineCB m_lineCB;
 
 	/**
-	 * Create a new SSE reader, and start the thread.
+	 * Create a new SSE reader and start the thread.
 	 * @param inStream The input stream for reading SSE events.
-	 * @param callback The event callback method.
+	 * @param eventCB The event callback method.
+	 * @param isDaemon If true, mark this thread as a daemon.
+	 * @throws IllegalArgumentException If inStream or eventCB are null.
 	 */
-	public SSEReader(InputStream inStream, EventCB callback)
+	public SSEReader(InputStream inStream, EventCB eventCB, boolean isDaemon)
 	{
+		if (inStream == null || eventCB == null) {
+			throw new IllegalArgumentException("SSEReader(): null inStream or eventCB");
+		}
 		m_inStream = inStream;
-		m_callback = callback;
+		m_eventCB = eventCB;
+		m_lineCB = null;
+		setDaemon(isDaemon);
+		setName("SSEReader/LineInterface");
 		start();
+	}
+
+	/**
+	 * Create a new SSE reader and start the thread.
+	 * @param inStream The input stream for reading SSE events.
+	 * @param lineCB The line callback method.
+	 * @param isDaemon If true, mark this thread as a daemon.
+	 * @throws IllegalArgumentException If inStream or lineCB are null.
+	 */
+	public SSEReader(InputStream inStream, LineCB lineCB, boolean isDaemon)
+	{
+		if (inStream == null || lineCB == null) {
+			throw new IllegalArgumentException("SSEReader(): null inStream or lineCB");
+		}
+		m_inStream = inStream;
+		m_eventCB = null;
+		m_lineCB = lineCB;
+		setDaemon(isDaemon);
+		setName("SSEReader/LineInterface");
+		start();
+	}
+
+	/**
+	 * Create a new SSE reader and start the thread.
+	 * Do not mark the thread as a daemon.
+	 * @param inStream The input stream for reading SSE events.
+	 * @param eventCB The event callback method.
+	 * @throws IllegalArgumentException If inStream or eventCB are null.
+	 */
+	public SSEReader(InputStream inStream, EventCB eventCB)
+	{
+		this(inStream, eventCB, false);
+	}
+
+	/**
+	 * Create a new SSE reader and start the thread.
+	 * Do not mark the thread as a daemon.
+	 * @param inStream The input stream for reading SSE events.
+	 * @param lineCB The line callback method.
+	 * @throws IllegalArgumentException If inStream or lineCB are null.
+	 */
+	public SSEReader(InputStream inStream, LineCB lineCB)
+	{
+		this(inStream, lineCB, false);
 	}
 	
 	/**
@@ -66,32 +172,66 @@ public class SSEReader extends Thread
 	public void run()
 	{
 		Line line;
-		String eventType = null;
-		String eventId = null;
-		List<String> dataLines = new ArrayList<String>();
 		try {
-			while ((line = readLine(false)) != null) {
-				if (line.isEventEnd()) {
-					if (eventType != null || eventId != null || !dataLines.isEmpty()) {
-						m_callback.newSSE(new SSEEvent(eventType, eventId, dataLines));
+			if (m_eventCB != null) {
+				String eventType = null;
+				String eventId = null;
+				List<String> dataLines = new ArrayList<String>();
+				while ((line = readLine(false)) != null) {
+					if (line.isEventEnd()) {
+						if (eventType != null || eventId != null
+								|| !dataLines.isEmpty()) {
+							m_eventCB.newSSE(new SSEEvent(eventType, eventId,
+									dataLines));
+						}
+						eventType = null;
+						eventId = null;
+						dataLines = new ArrayList<String>();
+					} else if (line.m_field == null) {
+						// skip comment
+					} else if (line.m_field.equals(SSEEvent.EVENT_FIELD_NAME)) {
+						eventType = line.m_value;
+					} else if (line.m_field.equals(SSEEvent.ID_FIELD_NAME)) {
+						eventId = line.m_value;
+					} else if (line.m_field.equals(SSEEvent.DATA_FIELD_NAME)) {
+						dataLines.add(line.m_value);
 					}
-					eventType = null;
-					eventId = null;
-					dataLines = new ArrayList<String>();
-				} else if (line.m_field == null) {
-					// skip comment
-				} else if (line.m_field.equals(SSEEvent.EVENT_FIELD_NAME)) {
-					eventType = line.m_value;
-				} else if (line.m_field.equals(SSEEvent.ID_FIELD_NAME)) {
-					eventId = line.m_value;
-				} else if (line.m_field.equals(SSEEvent.DATA_FIELD_NAME)) {
-					dataLines.add(line.m_value);
+				}
+			} else if (m_lineCB != null) {
+				while ((line = readLine(false)) != null) {
+					if (line.isEventEnd()) {
+						m_lineCB.eventCompleteSSE();
+					} else if (line.m_field == null) {
+						// skip comment
+					} else if (line.m_field.equals(SSEEvent.EVENT_FIELD_NAME)) {
+						m_lineCB.eventLineSSE(line.m_value);
+					} else if (line.m_field.equals(SSEEvent.ID_FIELD_NAME)) {
+						m_lineCB.idLineSSE(line.m_value);
+					} else if (line.m_field.equals(SSEEvent.DATA_FIELD_NAME)) {
+						m_lineCB.dataLineSSE(line.m_value);
+					}
 				}
 			}
 		} catch (IOException e) {
-			m_callback.errorSSE(e);
+			if (m_eventCB != null) {
+				m_eventCB.errorSSE(e);
+			} else if (m_lineCB != null) {
+				m_lineCB.errorSSE(e);
+			}
 		}
-		m_callback.eofSSE();
+		if (m_eventCB != null) {
+			m_eventCB.eofSSE();
+		} else if (m_lineCB != null) {
+			m_lineCB.eofSSE();
+		}
+		try { m_inStream.close(); } catch (Exception e) {}
+	}
+	
+	/**
+	 * Shutdown and stop the SSE reader by closing the input stream.
+	 */
+	public void shutdown()
+	{
 		try { m_inStream.close(); } catch (Exception e) {}
 	}
 
