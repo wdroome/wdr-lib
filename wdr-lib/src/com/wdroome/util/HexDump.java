@@ -21,42 +21,54 @@ public class HexDump
 	 * @param quadsPerLine
 	 * 		The number of 4-byte quads per line.
 	 * 		Ignored if not positive.
+	 * @return
+	 * 		This object, so the method can be chained as a filter.
 	 */
-	public void setQuadsPerLine(int quadsPerLine)
+	public HexDump setQuadsPerLine(int quadsPerLine)
 	{
 		if (quadsPerLine > 0) {
 			m_quadsPerLine = quadsPerLine;
 		}
+		return this;
 	}
 	
 	/**
 	 * Set the address format. Default is "%6d".
 	 * @param addrFormat
 	 * 		The address format.  If null, do not display the address.
+	 * @return
+	 * 		This object, so the method can be chained as a filter.
 	 */
-	public void setAddrFormat(String addrFormat)
+	public HexDump setAddrFormat(String addrFormat)
 	{
 		m_addrFormat = addrFormat;
+		return this;
 	}
 	
 	/**
 	 * Specify a PrintStream for output.
 	 * @param printStream the printStream to set
+	 * @return
+	 * 		This object, so the method can be chained as a filter.
 	 */
-	public void setPrintStream(PrintStream printStream)
+	public HexDump setOutput(PrintStream printStream)
 	{
 		m_printStream = printStream;
 		m_printWriter = null;
+		return this;
 	}
 
 	/**
 	 * Specify a PrintWriter for output.
 	 * @param printWriter the printWriter to set
+	 * @return
+	 * 		This object, so the method can be chained as a filter.
 	 */
-	public void setPrintWriter(PrintWriter printWriter)
+	public HexDump setOutput(PrintWriter printWriter)
 	{
 		m_printWriter = printWriter;
 		m_printStream = null;
+		return this;
 	}
 
 	/**
@@ -144,48 +156,6 @@ public class HexDump
 	public void dump(byte[] array)
 	{
 		dump(array, 0, array.length);
-	}
-	
-	/**
-	 * Return a String with the hex dump of an array.
-	 * @param array The byte array.
-	 * @param offset The starting offset.
-	 * @param len The number of bytes to dump.
-	 * @return A String with the full dump.
-	 */
-	public static String dumpToString(byte[] array, int offset, int len)
-	{
-		HexDump hexDump = new HexDump();
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-		PrintStream printStream = new PrintStream(outputStream);
-		hexDump.setPrintStream(printStream);
-		hexDump.dump(array, offset, len);
-		printStream.flush();
-		return outputStream.toString();
-	}
-	
-	/**
-	 * Return a String with the hex dump of an array.
-	 * @param array The byte array.
-	 * @return A String with the full dump.
-	 */
-	public static String dumpToString(byte[] array)
-	{
-		return dumpToString(array, 0, array.length);
-	}
-	
-	/**
-	 * Dump several strings and print to System.out.
-	 * @param args Not used.
-	 */
-	public static void main(String[] args)
-	{
-		String s = "1234567890-=qwertyuiop[]asdfghjkl;'zxcvbnm,./";
-		String d = dumpToString(s.getBytes());
-		System.out.println(d);
-		s = "!@#$%^&*()";
-		d = dumpToString(s.getBytes());
-		System.out.println(d);
 	}
 }
 
