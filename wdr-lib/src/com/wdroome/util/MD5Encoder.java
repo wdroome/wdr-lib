@@ -25,10 +25,12 @@ public class MD5Encoder
 							+ " Leading and trailing whitespace will be ignored.");
 				String passwd;
 				while ((passwd = rdr.readLine()) != null) {
+					md5Digest.reset();
 					System.out.println(MiscUtil.bytesToHex(md5Digest.digest(passwd.trim().getBytes())));
 				}
 			} else {
 				for (int i = 0; i < args.length; i++) {
+					md5Digest.reset();
 					System.out.println(MiscUtil.bytesToHex(md5Digest.digest(args[i].getBytes())));
 				}
 			}
