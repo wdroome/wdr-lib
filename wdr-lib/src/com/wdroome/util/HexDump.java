@@ -3,6 +3,11 @@ package com.wdroome.util;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 
 /**
  * Produce hex-dumps in the classic IBM style.
@@ -30,6 +35,24 @@ public class HexDump
 			m_quadsPerLine = quadsPerLine;
 		}
 		return this;
+	}
+	
+	/**
+	 * Return the number of quads in a full line.
+	 * @return The number of quads in a full line.
+	 */
+	public int getQuadsPerLine()
+	{
+		return m_quadsPerLine;
+	}
+	
+	/**
+	 * Return the number of bytes in a full line.
+	 * @return The number of bytes in a full line.
+	 */
+	public int getBytesPerLine()
+	{
+		return 4*m_quadsPerLine;
 	}
 	
 	/**
@@ -80,6 +103,19 @@ public class HexDump
 	 */
 	public void dump(byte[] array, int offset, int len)
 	{
+		dump(array, offset, len, 0);
+	}
+
+	/**
+	 * Dump a byte array to the specified output stream or writer.
+	 * If none specified, use System.out.
+	 * @param array The byte array.
+	 * @param offset The starting offset.
+	 * @param len The number of bytes to dump.
+	 * @param startAddr The address to display for the first byte in the array.
+	 */
+	public void dump(byte[] array, int offset, int len, int startAddr)
+	{
 		if (m_printStream == null && m_printWriter == null) {
 			m_printStream = System.out;
 		}
@@ -104,7 +140,7 @@ public class HexDump
 					charPart = new StringBuilder();
 				}
 				if (m_addrFormat != null) {
-					hexPart.append(String.format(m_addrFormat, i+offset));
+					hexPart.append(String.format(m_addrFormat, startAddr + i + offset));
 				}
 			}
 			if ((i%bytesPerLine)%4 == 0) {
@@ -156,6 +192,52 @@ public class HexDump
 	public void dump(byte[] array)
 	{
 		dump(array, 0, array.length);
+	}
+	
+	/**
+	 * Run HexDump on files given as argument.
+	 * @param fnames Names of files to dump. "-" means stdin.
+	 * 		If no arguments, use stdin.
+	 */
+	public static void main(String[] fnames)
+	{
+		if (fnames == null || fnames.length == 0) {
+			fnames = new String[] {"-"};
+		}
+		for (String fname: fnames) {
+			HexDump hexDump = new HexDump();
+			InputStream istr = null;
+			boolean closeIstr = false;
+			try {
+				if (fname.equals("-")) {
+					istr = System.in;
+					if (fnames.length > 1) {
+						System.out.println("stdin:");
+					}
+				} else {
+					istr = new FileInputStream(fname);
+					closeIstr = true;
+					if (fnames.length > 1) {
+						System.out.println(fname + ":");
+					}
+				}
+				byte[] buff = new byte[hexDump.getBytesPerLine()];
+				int nBytes = 0;
+				int nRead;
+				while ((nRead = istr.read(buff)) > 0) {
+					hexDump.dump(buff, 0, nRead, nBytes);
+					nBytes += nRead;
+				}
+			} catch (FileNotFoundException e) {
+				System.err.println("Cannot open file \"" + fname + "\"");
+			} catch (IOException e) {
+				System.err.println("IO exception reading file \"" + fname + "\": " + e);
+			} finally {
+				if (closeIstr && istr != null) {
+					try {istr.close();} catch (Exception e) {}
+				}
+			}
+		}
 	}
 }
 
