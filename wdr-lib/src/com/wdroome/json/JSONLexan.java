@@ -9,6 +9,7 @@ import java.io.FileReader;
 import java.io.StringReader;
 import java.io.BufferedReader;
 import java.util.HashMap;
+import java.math.BigInteger;
 
 /**
  * An implementation of the {@link IJSONLexan} interface.
@@ -297,24 +298,62 @@ public class JSONLexan implements IJSONLexan
 	
 	/**
 	 * Read a JSON number and return the token.
+	 * Return a JSONValue_BigInt if the value is an integer
+	 * but does not fit in a double without losing precision.
+	 * Otherwise return a JSONValue_Number (e.g., a double).
 	 * @param c The first character of the number: a digit or '-'.
 	 */
 	private JSONLexanToken getNumber(int c) throws IOException
 	{
 		StringBuilder word = new StringBuilder();
 		word.append((char)c);
-		while ((c = read()) != -1
-				&& (Character.isDigit(c) || c == '-' || c == '+'
-							|| c == '.' || c == 'e' || c == 'E')) {
-			word.append((char)c);
+		boolean isInt = true;
+		boolean scanning = true;
+		while (scanning) {
+			switch (c = read()) {
+			case '+':
+			case '.':
+			case 'e':
+			case 'E':
+				isInt = false;
+				word.append((char)c);
+				break;
+				
+			case '-':
+			case '0': case '1': case '2': case '3': case '4':
+			case '5': case '6': case '7': case '8': case '9':
+				word.append((char)c);
+				break;
+				
+			default:
+				scanning = false;
+				break;
+			}
 		}
 		pushBack(c);
 		String strWord = word.toString();
+		Double dblVal;
 		try {
-			return new JSONLexanToken(Double.parseDouble(strWord));
+			dblVal = new Double(strWord);
 		} catch (Exception e) {
-			return new JSONLexanToken(JSONLexanToken.Token.UNKNOWN, strWord); 
+			// Invalid number -- return error.
+			return new JSONLexanToken(JSONLexanToken.Token.UNKNOWN, strWord);
 		}
+		if (isInt) {
+			try {
+				if (dblVal.longValue() == Long.parseLong(strWord)) {
+					return new JSONLexanToken(dblVal.doubleValue());
+				}
+			} catch (NumberFormatException e) {
+				// Does not fit in long - fall thru
+			}
+			try {
+				return new JSONLexanToken(new BigInteger(strWord));
+			} catch (NumberFormatException e) {
+				// Does not fit in long - fall thru
+			}
+		}
+		return new JSONLexanToken(dblVal);
 	}
 	
 	/**

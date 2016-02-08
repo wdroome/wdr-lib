@@ -3,6 +3,7 @@ package com.wdroome.json;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
+import java.math.BigInteger;
 
 /**
  * Utility methods to create a JSONObject from a regular java object or a scalar value.
@@ -15,7 +16,7 @@ public class JSONUtil
 	 * Java Arrays and Collections become JSON arrays,
 	 * Java Maps become JSON objects,
 	 * Java Booleans become JSON booleans,
-	 * Java Numbers become JSON numbers,
+	 * Java Numbers become JSON numbers or BigInts,
 	 * null becomes a JSON null,
 	 * and anything else becomes a JSON string with the object's toString() value.
 	 * @param obj The object to be converted to a JSONValue.
@@ -29,6 +30,8 @@ public class JSONUtil
 			return (JSONValue)obj;
 		} else if (obj instanceof String) {
 			return new JSONValue_String((String)obj);
+		} else if (obj instanceof BigInteger) {
+			return new JSONValue_BigInt((BigInteger)obj);
 		} else if (obj instanceof Number) {
 			return new JSONValue_Number((Number)obj);
 		} else if (obj instanceof Boolean) {

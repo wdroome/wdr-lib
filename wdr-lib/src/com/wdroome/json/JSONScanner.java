@@ -209,6 +209,7 @@ public abstract class JSONScanner
 				
 				case STRING:
 				case NUMBER:
+				case BIGINT:
 				case TRUE:
 				case FALSE:
 				case NULL:
@@ -220,6 +221,7 @@ public abstract class JSONScanner
 								scalarValue = new JSONValue_String(stringValue);
 								break;
 						case NUMBER: scalarValue = new JSONValue_Number(tok.getNumber()); break;
+						case BIGINT: scalarValue = new JSONValue_BigInt(tok.getBigInt()); break;
 						case TRUE: scalarValue = JSONValue_Boolean.TRUE; break;
 						case FALSE: scalarValue = JSONValue_Boolean.FALSE; break;
 						case NULL: scalarValue = JSONValue_Null.NULL; break;

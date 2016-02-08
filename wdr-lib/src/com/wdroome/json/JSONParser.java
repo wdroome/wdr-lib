@@ -65,6 +65,7 @@ public class JSONParser
 		JSONValue value;
 		switch (token.m_token) {
 			case NUMBER:	value = new JSONValue_Number(token.getNumber()); break;
+			case BIGINT:	value = new JSONValue_BigInt(token.getBigInt()); break;
 			case STRING:	value = new JSONValue_String(token.getString()); break;
 			case TRUE:		value = JSONValue_Boolean.TRUE; break;
 			case FALSE:		value = JSONValue_Boolean.FALSE; break;
@@ -144,6 +145,9 @@ public class JSONParser
 				case NUMBER:
 					object.put(key, new JSONValue_Number(token.getNumber()));
 					break;
+				case BIGINT:
+					object.put(key, new JSONValue_BigInt(token.getBigInt()));
+					break;
 				case STRING:
 					object.put(key, new JSONValue_String(token.getString()));
 					break;
@@ -196,6 +200,9 @@ public class JSONParser
 			switch (token.m_token) {
 				case NUMBER:
 					array.add(new JSONValue_Number(token.getNumber()));
+					break;
+				case BIGINT:
+					array.add(new JSONValue_BigInt(token.getBigInt()));
 					break;
 				case STRING:
 					array.add(new JSONValue_String(token.getString()));

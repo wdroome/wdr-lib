@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.math.BigInteger;
 
 import com.wdroome.json.*;
 
@@ -125,5 +126,18 @@ public class JSONUtil_Test
 		// System.out.println(expected);
 		// System.out.println(JSONUtil.toJSONString(jval, true, false));
 		assertEquals(expected.toString(), JSONUtil.toJSONString(jval, true, false));
+	}
+	
+	@Test
+	public void test9()
+	{
+		StringBuilder buff = new StringBuilder();
+		for (int j = 0; j < 25; j++) {
+			buff.append("9");
+			JSONValue val = JSONUtil.toValue(new BigInteger(buff.toString()));
+			assertTrue("value type " + buff.toString(), val instanceof JSONValue_BigInt);
+			assertEquals("value cmp " + buff.toString(),
+						new BigInteger(buff.toString()), ((JSONValue_BigInt)val).m_value);
+		}
 	}
 }

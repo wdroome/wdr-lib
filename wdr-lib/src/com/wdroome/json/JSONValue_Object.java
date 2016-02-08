@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.TreeMap;
+import java.math.BigInteger;
 
 /**
  * A JSON Object, or a dictionary from Strings to JSON values.
@@ -134,6 +135,18 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	}
 	
 	/**
+	 * Add a numeric value to the dictionary.
+	 * Create a {@link JSONValue_BigInt} from the argument.
+	 * @param key The key.
+	 * @param value The value.
+	 * @return The previous value, or null.
+	 */
+	public JSONValue put(String key, BigInteger value)
+	{
+		return put(key, new JSONValue_BigInt(value));
+	}
+	
+	/**
 	 * Add a boolean value to the dictionary.
 	 * Create a {@link JSONValue_Boolean} from the argument.
 	 * @param key The key.
@@ -186,7 +199,12 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	public JSONValue_Object putNumbers(Map<String, ? extends Number> src)
 	{
 		for (Map.Entry<String,? extends Number> srcEntry: src.entrySet()) {
-			put(srcEntry.getKey(), new JSONValue_Number(srcEntry.getValue().doubleValue()));
+			Number value = srcEntry.getValue();
+			if (value instanceof BigInteger) {
+				put(srcEntry.getKey(), new JSONValue_BigInt(value));
+			} else {
+				put(srcEntry.getKey(), new JSONValue_Number(value.doubleValue()));
+			}
 		}
 		return this;
 	}
@@ -259,7 +277,8 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	}
 
 	/**
-	 * Return a numeric-valued entry.
+	 * Return a numeric-valued entry as a double.
+	 * If the entry is a BigInt, return it as a double, with loss of precision.
 	 * @param key The entry's key.
 	 * @return The number value of the key.
 	 * @throws JSONFieldMissingException If field is missing or null.
@@ -273,16 +292,19 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
             		"JSONObject[" + JSONValue_String.quotedString(key) + "] not found.",
             		makePathName(key));
 		}
-		if (!(value instanceof JSONValue_Number)) {
+		if (value instanceof JSONValue_Number) {
+			return ((JSONValue_Number)value).m_value;
+		} else if (value instanceof JSONValue_BigInt) {
+			return ((JSONValue_BigInt)value).m_value.doubleValue();
+		} else {
         	throw new JSONValueTypeException(
-        			"JSONObject[" + JSONValue_String.quotedString(key) + "] is not a Number.",
+        			"JSONObject[" + JSONValue_String.quotedString(key) + "] is not a Number or BigInt.",
         			makePathName(key));
 		}
-		return ((JSONValue_Number)value).m_value;
 	}
 
 	/**
-	 * Return a numeric-valued entry.
+	 * Return a numeric-valued entry as a double.
 	 * @param key The entry's key.
 	 * @param def The default value.
 	 * @return The numeric value of the key,
@@ -291,8 +313,70 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	public double getNumber(String key, double def)
 	{
 		JSONValue value = get(key);
-		return (value != null && value instanceof JSONValue_Number)
-						? ((JSONValue_Number)value).m_value : def;
+		if (value == null) {
+			return def;
+		} else if (value instanceof JSONValue_Number) {
+			return ((JSONValue_Number)value).m_value;
+		} else if (value instanceof JSONValue_BigInt) {
+			return ((JSONValue_BigInt)value).m_value.doubleValue();
+		} else {
+        	return def;
+		}
+	}
+	
+	/**
+	 * Return an integer-valued entry as a BigInteger.
+	 * This works for Number values as well, as long as they
+	 * have an integral value.
+	 * @param key
+	 * @return The BigInteger value of the key.
+	 * @throws JSONFieldMissingException If field is missing or null.
+	 * @throws JSONValueTypeException If field exists, but it's not an integer.
+	 */
+	public BigInteger getBigInt(String key) throws JSONFieldMissingException, JSONValueTypeException
+	{
+		JSONValue value = get(key);
+		if (value == null || (value instanceof JSONValue_Null)) {
+            throw new JSONFieldMissingException(
+            		"JSONObject[" + JSONValue_String.quotedString(key) + "] not found.",
+            		makePathName(key));
+		}
+		if (value instanceof JSONValue_BigInt) {
+			return ((JSONValue_BigInt)value).m_value;
+		} else if (value instanceof JSONValue_Number) {
+			try {
+				return ((JSONValue_Number)value).toBigInteger();
+			} catch (Exception e) {
+				// Not integer: fall thru
+			}
+		}
+        throw new JSONValueTypeException(
+        		"JSONObject[" + JSONValue_String.quotedString(key) + "] is not a BigInt or an integer.",
+        		makePathName(key));
+	}
+
+	/**
+	 * Return an integer-valued entry as a BigInteger.
+	 * @param key The entry's key.
+	 * @param def The default value.
+	 * @return The numeric value of the key,
+	 * 		or def if key doesn't exist or it's not an integer.
+	 */
+	public BigInteger getBigInt(String key, BigInteger def)
+	{
+		JSONValue value = get(key);
+		if (value == null) {
+			return def;
+		} else if (value instanceof JSONValue_BigInt) {
+			return ((JSONValue_BigInt)value).m_value;
+		} else if (value instanceof JSONValue_Number) {
+			try {
+				return ((JSONValue_Number)value).toBigInteger();
+			} catch (Exception e) {
+				// Not integer: fall thru
+			}
+		}
+    	return def;
 	}
 
 	/**
@@ -594,6 +678,8 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
  		if (parent == null || parent.equals("")) {
  			if (child == null || child.equals("")) {
  				return "";
+ 			} else if (child.startsWith("/")) {
+ 				return child;
  			} else {
  				return "/" + child;
  			}
@@ -603,7 +689,9 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
  		}
  		if (child == null || child.equals("")) {
  			return parent;
- 		} else {
+ 		} else if (child.startsWith("/")) {
+ 			return parent + child;
+		} else {
  			return parent + "/" + child;
  		}
  	}

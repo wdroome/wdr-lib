@@ -1,13 +1,14 @@
 package com.wdroome.json;
 
 import java.io.IOException;
+import java.math.BigInteger;
 
 /**
- * A JSON Number.
- * All numbers are doubles, even integer values.
+ * A JSON Number which fits in a double.
  * For simplicity, the value is a read-only public member.
  * <p>
  * It would be nice if this could extend java.lang.Number, but that's final.
+ * @see JSONValue_BigInt
  * @author wdr
  */
 public class JSONValue_Number implements JSONValue
@@ -31,6 +32,19 @@ public class JSONValue_Number implements JSONValue
 	public JSONValue_Number(Number value)
 	{
 		m_value = value.doubleValue();
+	}
+	
+	/**
+	 * Return the value as a BigInteger.
+	 * @return The value as a BigInteger.
+	 * @throws NumberFormatException If the value is not an integer.
+	 */
+	public BigInteger toBigInteger() throws NumberFormatException
+	{
+		if (Math.floor(m_value) != m_value) {
+			throw new NumberFormatException(m_value + " is not an integer");
+		}
+		return new BigInteger(String.format("%.0f", m_value));
 	}
 	
 	/**

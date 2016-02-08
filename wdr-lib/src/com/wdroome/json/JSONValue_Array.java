@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Collection;
+import java.math.BigInteger;
 
 /**
  * A JSON array.
@@ -85,6 +86,16 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	public void add(double value)
 	{
 		add(new JSONValue_Number(value));
+	}
+	
+	/**
+	 * Add a numeric value to the array.
+	 * Create a {@link JSONValue_BigInt} from the argument.
+	 * @param value The value.
+	 */
+	public void add(BigInteger value)
+	{
+		add(new JSONValue_BigInt(value));
 	}
 	
 	/**
@@ -180,13 +191,19 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	/**
 	 * Add a list of Numbers to this array.
 	 * @param src The Numbers to be added.
+	 * 		BigIntegers are added as JSON BigInt values.
+	 * 		Other values are added as JSON Number values (e.g., doubles).
 	 * @return This object.
 	 */
 	public JSONValue_Array addNumbers(Collection<? extends Number> src)
 	{
 		if (src != null) {
 			for (Number value : src) {
-				add(new JSONValue_Number(value.doubleValue()));
+				if (value instanceof BigInteger) {
+					add(new JSONValue_BigInt((BigInteger)value));
+				} else {
+					add(new JSONValue_Number(value.doubleValue()));
+				}
 			}
 		}
 		return this;
@@ -236,7 +253,7 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	}
 
 	/**
-	 * Return a numeric-valued element.
+	 * Return a numeric-valued element as a double.
 	 * @param index The element's index.
 	 * @return The numeric value of the element.
 	 * 		Return def if it's not a JSON number.
@@ -245,7 +262,41 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	public double getNumber(int index, double def)
 	{
 		JSONValue value = get(index);
-		return (value instanceof JSONValue_Number) ? ((JSONValue_Number)value).m_value : def;
+		if (value == null) {
+			return def;
+		} else if (value instanceof JSONValue_Number) {
+			return ((JSONValue_Number)value).m_value;
+		} else if (value instanceof JSONValue_BigInt) {
+			return ((JSONValue_BigInt)value).m_value.doubleValue();
+		} else {
+			return def;
+		}
+	}
+	
+	/**
+	 * Return an integer-valued element as a BigInteger.
+	 * @param index The element's index.
+	 * @return The numeric value of the element.
+	 * 		Return def if the value is not a JSON number,
+	 * 		or if it's not an integer,
+	 * @throws IndexOutOfBoundsException If index is invalid.
+	 */
+	public BigInteger getBigInt(int index, BigInteger def)
+	{
+		JSONValue value = get(index);
+		if (value == null) {
+			return def;
+		} else if (value instanceof JSONValue_BigInt) {
+			return ((JSONValue_BigInt)value).m_value;
+		} else if (value instanceof JSONValue_Number) {
+			try {
+				return ((JSONValue_Number) value).toBigInteger();
+			} catch (Exception e) {
+				return def;
+			}
+		} else {
+			return def;
+		}
 	}
 
 	/**

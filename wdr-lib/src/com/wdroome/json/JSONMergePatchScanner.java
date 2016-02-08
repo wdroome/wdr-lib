@@ -20,7 +20,7 @@ public abstract class JSONMergePatchScanner
 	 * The registered media-type for JSON Merge-Patch.
 	 */
 	public static final String MERGE_PATCH_MEDIA_TYPE = "application/merge-patch+json";
-
+	
 	/**
 	 * Scan a JSON Merge-Patch object and call
 	 * {@link #newValue(List, JSONValue)} for each modified value.

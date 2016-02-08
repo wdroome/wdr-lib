@@ -1,5 +1,7 @@
 package com.wdroome.json;
 
+import java.math.BigInteger;
+
 /**
  * A token returned by a JSON Lexical Analyzer.
  * @author wdr
@@ -18,7 +20,10 @@ public class JSONLexanToken
 			FALSE,
 			NULL,
 			STRING,
+			/** Tokens with a fractional part, or integer tokens which fit in a double. */
 			NUMBER,
+			/** Integer tokens which do not fit into a double without loss of precision. */
+			BIGINT,
 			UNKNOWN,
 		};
 	
@@ -27,6 +32,7 @@ public class JSONLexanToken
 	
 	private final String m_string;
 	private final double m_number;
+	private final BigInteger m_bigInt;
 	
 	/**
 	 * Create a simple token: type only, no associated value.
@@ -43,6 +49,9 @@ public class JSONLexanToken
 		case NUMBER:
 			throw new IllegalArgumentException(
 					"Must use JSONScannerToken(double) c'tor to create NUMBER token");
+		case BIGINT:
+			throw new IllegalArgumentException(
+					"Must use JSONScannerToken(BigInteger) c'tor to create BIGINT token");
 		case UNKNOWN:
 			throw new IllegalArgumentException(
 					"Must use JSONScannerToken(Token,String) c'tor to create UNKNOWN token");
@@ -51,6 +60,7 @@ public class JSONLexanToken
 			m_token = token;
 			m_string = null;
 			m_number = Double.NaN;
+			m_bigInt = null;
 		}
 	}
 	
@@ -63,6 +73,7 @@ public class JSONLexanToken
 		m_token = Token.STRING;
 		m_string = value;
 		m_number = Double.NaN;
+		m_bigInt = null;
 	}
 	
 	/**
@@ -74,6 +85,20 @@ public class JSONLexanToken
 		m_token = Token.NUMBER;
 		m_string = null;
 		m_number = value;
+		m_bigInt = null;
+	}
+	
+	/**
+	 * Create a BIGINT token.
+	 * @param value The value.
+	 */
+	public JSONLexanToken(BigInteger value)
+	{
+		// System.out.println("XXX: BigInt token " + value);
+		m_token = Token.BIGINT;
+		m_string = null;
+		m_number = Double.NaN;
+		m_bigInt = value;
 	}
 	
 	/**
@@ -91,6 +116,7 @@ public class JSONLexanToken
 			m_token = token;
 			m_string = value;
 			m_number = Double.NaN;
+			m_bigInt = null;
 			break;
 
 		default:
@@ -123,10 +149,33 @@ public class JSONLexanToken
 		switch (m_token) {
 		case NUMBER:
 			return m_number;
+		case BIGINT:
+			throw new IllegalStateException(
+					"JSONScannerToken.getNumber() called on BIGINT token"
+					+ " instead of NUMBER token");
 		default:
 			throw new IllegalStateException(
 					"JSONScannerToken.getNumber() called on " + m_token.toString()
 					+ " instead of NUMBER token");
+		}
+	}
+	
+	/**
+	 * For BIGINT tokens, return the number as a BigInteger.
+	 */
+	public BigInteger getBigInt()
+	{
+		switch (m_token) {
+		case BIGINT:
+			return m_bigInt;
+		case NUMBER:
+			throw new IllegalStateException(
+					"JSONScannerToken.getBigInt() called on NUMBER token"
+					+ " instead of BIGINT token");
+		default:
+			throw new IllegalStateException(
+					"JSONScannerToken.getBigInt() called on " + m_token.toString()
+					+ " instead of BIGINT token");
 		}
 	}
 	
@@ -136,6 +185,7 @@ public class JSONLexanToken
 		switch (m_token) {
 		case STRING:	return "\"" + m_string + "\"";
 		case NUMBER:	return Double.toString(m_number);
+		case BIGINT:	return m_bigInt.toString();
 		default:		return m_token.toString();
 		}	
 	}
