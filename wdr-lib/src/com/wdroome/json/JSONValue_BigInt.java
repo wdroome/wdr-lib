@@ -4,7 +4,8 @@ import java.io.IOException;
 import java.math.BigInteger;
 
 /**
- * A JSON integer value that does not fit into a double.
+ * A JSON integer value (e.g, no fractional part and no exponent)
+ * which does not fit into a double without loss of precision.
  * For simplicity, the value is a read-only public member.
  * <p>
  * It would be nice if this could extend java.lang.Number, but that's final.

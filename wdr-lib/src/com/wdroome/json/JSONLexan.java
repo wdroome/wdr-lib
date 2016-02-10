@@ -19,6 +19,13 @@ import java.math.BigInteger;
  */
 public class JSONLexan implements IJSONLexan
 {
+	/**
+	 * If an integer-valued JSON number has this many digits or fewer,
+	 * we represent it as a double in a JSONValue_Number.
+	 * If it has more digits, we use a JSONValue_BigInt.
+	 */
+	private static int MAX_DIGITS_FOR_DOUBLE = 14;
+	
 	private static HashMap<String,JSONLexanToken> RESERVED_WORDS = new HashMap<String, JSONLexanToken>();
 	static {
 		RESERVED_WORDS.put("true", new JSONLexanToken(JSONLexanToken.Token.TRUE));
@@ -332,28 +339,26 @@ public class JSONLexan implements IJSONLexan
 		}
 		pushBack(c);
 		String strWord = word.toString();
-		Double dblVal;
+		if (isInt) {
+			int ndigits = strWord.length();
+			if (strWord.charAt(0) == '-') {
+				--ndigits;
+			}
+			if (ndigits > MAX_DIGITS_FOR_DOUBLE) {
+				try {
+					return new JSONLexanToken(new BigInteger(strWord));
+				} catch (NumberFormatException e) {
+					// Invalid number -- return error.
+					return new JSONLexanToken(JSONLexanToken.Token.UNKNOWN, strWord);
+				}
+			}
+		}
 		try {
-			dblVal = new Double(strWord);
+			return new JSONLexanToken(Double.parseDouble(strWord));
 		} catch (Exception e) {
 			// Invalid number -- return error.
 			return new JSONLexanToken(JSONLexanToken.Token.UNKNOWN, strWord);
 		}
-		if (isInt) {
-			try {
-				if (dblVal.longValue() == Long.parseLong(strWord)) {
-					return new JSONLexanToken(dblVal.doubleValue());
-				}
-			} catch (NumberFormatException e) {
-				// Does not fit in long - fall thru
-			}
-			try {
-				return new JSONLexanToken(new BigInteger(strWord));
-			} catch (NumberFormatException e) {
-				// Does not fit in long - fall thru
-			}
-		}
-		return new JSONLexanToken(dblVal);
 	}
 	
 	/**

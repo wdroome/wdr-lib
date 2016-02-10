@@ -37,9 +37,31 @@ public class JSONValue_Number_Test
 	@Test
 	public void test3() throws JSONParseException
 	{
+		check2(new BigInteger(Long.toString(Long.MAX_VALUE)), Long.toString(Long.MAX_VALUE));
+		check2(new BigInteger(Long.toString(Long.MIN_VALUE)), Long.toString(Long.MIN_VALUE));
+		check2(new BigInteger(Long.toString(Long.MAX_VALUE-1)), Long.toString(Long.MAX_VALUE-1));
+		check2(new BigInteger(Long.toString(Long.MIN_VALUE+1)), Long.toString(Long.MIN_VALUE+1));
 		StringBuilder buff = new StringBuilder();
 		for (int j = 0; j < 50; j++) {
+			buff.append("1");
+			check2(new BigInteger(buff.toString()), buff.toString());
+			check2(new BigInteger("-" + buff.toString()), "-" + buff.toString());
+		}
+		buff = new StringBuilder();
+		for (int j = 0; j < 50; j++) {
+			buff.append("5");
+			check2(new BigInteger(buff.toString()), buff.toString());
+			check2(new BigInteger("-" + buff.toString()), "-" + buff.toString());
+		}
+		buff = new StringBuilder();
+		for (int j = 0; j < 50; j++) {
 			buff.append("9");
+			check2(new BigInteger(buff.toString()), buff.toString());
+			check2(new BigInteger("-" + buff.toString()), "-" + buff.toString());
+		}
+		buff = new StringBuilder("1");
+		for (int j = 0; j < 50; j++) {
+			buff.append("0");
 			check2(new BigInteger(buff.toString()), buff.toString());
 			check2(new BigInteger("-" + buff.toString()), "-" + buff.toString());
 		}
@@ -70,6 +92,7 @@ public class JSONValue_Number_Test
 		BigInteger bigInt2;
 		if (jvalue2 instanceof JSONValue_Number) {
 			bigInt2 = ((JSONValue_Number)jvalue2).toBigInteger();
+			// System.out.println("XXX: Number " + expectedJson + " " + ((JSONValue_Number)jvalue2).m_value);
 		} else if (jvalue2 instanceof JSONValue_BigInt) {
 			bigInt2 = ((JSONValue_BigInt)jvalue2).m_value;
 		} else {
