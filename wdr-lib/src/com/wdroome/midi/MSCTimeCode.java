@@ -13,16 +13,16 @@ public class MSCTimeCode
 		DROP_FRAME_30(2),
 		FRAME_30(3);
 		
-		public final byte m_code;
+		private final byte m_code;
 		
 		TimeType(int code) { m_code = (byte)code; }
 		
 		/**
-		 * Return the enum constant for the encoded format.
-		 * @param code The encoded format, 0x0 to 0x3.
-		 * @return The enum constant for the encoded format.
+		 * Return the enum constant for the encoded time type.
+		 * @param code The encoded time type, 0x0 to 0x3.
+		 * @return The enum constant for the encoded time type.
 		 */
-		public static TimeType fromCode(byte code)
+		private static TimeType fromCode(byte code)
 		{
 			if (code == FRAME_24.m_code) {
 				return FRAME_24;
@@ -64,12 +64,12 @@ public class MSCTimeCode
 	// If negative, use m_status instead.
 	public short m_subFrame = 0;
 	
-	// m_status is valid iff m_subframe is -1.
-	// The client must parse the bits.
+	// m_status is valid iff m_subframe is negative.
+	// The client must parse the status bits.
 	public short m_status = 0;
 
 	/**
-	 * Create a time code from the raw time code in an MSC message.
+	 * Create a time code from the raw time code bytes in an MSC message.
 	 * @param in The source for the raw time code.
 	 * 		If null, set all fields to their default values.
 	 * 		The object does not retain a reference to this buffer.
@@ -97,7 +97,7 @@ public class MSCTimeCode
 	}
 	
 	/**
-	 * Create a blank time code. The client must fill in the fields.
+	 * Create a blank time code. The client must set in the fields.
 	 */
 	public MSCTimeCode()
 	{

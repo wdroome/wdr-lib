@@ -2,7 +2,11 @@ package com.wdroome.midi;
 
 import java.util.ArrayList;
 import java.io.PrintStream;
-import javax.sound.midi.*;
+
+import javax.sound.midi.MidiSystem;
+import javax.sound.midi.MidiDevice;
+import javax.sound.midi.Sequencer;
+import javax.sound.midi.Synthesizer;
 
 import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider;
 import uk.co.xfactorylibrarians.coremidi4j.CoreMidiNotification;
