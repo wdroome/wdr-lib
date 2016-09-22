@@ -1,11 +1,16 @@
 package com.wdroome.midi;
 
 /**
- * The Standard Time Code in some MIDI Show Control messages.
+ * The Standard Time Code used in some MIDI Show Control messages.
  * @author wdr
  */
 public class MSCTimeCode
 {
+	/**
+	 * The encoded length of a Standard Time Code.
+	 */
+	public static int ENCODED_LENGTH = 5;
+	
 	// The time code type.
 	public static enum TimeType {
 		FRAME_24(0),
@@ -24,18 +29,12 @@ public class MSCTimeCode
 		 */
 		private static TimeType fromCode(byte code)
 		{
-			if (code == FRAME_24.m_code) {
-				return FRAME_24;
-			} else if (code == FRAME_25.m_code) {
-				return FRAME_25;
-			} else if (code == FRAME_30.m_code) {
-				return FRAME_30;
-			} else if (code == DROP_FRAME_30.m_code) {
-				return DROP_FRAME_30;
-			} else {
-				// OOPS! Shouldn't happen.
-				return FRAME_24;
+			for (TimeType tt: values()) {
+				if (code == tt.m_code) {
+					return tt;
+				}
 			}
+			return FRAME_24;
 		}
 	};
 	
@@ -70,6 +69,8 @@ public class MSCTimeCode
 
 	/**
 	 * Create a time code from the raw time code bytes in an MSC message.
+	 * The client must ensure that the ENCODED_LENGTH bytes
+	 * starting at in[offset] are within the array bounds.
 	 * @param in The source for the raw time code.
 	 * 		If null, set all fields to their default values.
 	 * 		The object does not retain a reference to this buffer.
@@ -108,8 +109,9 @@ public class MSCTimeCode
 	 * Set the 5 bytes starting at out[offset] to the raw time code.
 	 * @param out The destination for the raw time code.
 	 * @param offset The starting offset within "out".
+	 * @return The offset of the byte after the last time code byte.
 	 */
-	public void makeCode(byte[] out, int offset)
+	public int makeCode(byte[] out, int offset)
 	{
 		out[offset+0] = (byte) ((m_type.m_code << 5) | m_hr);
 		out[offset+1] = (byte) m_min;
@@ -127,5 +129,17 @@ public class MSCTimeCode
 		} else {
 			out[offset+4] = (byte) m_subFrame;
 		}
+		return offset + 5;
+	}
+	
+	@Override
+	public String toString()
+	{
+		return
+			m_type.name() + "["
+			+ m_hr + ":" + m_min + ":" + m_sec + ":" + m_frame
+			+ ((m_subFrame >= 0) ? 
+				(":" + m_subFrame) : ("/status=" + m_status))
+			+ "]";
 	}
 }
