@@ -66,9 +66,9 @@ public class MSCMessage
 	{
 		StringBuilder b = new StringBuilder(100);
 		b.append("MSCMessage{");
-		b.append(m_cmdFormat);
+		b.append(m_cmdFormat.getName());
 		b.append("/");
-		b.append(m_cmd);
+		b.append(m_cmd.getName());
 		b.append(":");
 		b.append("dev=");
 		b.append(m_deviceId);
@@ -76,7 +76,7 @@ public class MSCMessage
 			b.append(",qnum=" + m_qnum);
 		}
 		if (m_qlist != null) {
-			b.append(",qnum=" + m_qlist);
+			b.append(",qlist=" + m_qlist);
 		}
 		if (m_qpath != null) {
 			b.append(",qpath=" + m_qpath);
@@ -85,7 +85,7 @@ public class MSCMessage
 			b.append(",tc=" + m_timeCode);
 		}
 		if (m_cmd == MSCCommand.SET) {
-			b.append(",control=" + m_controlNumber + "@" + m_controlValue);
+			b.append(",control=" + m_controlNumber + "/" + m_controlValue);
 		} else if (m_cmd == MSCCommand.FIRE) {
 			b.append(",macro=" + m_controlValue);
 		}
@@ -123,23 +123,23 @@ public class MSCMessage
 			return null;
 		}
 		int len = data.length;
-		if (len < 7) {
+		if (len < 6) {
 			return null;
 		}
-		if (data[0] != SysexMessage.SYSTEM_EXCLUSIVE
-			|| data[1] != REAL_TIME_SYSEX_START
-			|| data[3] != MSC_ID) {
+		if (sysex.getStatus() != SysexMessage.SYSTEM_EXCLUSIVE
+			|| data[0] != REAL_TIME_SYSEX_START
+			|| data[2] != MSC_ID) {
 			return null;
 		}
-		int deviceId = data[2] & 0xff;
+		int deviceId = data[1] & 0xff;
 		if (!isMyDeviceId(deviceId, myDeviceIds)) {
 			return null;
 		}
-		MSCCmdFormat cmdFmt = isMyCmdFmt(data[4] & 0xff, myCmdFmts);
+		MSCCmdFormat cmdFmt = isMyCmdFmt(data[3] & 0xff, myCmdFmts);
 		if (cmdFmt == null) {
 			return null;
 		}
-		MSCCommand cmd = MSCCommand.fromCode(data[5] & 0xff);
+		MSCCommand cmd = MSCCommand.fromCode(data[4] & 0xff);
 		if (cmd == null || cmd == MSCCommand.RESERVED) {
 			return null;
 		}
@@ -151,7 +151,7 @@ public class MSCMessage
 		ScanInfo scan = new ScanInfo();
 		scan.data = data;
 		scan.len = len;
-		scan.next = 6;
+		scan.next = 5;
 		switch (cmd) {
 		case GO:
 		case STOP:
@@ -246,8 +246,8 @@ public class MSCMessage
 		if (scan.next + 2 > scan.len) {
 			return 0;
 		}
-		int ret = (scan.data[scan.next] &0xff)
-					| ((scan.data[scan.next+1] & 0xff) << 8);
+		int ret = (scan.data[scan.next] &0x7f)
+					| ((scan.data[scan.next+1] & 0x7f) << 7);
 		scan.next += 2;
 		return ret;
 	}
@@ -257,7 +257,7 @@ public class MSCMessage
 		if (scan.next + 1 > scan.len) {
 			return 0;
 		}
-		int ret = scan.data[scan.next] &0xff;
+		int ret = scan.data[scan.next] & 0x7f;
 		scan.next += 1;
 		return ret;
 	}
@@ -287,7 +287,6 @@ public class MSCMessage
 	{
 		byte[] data = new byte[128];
 		int len = 0;
-		data[len++] = (byte)SysexMessage.SYSTEM_EXCLUSIVE;
 		data[len++] = REAL_TIME_SYSEX_START;
 		data[len++] = (byte)m_deviceId;
 		data[len++] = MSC_ID;
@@ -311,16 +310,16 @@ public class MSCMessage
 			len = appendQStrs(data, len, m_qnum, m_qlist, m_qpath);
 			break;
 		case SET:
-			data[len++] = (byte)((m_controlNumber     ) & 0xff);
-			data[len++] = (byte)((m_controlNumber >> 8) & 0xff);
-			data[len++] = (byte)((m_controlValue      ) & 0xff);
-			data[len++] = (byte)((m_controlValue  >> 8) & 0xff);
+			data[len++] = (byte)((m_controlNumber     ) & 0x7f);
+			data[len++] = (byte)((m_controlNumber >> 7) & 0x7f);
+			data[len++] = (byte)((m_controlValue      ) & 0x7f);
+			data[len++] = (byte)((m_controlValue  >> 7) & 0x7f);
 			if (m_timeCode != null) {
 				len = m_timeCode.makeCode(data,  len);
 			}
 			break;
 		case FIRE:
-			data[len++] = (byte)(m_controlValue & 0xff);
+			data[len++] = (byte)(m_controlValue & 0x7f);
 			break;
 		case ALL_OFF:
 		case RESTORE:
@@ -360,7 +359,7 @@ public class MSCMessage
 		}
 		data[len++] = REAL_TIME_SYSEX_END;
 		
-		return new SysexMessage(data, len);
+		return new SysexMessage(SysexMessage.SYSTEM_EXCLUSIVE, data, len);
 	}
 	
 	private static int appendQStrs(byte[] data, int len, String s1, String s2, String s3)

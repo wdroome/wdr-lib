@@ -4,7 +4,11 @@ import java.util.ArrayList;
 import java.io.PrintStream;
 
 import javax.sound.midi.MidiSystem;
+import javax.sound.midi.MidiUnavailableException;
 import javax.sound.midi.MidiDevice;
+import javax.sound.midi.MidiMessage;
+import javax.sound.midi.Receiver;
+import javax.sound.midi.Transmitter;
 import javax.sound.midi.Sequencer;
 import javax.sound.midi.Synthesizer;
 
@@ -55,9 +59,9 @@ public class MidiTools
 		// True iff this device can receive outgoing MIDI messages from the program.
 		public final boolean m_isReceiver;
 		
-		// Return the preferred description of the device.
-		@Override
-		public String toString() { return m_cookedDescription; }
+		private Transmitter m_inTransmitter = null;
+		
+		private Receiver m_outReceiver = null;
 		
 		/**
 		 * Create a new instance from a MidiDevice.
@@ -77,6 +81,101 @@ public class MidiTools
 			m_isPort = isPort;
 			m_isTransmitter = device.getMaxTransmitters() != 0;
 			m_isReceiver = device.getMaxReceivers() != 0;
+		}
+		
+		// Return the preferred description of the device.
+		@Override
+		public String toString() { return m_cookedDescription; }
+		
+		/**
+		 * Specify an incoming-message receiver
+		 * for the messages which this device sends.
+		 * receiver.send() will be called whenever this device
+		 * sends a message.
+		 * Any previous receiver will be removed.
+		 * @param receiver The receiver.
+		 * @throws MidiUnavailableException
+		 * 		If something goes wrong.
+		 */
+		public synchronized void setReceiver(Receiver receiver)
+					throws MidiUnavailableException
+		{
+			if (m_inTransmitter != null) {
+				m_inTransmitter.close();
+				m_inTransmitter = null;
+			}
+			m_device.open();
+			m_inTransmitter = m_device.getTransmitter();
+			m_inTransmitter.setReceiver(receiver);
+		}
+		
+		/**
+		 * Return true iff an incoming-message receiver has been set. 
+		 * @return True iff an incoming-message receiver has been set.
+		 */
+		public synchronized boolean isOpenReceive()
+		{
+			return m_inTransmitter != null;
+		}
+		
+		/**
+		 * Close and remove the incoming-message receiver.
+		 * Quietly return if there was no receiver.
+		 */
+		public synchronized void closeReceiver()
+		{
+			if (m_inTransmitter != null) {
+				m_inTransmitter.close();
+				m_inTransmitter = null;
+			}
+		}
+		
+		/**
+		 * Send a MIDI message.
+		 * @param msg The message.
+		 * @param timestamp the timestamp.
+		 * @throws MidiUnavailableException
+		 * 		If something goes wrong.
+		 */
+		public synchronized void send(MidiMessage msg, long timestamp)
+				throws MidiUnavailableException
+		{
+			if (m_outReceiver == null) {
+				m_outReceiver = m_device.getReceiver();
+			}
+			m_device.open();
+			m_outReceiver.send(msg, timestamp);
+		}
+		
+		/**
+		 * Return true iff the device has been open for sending messages.
+		 * @return True iff the device has been open for sending messages.
+		 */
+		public synchronized boolean isOpenTransmitter()
+		{
+			return m_outReceiver != null;
+		}
+		
+		/**
+		 * Close the device for sending messages.
+		 * Quietly return if it was not open.
+		 */
+		public synchronized void closeTransmitter()
+		{
+			if (m_outReceiver != null) {
+				m_outReceiver.close();
+				m_outReceiver = null;
+			}
+		}
+		
+		/**
+		 * Close the device, both for transmitting and receiving.
+		 */
+		public synchronized void close()
+		{
+			closeReceiver();
+			closeTransmitter();
+			m_device.close();
 		}
 	}
 	
