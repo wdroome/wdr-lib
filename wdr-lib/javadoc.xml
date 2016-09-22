@@ -13,6 +13,7 @@
 		<delete dir="doc/com" quiet="true" />
 
 		<javadoc access="protected" author="true"
+			classpath="../../../coremidi4j/coremidi4j-0.9.jar"
 			destdir="doc"
 			packagenames="com.wdroome.*"
 			sourcepath="src"

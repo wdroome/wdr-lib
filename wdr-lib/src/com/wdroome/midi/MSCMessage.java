@@ -11,7 +11,7 @@ import javax.sound.midi.SysexMessage;
  * and then send that message.
  * To decode an incoming MSC command,
  * when you get a SysexMessage which may contain an MSC command,
- * call the static method {@link #make(SysexMessage, int[], MSCCmdFormat[])
+ * call the static method {@link #make(SysexMessage, int[], MSCCmdFormat[])}
  * on that SysexMessage. If it contains a valid MSC command,
  * and if that command passes the filtering rules,
  * make() returns an instance describing the MSC command.

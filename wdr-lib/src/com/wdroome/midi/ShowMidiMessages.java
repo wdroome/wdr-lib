@@ -6,20 +6,16 @@ import javax.sound.midi.ShortMessage;
 import javax.sound.midi.SysexMessage;
 
 /**
+ * Listen to the messages sent by all MIDI ports,
+ * and print them when they arrive.
+ * Test class.
  * @author wdr
  */
 public class ShowMidiMessages
 {
-
 	/**
-	 * 
-	 */
-	public ShowMidiMessages()
-	{
-		// TODO Auto-generated constructor stub
-	}
-
-	/**
+	 * Listen to the messages sent by all MIDI ports,
+	 * and print them when they arrive.
 	 * @param args
 	 */
 	public static void main(String[] args)
@@ -58,6 +54,8 @@ public class ShowMidiMessages
 				case ShortMessage.NOTE_ON: cmdName = "NOTE_ON"; break;
 				case ShortMessage.NOTE_OFF: cmdName = "NOTE_OFF"; break;
 				case ShortMessage.CONTROL_CHANGE: cmdName = "CC"; break;
+				case ShortMessage.PITCH_BEND: cmdName = "CC"; break;
+				case ShortMessage.PROGRAM_CHANGE: cmdName = "CC"; break;
 				default: cmdName = "0x" + Integer.toHexString(sm.getCommand()); break;
 				}
 				System.out.println(cmdName
