@@ -68,10 +68,10 @@ public class MSCTimeCode
 	public short m_status = 0;
 
 	/**
-	 * Create a time code from the raw time code bytes in an MSC message.
+	 * Create a time code from the encoded time code bytes in an MSC message.
 	 * The client must ensure that the ENCODED_LENGTH bytes
 	 * starting at in[offset] are within the array bounds.
-	 * @param in The source for the raw time code.
+	 * @param in The source for the encoded time code.
 	 * 		If null, set all fields to their default values.
 	 * 		The object does not retain a reference to this buffer.
 	 * @param offset The starting offset within "in".
@@ -98,16 +98,16 @@ public class MSCTimeCode
 	}
 	
 	/**
-	 * Create a blank time code. The client must set in the fields.
+	 * Create a blank time code. The client must set the various data members.
 	 */
 	public MSCTimeCode()
 	{
-		// The default values are fine.
+		this(null, 0);
 	}
 	
 	/**
-	 * Set the 5 bytes starting at out[offset] to the raw time code.
-	 * @param out The destination for the raw time code.
+	 * Set the ENCODED_LENGTH bytes starting at out[offset] to the encoded time code.
+	 * @param out The destination for the encoded time code.
 	 * @param offset The starting offset within "out".
 	 * @return The offset of the byte after the last time code byte.
 	 */
@@ -129,7 +129,7 @@ public class MSCTimeCode
 		} else {
 			out[offset+4] = (byte) m_subFrame;
 		}
-		return offset + 5;
+		return offset + ENCODED_LENGTH;
 	}
 	
 	@Override
