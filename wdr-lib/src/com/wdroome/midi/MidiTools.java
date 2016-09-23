@@ -13,8 +13,6 @@ import javax.sound.midi.Sequencer;
 import javax.sound.midi.Synthesizer;
 
 import uk.co.xfactorylibrarians.coremidi4j.CoreMidiDeviceProvider;
-import uk.co.xfactorylibrarians.coremidi4j.CoreMidiNotification;
-import uk.co.xfactorylibrarians.coremidi4j.CoreMidiException;
 
 /**
  * Common static methods for handling MIDI messages.
@@ -32,6 +30,8 @@ public class MidiTools
             Class.forName(CoreMidiDeviceProvider.class.getName());
             loaded = true;
 		} catch (Exception e) {
+			loaded = false;
+		} catch (Error e) {
 			loaded = false;
 		}
 		g_coreMidi4jLoaded = loaded;
@@ -180,13 +180,28 @@ public class MidiTools
 	}
 	
 	/**
-	 * Get the working MIDI devices.
+	 * Get the raw information for the working MIDI devices.
+	 * This uses the CoreMidi4j extensions if they are available.
+	 * If not, it uses the device information returned by MidiSystem.
+	 * @return The raw information for the working MIDI devices.
+	 */
+	public static MidiDevice.Info[] getMidiDeviceInfo()
+	{
+		if (g_coreMidi4jLoaded) {
+			return CoreMidiDeviceProvider.getMidiDeviceInfo();
+		} else {
+			return MidiSystem.getMidiDeviceInfo();
+		}
+	}
+	
+	/**
+	 * Get the extended descriptions of the working MIDI devices.
 	 * @return An array with the working MIDI devices.
 	 */
 	public static Device[] getDevices()
 	{
 		ArrayList<Device> devices = new ArrayList<>();
-        for (javax.sound.midi.MidiDevice.Info info: CoreMidiDeviceProvider.getMidiDeviceInfo()) {
+        for (javax.sound.midi.MidiDevice.Info info: getMidiDeviceInfo()) {
         	try {
         		devices.add(new Device(MidiSystem.getMidiDevice(info)));
         	} catch (Exception e) {
@@ -277,11 +292,7 @@ public class MidiTools
      */
     public static void main(String[] args) throws Exception
     {
-        if (g_coreMidi4jLoaded) {
-            System.out.println("CoreMIDI4J native library is running.");
-        } else {
-            System.out.println("CoreMIDI4J native library is not available.");
-        }
+        warnSysexPatch(System.out);
         try {
             System.out.println("MIDI Devices:");
             for (Device device : getDevices()) {

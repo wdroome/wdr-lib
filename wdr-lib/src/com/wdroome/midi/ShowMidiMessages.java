@@ -20,6 +20,7 @@ public class ShowMidiMessages
 	 */
 	public static void main(String[] args)
 	{
+        MidiTools.warnSysexPatch(System.out);
         try {
             System.out.println("MIDI Devices:");
             for (MidiTools.Device device : MidiTools.getDevices()) {
