@@ -201,7 +201,7 @@ public class MidiTools
 	public static Device[] getDevices()
 	{
 		ArrayList<Device> devices = new ArrayList<>();
-        for (javax.sound.midi.MidiDevice.Info info: getMidiDeviceInfo()) {
+        for (MidiDevice.Info info: getMidiDeviceInfo()) {
         	try {
         		devices.add(new Device(MidiSystem.getMidiDevice(info)));
         	} catch (Exception e) {

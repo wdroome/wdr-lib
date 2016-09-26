@@ -8,7 +8,6 @@ import javax.sound.midi.SysexMessage;
 /**
  * Listen to the messages sent by all MIDI ports,
  * and print them when they arrive.
- * Test class.
  * @author wdr
  */
 public class ShowMidiMessages

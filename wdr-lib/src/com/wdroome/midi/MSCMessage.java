@@ -123,7 +123,10 @@ public class MSCMessage
 			return null;
 		}
 		int len = data.length;
-		if (len < 6) {
+		if (len >= 1 && data[len-1] == REAL_TIME_SYSEX_END) {
+			--len;
+		}
+		if (len < 5) {
 			return null;
 		}
 		if (sysex.getStatus() != SysexMessage.SYSTEM_EXCLUSIVE
