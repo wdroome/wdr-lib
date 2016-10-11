@@ -268,4 +268,20 @@ public class StringUtils
 		}
 		return strSet;
 	}
+	
+	/**
+	 * Return a String from an array of bytes, ignoring trailing 0 bytes.
+	 * @param buff The byte buffer.
+	 * @param off The starting offset within buff.
+	 * @param length The length of the byte array.
+	 * @return A String with the bytes from buff[off] to buff[off+length-1],
+	 * 		minus any trailing 0 bytes.
+	 */
+	public static String makeString(byte[] buff, int off, int length)
+	{
+		while (length > 0 && buff[off+length-1] == 0) {
+			length--;
+		}
+		return new String(buff, off, length);
+	}
 }

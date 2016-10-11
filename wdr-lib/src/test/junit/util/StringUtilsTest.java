@@ -136,6 +136,19 @@ public class StringUtilsTest
 		}
 	}
 	
+	@Test
+	public void makeStringTest()
+	{
+		byte[] buff = new byte[] {'a', 'b', 'c', 0, 0, 'd'};
+		assertEquals("0,3", "abc", StringUtils.makeString(buff, 0, 3));
+		assertEquals("0,4", "abc", StringUtils.makeString(buff, 0, 4));
+		assertEquals("1,3", "bc", StringUtils.makeString(buff, 1, 3));
+		assertEquals("1,4", "bc", StringUtils.makeString(buff, 1, 4));
+		assertEquals("5,1", "d", StringUtils.makeString(buff, 5, 1));
+		assertEquals("3,2", "", StringUtils.makeString(buff, 3, 2));
+		assertEquals("1,0", "", StringUtils.makeString(buff, 1, 0));
+	}
+	
 	public static void main(String[] args)
 	{
 		printArr(StringUtils.split("abc,def,0123"));
