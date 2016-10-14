@@ -270,17 +270,20 @@ public class StringUtils
 	}
 	
 	/**
-	 * Return a String from an array of bytes, ignoring trailing 0 bytes.
+	 * Return a String from an array of bytes, stopping with the first 0 byte.
 	 * @param buff The byte buffer.
 	 * @param off The starting offset within buff.
 	 * @param length The length of the byte array.
 	 * @return A String with the bytes from buff[off] to buff[off+length-1],
-	 * 		minus any trailing 0 bytes.
+	 * 		stopping at the first 0 byte.
 	 */
 	public static String makeString(byte[] buff, int off, int length)
 	{
-		while (length > 0 && buff[off+length-1] == 0) {
-			length--;
+		for (int i = 0; i < length; i++) {
+			if (buff[off+i] == 0) {
+				length = i;
+				break;
+			}
 		}
 		return new String(buff, off, length);
 	}

@@ -6,6 +6,7 @@ import java.net.UnknownHostException;
 
 import com.wdroome.util.StringUtils;
 import com.wdroome.util.ByteAOL;
+import com.wdroome.util.HexDump;
 
 /**
  * An Art-Net Poll Reply message.
@@ -57,7 +58,7 @@ public class ArtNetPollReply extends ArtNetMsg
 	public ArtNetPollReply(byte[] buff, int off, int length)
 	{
 		super(ArtNetOpcode.OpPollReply);
-		if (length < size()) {
+		if (length < minSize()) {
 			throw new IllegalArgumentException("ArtNetPollReply: short msg " + length);
 		}
 		ArtNetOpcode opcode = getOpcode(buff, off, length);
@@ -75,6 +76,7 @@ public class ArtNetPollReply extends ArtNetMsg
 		m_subNetAddr = buff[off++] & 0xff;
 		m_oem = getBigEndInt16(buff, off);
 		off += 2;
+		m_ubea = buff[off++] & 0xff;
 		m_status1 = buff[off++] & 0xff;
 		m_esta = getLittleEndInt16(buff, off);
 		off += 2;
@@ -98,15 +100,18 @@ public class ArtNetPollReply extends ArtNetMsg
 		off += 4;
 		m_swVideo = buff[off++] & 0xff;
 		m_swMacro = buff[off++] & 0xff;
+		m_swRemote = buff[off++] & 0xff;
 		off += 3;	// spare
 		m_style = buff[off++] & 0xff;
 		copyBytes(m_macAddr, 0, buff, off, 6);
 		off += 6;
-		m_bindIpAddr = getIpAddr(buff, off);
-		off += 4;
-		m_bindIndex = buff[off++] & 0xff;		
-		m_status2 = buff[off++] & 0xff;
-		off += 26;	// filler
+		if (length >= size()) {
+			m_bindIpAddr = getIpAddr(buff, off);
+			off += 4;
+			m_bindIndex = buff[off++] & 0xff;		
+			m_status2 = buff[off++] & 0xff;
+			off += 26;	// filler
+		}
 	}
 	
 	/**
@@ -114,6 +119,21 @@ public class ArtNetPollReply extends ArtNetMsg
 	 * @return The length of an ArtNetPollReply message.
 	 */
 	public static int size()
+	{
+		return minSize()
+				+ 4		// bindIpAddr
+				+ 1		// bindIndex
+				+ 1		// status2
+				+ 26	// filler
+			;
+	}
+	
+	/**
+	 * Return the minimum length of an ArtNetPollReply message.
+	 * This is up to the MAC address.
+	 * @return The minimum length of an ArtNetPollReply message.
+	 */
+	public static int minSize()
 	{
 		return ArtNetConst.HDR_OPCODE_LENGTH 
 				+ 4		// ipAddr
@@ -136,13 +156,10 @@ public class ArtNetPollReply extends ArtNetMsg
 				+ 4		// swOut
 				+ 1		// swVideo
 				+ 1		// swMacro
+				+ 1		// swRemote
 				+ 3		// spare
 				+ 1		// style
 				+ 6		// macAddr
-				+ 4		// bindIpAddr
-				+ 1		// bindIndex
-				+ 1		// status2
-				+ 26	// filler
 			;
 	}
 	
@@ -165,6 +182,7 @@ public class ArtNetPollReply extends ArtNetMsg
 		buff[off++] = (byte)m_subNetAddr;
 		putBigEndInt16(buff, off, m_oem);
 		off += 2;
+		buff[off++] = (byte)m_ubea;
 		buff[off++] = (byte)m_status1;
 		putLittleEndInt16(buff, off, m_esta);
 		off += 2;
@@ -188,6 +206,7 @@ public class ArtNetPollReply extends ArtNetMsg
 		off += 4;
 		buff[off++] = (byte)m_swVideo;
 		buff[off++]= (byte)m_swMacro;
+		buff[off++]= (byte)m_swRemote;
 		zeroBytes(buff, off, 3);	// spare
 		off += 3;
 		buff[off++] = (byte)m_style;
@@ -233,6 +252,7 @@ public class ArtNetPollReply extends ArtNetMsg
 		append(b, "swOut", m_swOut);
 		appendHex(b, "swVideo", m_swVideo);
 		appendHex(b, "swMacro", m_swMacro);
+		appendHex(b, "swRemote", m_swRemote);
 		appendHex(b, "style", m_style);
 		append(b, "macAddr", m_macAddr);
 		if (m_bindIpAddr != null) {
@@ -258,9 +278,10 @@ public class ArtNetPollReply extends ArtNetMsg
 		System.out.println("size: " + ArtNetPollReply.size());
 		System.out.println(m.toString().replace(",", "\n  "));
 		byte[] buff = new byte[ArtNetPollReply.size()];
-		m.putData(buff, 0);
-		String x = new ByteAOL(buff, 0, buff.length).toHex();
-		System.out.println(x);
+		int len = m.putData(buff, 0);
+		System.out.println("put len: " + len);
+		HexDump dump = new HexDump();
+		dump.dump(buff, 0, len);
 		ArtNetPollReply m2 = new ArtNetPollReply(buff, 0, ArtNetPollReply.size());
 		System.out.println(m2.toString().replace(",", "\n  "));
 	}
