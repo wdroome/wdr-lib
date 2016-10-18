@@ -112,7 +112,7 @@ public class ArtNetDmx extends ArtNetMsg
 	public String toString()
 	{
 		StringBuilder b = new StringBuilder(300);
-		b.append("ArtNetPoll{");
+		b.append("ArtNetDmx{");
 		append(b, "protoVers", m_protoVers);
 		appendHex(b, "seqn", m_sequence);
 		appendHex(b, "phys", m_physical);
