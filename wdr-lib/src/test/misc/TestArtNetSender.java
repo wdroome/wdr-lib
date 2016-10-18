@@ -7,14 +7,17 @@ import java.util.*;
 import com.wdroome.artnet.*;
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.HexDump;
+import com.wdroome.util.inet.CIDRAddress;
 
 /**
  * @author wdr
  */
 public class TestArtNetSender
-{
+{	
 	private static class Rcvr extends Thread
 	{
+		private List<ArtNetPollReply> m_nodes = new ArrayList<ArtNetPollReply>();
+		
 		public void run()
 		{
 			DatagramSocket sock;
@@ -36,6 +39,11 @@ public class TestArtNetSender
 					ArtNetMsg m = ArtNetMsg.make(buff, 0, pack.getLength());
 					if (m != null) {
 						System.out.println(m.toString().replace(",", "\n  "));
+						if (m instanceof ArtNetPollReply) {
+							synchronized (m_nodes) {
+								m_nodes.add((ArtNetPollReply)m);
+							}
+						}
 					} else {
 						HexDump dump = new HexDump();
 						dump.dump(buff, 0, pack.getLength());
@@ -52,51 +60,95 @@ public class TestArtNetSender
 				}
 			}
 		}
+		
+		public List<ArtNetPollReply> getNodes() { return m_nodes; }
 	}
+	
 	/**
 	 * @param args
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws IOException
 	{
-		if (true) {
-			Rcvr rcvr = new Rcvr();
-			rcvr.start();
-			try { Thread.sleep(1000); } catch (Exception e) {}
-		}
+		Rcvr rcvr = new Rcvr();
+		rcvr.start();
+		try { Thread.sleep(1000); } catch (Exception e) {}
 		
 		Enumeration<NetworkInterface> nis = NetworkInterface.getNetworkInterfaces();
 		List<InetAddress> addrs = new ArrayList<InetAddress>();
 		List<InetAddress> bcasts = new ArrayList<InetAddress>();
+		List<CIDRAddress> cidrs = new ArrayList<CIDRAddress>();
 		while (nis.hasMoreElements()) {
 			NetworkInterface ni = nis.nextElement();
 			System.out.println("NI: " + ni.toString());
 			for (InterfaceAddress ia: ni.getInterfaceAddresses()) {
-				System.out.println("  IntAddr: " + ia.getAddress() + " bcst: " + ia.getBroadcast());
+				System.out.println("  IntAddr: " + ia.getAddress()
+								+ " bcst: " + ia.getBroadcast());
 				addrs.add(ia.getAddress());
 				bcasts.add(ia.getBroadcast());
+				cidrs.add(new CIDRAddress(ia.getAddress().getAddress(),
+								ia.getNetworkPrefixLength()));
 			}
 		}
 		
 		DatagramSocket sock = null;
 		try {
 			ArtNetPoll poll = new ArtNetPoll();
-			byte[] buff = new byte[1024];
-			int len = poll.putData(buff, 0);
-			DatagramPacket pack = new DatagramPacket(buff, len);
+			byte[] buffPoll = new byte[1024];
+			int len = poll.putData(buffPoll, 0);
+			DatagramPacket packPoll = new DatagramPacket(buffPoll, len);
+			ArtNetDmx dmx = new ArtNetDmx();
+			dmx.m_sequence = 1;
+			dmx.m_data = new byte[] {
+					(byte)(0x00), (byte)(0x20), (byte)(0x40), (byte)(0x60),
+					(byte)(0x80), (byte)(0xa0), (byte)(0xc0), (byte)(0xe0),
+					(byte)(0xff),
+			};
+			dmx.m_dataLen = dmx.m_data.length;
+			byte[] buffDmx = new byte[1024];
+			len = dmx.putData(buffDmx, 0);
+			DatagramPacket packDmx = new DatagramPacket(buffDmx, len);
+
 			for (int i = 0; i < addrs.size(); i++) {
 				InetAddress addr = addrs.get(i);
 				InetAddress bcast = bcasts.get(i);
 				if (bcast != null) {
 					sock = new DatagramSocket(ArtNetConst.ARTNET_PORT-1, addr);
-					pack.setAddress(bcast);
-					pack.setPort(ArtNetConst.ARTNET_PORT);
-					System.out.println("Sending to " + bcast);
-					sock.send(pack);
+					packPoll.setAddress(bcast);
+					packPoll.setPort(ArtNetConst.ARTNET_PORT);
+					System.out.println();
+					System.out.println("Sending poll to " + bcast);
+					sock.send(packPoll);
 					sock.close();
 					sock = null;
 				}
 			}
+
+			try { Thread.sleep(1000); } catch (Exception e) {}
+			List<ArtNetPollReply> nodes = rcvr.getNodes();
+			for (ArtNetPollReply node: nodes) {
+				if (node.m_ipAddr != null) {
+					InetAddress myAddr = null;
+					for (int i = 0; i < addrs.size(); i++) {
+						CIDRAddress cidr = cidrs.get(i);
+						if (cidr.contains(node.m_ipAddr)) {
+							myAddr = addrs.get(i);
+							break;
+						}
+					}
+					if (myAddr != null) {
+						sock = new DatagramSocket(ArtNetConst.ARTNET_PORT - 1, myAddr);
+						System.out.println();
+						System.out.println("Sending dmx to " + node.m_ipAddr + " via " + myAddr);
+						packDmx.setAddress(node.m_ipAddr);
+						packDmx.setPort(node.m_ipPort);
+						sock.send(packDmx);
+						sock.close();
+						sock = null;
+					}
+				}
+			}
+
 		} finally {
 			try {
 				if (sock != null) {
@@ -105,6 +157,8 @@ public class TestArtNetSender
 			} catch (Exception e2) {
 			}
 		}
+		try { Thread.sleep(1000); } catch (Exception e) {}
+		System.exit(0);
 	}
 
 }
