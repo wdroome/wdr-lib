@@ -7,9 +7,15 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
 
+import com.wdroome.util.ImmutableList;
+
 /**
+ * Information about an internet address and its subnet on the local host.
+ * This is a convenience class with data from java.net.NetworkInterface
+ * and java.net.NetworkAddress.
  * @author wdr
  */
 public class InetInterface
@@ -23,16 +29,16 @@ public class InetInterface
 	/** True iff this is a loopback interface. */
 	public final boolean m_isLoopback;
 
-	/** The local address on this interface. */
+	/** A local address on this interface. */
 	public final InetAddress m_address;
 
-	/** The CIDR for this interface. */
+	/** The CIDR for the subnet with m_address. */
 	public final CIDRAddress m_cidr;
 	
-	/** The broadcast address on this interface. May be null. */
+	/** The broadcast address for the subnet with m_address. May be null. */
 	public final InetAddress m_broadcast;
 	
-	/** All network interfaces. */
+	/** All internet addresses. */
 	private static List<InetInterface> g_inetInterfaces = null;
 	
 	/**
@@ -72,8 +78,19 @@ public class InetInterface
 	}
 	
 	/**
+	 * Return the local address followed by the interface name and the mask length.
+	 */
+	@Override
+	public String toString()
+	{
+		return m_address.getHostAddress() + "[" + m_interfaceName + "/"
+					+ (m_cidr != null ?  m_cidr.getMaskLen() : 0) + "]";
+	}
+	
+	/**
 	 * Return all available InetInterfaces.
-	 * @return All available InetInterfaces.
+	 * The returned list is read-only.
+	 * @return All read-only list of all available InetInterfaces.
 	 */
 	public static synchronized List<InetInterface> getAllInterfaces()
 	{
@@ -94,8 +111,19 @@ public class InetInterface
 			} catch (SocketException e1) {
 				// Very odd -- shouldn't happen.
 			}
-			g_inetInterfaces = interfaces;
+			g_inetInterfaces = new ImmutableList<InetInterface>(interfaces);
 		}
 		return g_inetInterfaces;
+	}
+	
+	/**
+	 * Print all interfaces on this host.
+	 * @param args
+	 */
+	public static void main(String[] args)
+	{
+		for (InetInterface iface: InetInterface.getAllInterfaces()) {
+			System.out.println(iface);
+		}
 	}
 }
