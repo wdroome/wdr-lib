@@ -29,7 +29,7 @@ public class InetInterface
 	/** True iff this is a loopback interface. */
 	public final boolean m_isLoopback;
 
-	/** A local address on this interface. */
+	/** The host's local address on this interface. */
 	public final InetAddress m_address;
 
 	/** The CIDR for the subnet with m_address. */
