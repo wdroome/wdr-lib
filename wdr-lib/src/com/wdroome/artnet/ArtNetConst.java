@@ -21,6 +21,9 @@ public class ArtNetConst
 	
 	/** Standard UDP port number. */
 	public static final int ARTNET_PORT = 0x1936;
+	
+	/** Buffer size guaranteed to hold any Art-Net message. */
+	public static final int MAX_MSG_LEN = 1024;
 
 	/**
 	 *  Table 3: Node report codes.

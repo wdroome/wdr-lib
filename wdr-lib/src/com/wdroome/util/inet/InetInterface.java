@@ -100,6 +100,9 @@ public class InetInterface
 				Enumeration<NetworkInterface> nis = NetworkInterface.getNetworkInterfaces();
 				while (nis.hasMoreElements()) {
 					NetworkInterface ni = nis.nextElement();
+					if (!ni.isUp()) {
+						continue;
+					}
 					for (InterfaceAddress ia: ni.getInterfaceAddresses()) {
 						try {
 							interfaces.add(new InetInterface(ni, ia));

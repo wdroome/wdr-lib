@@ -10,7 +10,7 @@ import java.net.UnknownHostException;
  */
 public abstract class ArtNetMsg
 {	
-	private final ArtNetOpcode m_opcode;
+	public final ArtNetOpcode m_opcode;
 
 	/**
 	 * Create a new message.
