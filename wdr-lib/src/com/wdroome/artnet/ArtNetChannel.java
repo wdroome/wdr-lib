@@ -23,27 +23,29 @@ import com.wdroome.util.inet.CIDRAddress;
 import com.wdroome.util.inet.InetInterface;
 
 /**
+ * A channel for sending and receiving Art-Net messages.
  * @author wdr
  */
 public class ArtNetChannel extends Thread
 {
 	/**
-	 * Methods called when an Art-Net message arrives.
+	 * Art-Net message handler.
+	 * These methods are called when  Art-Net messages arrive.
 	 * @author wdr
 	 */
 	public interface Receiver
 	{
 		/**
-		 * Called when a new Art-Net message has arrived.
+		 * Called when a new Art-Net message arrives.
 		 * @param msg The message.
 		 * @param sender The remote address.
 		 * @param receiver The local address.
 		 */
 		public void msgArrived(ArtNetMsg msg,
-								SocketAddress sender, SocketAddress receiver);
+								InetSocketAddress sender, InetSocketAddress receiver);
 		
 		/**
-		 * Called when a new Art-Net message has arrived,
+		 * Called when a new Art-Net message arrives,
 		 * but we do not have a message type for the opcode.
 		 * @param opcode The art-net opcode.
 		 * @param buff The raw bytes of the message.
@@ -52,17 +54,17 @@ public class ArtNetChannel extends Thread
 		 * @param receiver The local address.
 		 */
 		public void msgArrived(ArtNetOpcode opcode, byte[] buff, int len,
-								SocketAddress sender, SocketAddress receiver);
+							InetSocketAddress sender, InetSocketAddress receiver);
 		
 		/**
-		 * Called when a non-Art-Net message has arrived.
+		 * Called when a non-Art-Net message arrives.
 		 * @param msg The message.
 		 * @param len The length of the message.
 		 * @param sender The remote address.
 		 * @param receiver The local address.
 		 */
 		public void msgArrived(byte[] msg, int len,
-								SocketAddress sender, SocketAddress receiver); 
+							InetSocketAddress sender, InetSocketAddress receiver); 
 	}
 	
 	private static class SendBuffer
@@ -106,13 +108,20 @@ public class ArtNetChannel extends Thread
 	private boolean m_running = true;
 
 	/**
-	 * @throws IOException 
+	 * Create a new channel for sending and receiving Art-Net messages.
+	 * @param receiver
+	 * 		Methods of this class will be called when messages arrive.
+	 * @param ports
+	 * 		The ports to listen to. If null or 0-length, listen to
+	 * 		the default Art-Net port.
+	 * @throws IOException
+	 * 		As thrown by Selector.open().
 	 */
 	public ArtNetChannel(Receiver receiver, int[] ports) throws IOException
 	{
 		m_selector = Selector.open();
 		m_receiver = receiver;
-		if (ports == null | ports.length == 0) {
+		if (ports == null || ports.length == 0) {
 			ports = new int[] {ArtNetConst.ARTNET_PORT};
 		}
 		ArrayList<ChannelInfo> channels = new ArrayList<ChannelInfo>();
@@ -127,6 +136,7 @@ public class ArtNetChannel extends Thread
 						ChannelInfo chanInfo = new ChannelInfo(chan, iface.m_cidr);
 						chan.register(m_selector, SelectionKey.OP_READ, chanInfo);
 						channels.add(chanInfo);
+						//System.out.println("XXX: ArtNetChannel: " + iface.m_address + ":" + port);
 					}
 				} catch (IOException e) {
 					System.err.println("ArtNetChannel(); Could not bind to "
@@ -148,6 +158,9 @@ public class ArtNetChannel extends Thread
 		start();
 	}
 	
+	/**
+	 * Listen for incoming messages, and send messages if sending is blocked.
+	 */
 	@Override
 	public void run()
 	{
@@ -167,29 +180,36 @@ public class ArtNetChannel extends Thread
 						}
 						ChannelInfo chanInfo = (ChannelInfo)att;
 						if ((ops & SelectionKey.OP_READ) != 0) {
-							SocketAddress sender;
-							while ((sender = chanInfo.m_channel.receive(rcvBuff)) != null) {
+							SocketAddress xsender;
+							SocketAddress xreceiver;
+							while ((xsender = chanInfo.m_channel.receive(rcvBuff)) != null) {
+								rcvBuff.flip();
 								int msgLen = rcvBuff.remaining();
 								rcvBuff.get(msgBuff, 0, msgLen);
 								rcvBuff.clear();
 								ArtNetMsg msg = ArtNetMsg.make(msgBuff, 0, msgLen);
+								xreceiver = chanInfo.m_channel.getLocalAddress();
+								if (!(xsender instanceof InetSocketAddress && xreceiver instanceof InetSocketAddress)) {
+									// Ignore non-ipv4 messages.
+									continue;
+								}
+								InetSocketAddress sender = (InetSocketAddress)xsender;
+								InetSocketAddress receiver = (InetSocketAddress)xreceiver;
 								if (msg != null) {
 									if (m_receiver != null) {
-										m_receiver.msgArrived(msg, sender, chanInfo.m_channel.getLocalAddress());
+										m_receiver.msgArrived(msg, sender, receiver);
 									}
 								} else {
 									ArtNetOpcode opcode = ArtNetMsg.getOpcode(msgBuff, 0, msgLen);
 									switch (opcode) {
 									case Invalid:
 										if (m_receiver != null) {
-											m_receiver.msgArrived(msgBuff, msgLen,
-													sender, chanInfo.m_channel.getLocalAddress());
+											m_receiver.msgArrived(msgBuff, msgLen, sender, receiver);
 										}
 										break;
 									default:
 										if (m_receiver != null) {
-											m_receiver.msgArrived(opcode, msgBuff, msgLen,
-													sender, chanInfo.m_channel.getLocalAddress());
+											m_receiver.msgArrived(opcode, msgBuff, msgLen, sender, receiver);
 										}
 										break;
 									}
@@ -200,9 +220,13 @@ public class ArtNetChannel extends Thread
 							synchronized (chanInfo.m_sendBuffs) {
 								while (!chanInfo.m_sendBuffs.isEmpty()) {
 									SendBuffer sendBuff = chanInfo.m_sendBuffs.removeFirst();
-									int nsent = chanInfo.m_channel.send(sendBuff.m_buff, sendBuff.m_target);
-									if (nsent == 0) {
-										System.err.println("ArtNetChannel.run(); Could not send msg");
+									try {
+										int nsent = chanInfo.m_channel.send(sendBuff.m_buff, sendBuff.m_target);
+										if (nsent == 0) {
+											System.err.println("ArtNetChannel.run(); Could not send msg.");
+										}
+									} catch (IOException e) {
+										System.err.println("ArtNetChannel.run(): send err: " + e);
 									}
 									releaseSendBuffer(sendBuff.m_buff);
 								}
@@ -221,6 +245,25 @@ public class ArtNetChannel extends Thread
 		}
 	}
 	
+	/**
+	 * Stop the listener thread.
+	 */
+	public void shutdown()
+	{
+		m_running = false;
+		m_selector.wakeup();
+	}
+	
+	/**
+	 * Send an Art-Net message.
+	 * @param msg The message.
+	 * @param target The destination.
+	 * @return True iff the message was sent (or is queued to send).
+	 * 		Only returns false if we cannot find a network interface
+	 * 		to use to send the message.
+	 * @throws IOException
+	 * 		As thrown by Datagram.send();
+	 */
 	public boolean send(ArtNetMsg msg, InetSocketAddress target) throws IOException
 	{
 		ChannelInfo chanInfo = getChannelInfo(target);
@@ -237,17 +280,21 @@ public class ArtNetChannel extends Thread
 			return false;
 		}
 		sendBuff.put(msgBuff, 0, msgLen);
+		sendBuff.flip();
+		if (false) {
+			System.out.println("XXX: ArtNetChannel.send " + chanInfo.m_channel.getLocalAddress() + " -> " + target);
+			System.out.println("XXX: " + sendBuff.toString());
+			new HexDump().dump(msgBuff, 0, msgLen);
+		}
 		int nsent = chanInfo.m_channel.send(sendBuff, target);
-		if (nsent != 0) {
-			return true;
-		} else {
+		if (nsent == 0) {
 			synchronized (chanInfo.m_sendBuffs) {
 				chanInfo.m_sendBuffs.add(new SendBuffer(target, sendBuff));
 				chanInfo.m_channel.register(m_selector, SelectionKey.OP_READ + SelectionKey.OP_WRITE, chanInfo);
 				m_selector.wakeup();
 			}
-			return true;
 		}
+		return true;
 	}
 	
 	private ByteBuffer getSendBuffer()
@@ -304,26 +351,36 @@ public class ArtNetChannel extends Thread
 			m_dump.setOutput(m_out);
 		}
 		
+		/**
+		 * Return prefix string for each message.
+		 * @return the base class method returns "".
+		 */
+		public String msgPrefix() { return ""; }
+		
 		@Override
-		public void msgArrived(ArtNetMsg msg, SocketAddress sender, SocketAddress receiver)
+		public void msgArrived(ArtNetMsg msg, InetSocketAddress sender, InetSocketAddress receiver)
 		{
-			m_out.println("Rcv " + msg.m_opcode + ": rmt: " + sender + " lcl: " + receiver);
+			m_out.println(msgPrefix() + "Rcv " + msg.m_opcode
+							+ ": rmt: " + sender + " lcl: " + receiver);
 			m_out.println(msg.toString().replace(",", "\n  "));
 		}
 
 		@Override
 		public void msgArrived(ArtNetOpcode opcode, byte[] buff, int len,
-						SocketAddress sender, SocketAddress receiver)
+							InetSocketAddress sender, InetSocketAddress receiver)
 		{
-			m_out.println("Rcv " + opcode + ": rmt: " + sender + " lcl: " + receiver + " len: " + len);
+			m_out.println(msgPrefix() + "Rcv " + opcode
+							+ ": rmt: " + sender + " lcl: "
+							+ receiver + " len: " + len);
 			m_dump.dump(buff, 0, len);
 		}
 
 		@Override
-		public void msgArrived(byte[] msg, int len, SocketAddress sender,
-						SocketAddress receiver)
+		public void msgArrived(byte[] msg, int len,
+							InetSocketAddress sender, InetSocketAddress receiver)
 		{
-			m_out.println("Rcv ???: rmt: " + sender + " lcl: " + receiver + " len: " + len);
+			m_out.println(msgPrefix() + "Rcv ???: rmt: " + sender + " lcl: "
+							+ receiver + " len: " + len);
 			m_dump.dump(msg, 0, len);
 		}
 	}
