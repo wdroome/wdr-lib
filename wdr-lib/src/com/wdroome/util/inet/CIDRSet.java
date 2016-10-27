@@ -124,10 +124,11 @@ public class CIDRSet implements Iterable<CIDRAddress>
 	@Override
 	public Iterator<CIDRAddress> iterator()
 	{
-		if (m_array != null)
+		if (m_array != null) {
 			return new ArrayIterator<CIDRAddress>(m_array);
-		else
+		} else {
 			return m_set.iterator();
+		}
 	}
 	
 	/**
@@ -139,8 +140,9 @@ public class CIDRSet implements Iterable<CIDRAddress>
 			return m_set.toArray(new CIDRAddress[m_set.size()]);
 		} else {
 			CIDRAddress[] ret = new CIDRAddress[m_array.length];
-			for (int i = 0; i < ret.length; i++)
+			for (int i = 0; i < ret.length; i++) {
 				ret[i] = m_array[i];
+			}
 			return ret;
 		}
 	}
@@ -152,12 +154,13 @@ public class CIDRSet implements Iterable<CIDRAddress>
 	 */
 	public boolean contains(CIDRAddress addr)
 	{
-		if (addr == null)
+		if (addr == null) {
 			return false;
-		if (m_array != null) {
+		} else if (m_array != null) {
 			for (CIDRAddress a:m_array) {
-				if (a.equals(addr))
+				if (a.equals(addr)) {
 					return true;
+				}
 			}
 			return false;
 		} else {
@@ -185,18 +188,20 @@ public class CIDRSet implements Iterable<CIDRAddress>
 	 */
 	public boolean covers(CIDRAddress addr, boolean allowEqualCIDRs)
 	{
-		if (addr == null)
+		if (addr == null) {
 			return false;
-		if (m_array != null) {
+		} else if (m_array != null) {
 			for (CIDRAddress a:m_array) {
-				if (a.covers(addr) && (allowEqualCIDRs || !a.equals(addr)))
+				if (a.covers(addr) && (allowEqualCIDRs || !a.equals(addr))) {
 					return true;
+				}
 			}
 			return false;
 		} else {
 			for (CIDRAddress a:m_set) {
-				if (a.covers(addr) && (allowEqualCIDRs || !a.equals(addr)))
+				if (a.covers(addr) && (allowEqualCIDRs || !a.equals(addr))) {
 					return true;
+				}
 			}
 			return false;
 		}
@@ -243,8 +248,9 @@ public class CIDRSet implements Iterable<CIDRAddress>
 	 */
 	public void add(CIDRAddress cidr)
 	{
-		if (m_array != null)
+		if (m_array != null) {
 			throw new IllegalStateException("Cannot add CIDRs to a frozen CIDRSet");
+		}
 		m_set.add(cidr);
 	}
 	
@@ -285,8 +291,9 @@ public class CIDRSet implements Iterable<CIDRAddress>
 	 */
 	public boolean remove(CIDRAddress cidr)
 	{
-		if (m_array != null)
+		if (m_array != null) {
 			throw new IllegalStateException("Cannot remove CIDRs from a frozen CIDRSet");
+		}
 		return m_set.remove(cidr);
 	}
 	
@@ -315,8 +322,9 @@ public class CIDRSet implements Iterable<CIDRAddress>
 	 */
 	public boolean freeze(boolean coalesce)
 	{
-		if (m_array != null)
+		if (m_array != null) {
 			return false;
+		}
 		int nCIDRs = m_set.size();
 		if (!coalesce) {
 			
@@ -337,8 +345,9 @@ public class CIDRSet implements Iterable<CIDRAddress>
 			int iDest = 0;			
 			for (int iSrc = 0; iSrc < nCIDRs; iSrc++) {
 				dest[iDest] = src[iSrc];
-				for (iSrc++; iSrc < nCIDRs && dest[iDest].covers(src[iSrc]); iSrc++)
+				for (iSrc++; iSrc < nCIDRs && dest[iDest].covers(src[iSrc]); iSrc++) {
 					;
+				}
 				iSrc--;
 				iDest++;
 			}
@@ -369,15 +378,17 @@ public class CIDRSet implements Iterable<CIDRAddress>
 					}
 					dest[iDest++] = cidr;
 				}
-				if (iDest == nCIDRs)
+				if (iDest == nCIDRs) {
 					break;
+				}
 				nCIDRs = iDest;
 			}
 			
 			// Finish up.
 			m_array = new CIDRAddress[nCIDRs];
-			for (int i = 0; i < nCIDRs; i++)
+			for (int i = 0; i < nCIDRs; i++) {
 				m_array[i] = dest[i];
+			}
 			m_hashCode = m_array.hashCode();
 			m_set = null;
 			return nCIDRs != nOriginalCIDRs;
@@ -402,10 +413,11 @@ public class CIDRSet implements Iterable<CIDRAddress>
 	@Override
 	public int hashCode()
 	{
-		if (m_array != null)
+		if (m_array != null) {
 			return m_hashCode;
-		else
+		} else {
 			return m_set.hashCode();
+		}
 	}
 
 	/**
@@ -416,15 +428,17 @@ public class CIDRSet implements Iterable<CIDRAddress>
 	@Override
 	public boolean equals(Object obj)
 	{
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		} else if (obj == null) {
 			return false;
-		if (!getClass().isInstance(obj))
+		} else if (!getClass().isInstance(obj)) {
 			return false;
+		}
 		CIDRSet other = (CIDRSet) obj;
-		if (m_array == null && other.m_array == null)
+		if (m_array == null && other.m_array == null) {
 			return m_set.equals(other.m_set);
+		}
 		CIDRAddress[] arr = m_array != null
 					? m_array : m_set.toArray(new CIDRAddress[m_set.size()]);
 		CIDRAddress[] otherArr = other.m_array != null

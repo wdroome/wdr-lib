@@ -65,23 +65,28 @@ public class CIDRString implements Comparable<CIDRString>
 	@Override
 	public boolean equals(Object obj)
 	{
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		} else if (obj == null) {
 			return false;
-		if (!getClass().isInstance(obj))
+		} else if (!getClass().isInstance(obj)) {
 			return false;
+		}
 		CIDRString other = (CIDRString) obj;
 		if (m_string == null) {
-			if (other.m_string != null)
+			if (other.m_string != null) {
 				return false;
-		} else if (!m_string.equals(other.m_string))
+			}
+		} else if (!m_string.equals(other.m_string)) {
 			return false;
+		}
 		if (m_cidr == null) {
-			if (other.m_cidr != null)
+			if (other.m_cidr != null) {
 				return false;
-		} else if (!m_cidr.equals(other.m_cidr))
+			}
+		} else if (!m_cidr.equals(other.m_cidr)) {
 			return false;
+		}
 		return true;
 	}
 

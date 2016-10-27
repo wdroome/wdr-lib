@@ -215,7 +215,27 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 	 */
 	public EndpointAddress(InetAddress src)
 	{
+		this(src, null);
+	}
+	
+	/**
+	 * Create an endpoint from the raw bytes in an InetAddress,
+	 * ignoring any address bits not covered by bits in a mask.
+	 * @param src The IP address.
+	 * @param mask A bit mask for the raw bytes of the address.
+	 */
+	public EndpointAddress(InetAddress src, byte[] mask)
+	{
 		m_address = src.getAddress();
+		if (mask != null) {
+			for (int i = 0; i < m_address.length; i++) {
+				if (i < mask.length) {
+					m_address[i] &= mask[i];
+				} else {
+					m_address[i] = 0;
+				}
+			} 
+		}
 		m_strprefix = null;
 		m_strvalue = null;
 		m_hashCode = Arrays.hashCode(m_address);
@@ -353,8 +373,7 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 	{
 		if (m_strprefix != null) {
 			return m_strprefix;
-		}
-		if (m_address == null) {
+		} else if (m_address == null) {
 			return "??";	// Shouldn't happen, but just in case ....
 		}
 		switch (m_address.length) {
@@ -561,6 +580,7 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 				buff.append("::");
 				needSep = false;
 				for (i++; i < values.length && values[i] == 0; i++) {
+					;
 				}
 				if (i < values.length) {
 					--i;
@@ -692,12 +712,13 @@ public class EndpointAddress implements Cloneable, Comparable<EndpointAddress>
 	@Override
 	public boolean equals(Object obj)
 	{
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		} else if (obj == null) {
 			return false;
-		if (!getClass().isInstance(obj))
+		} else if (!getClass().isInstance(obj)) {
 			return false;
+		}
 		EndpointAddress other = (EndpointAddress)obj;
 		if (m_address != null && other.m_address != null) {
 			return Arrays.equals(m_address, ((EndpointAddress)obj).m_address);

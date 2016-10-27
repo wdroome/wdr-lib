@@ -141,12 +141,13 @@ public class NamedEndpointAddress extends EndpointAddress
 		{
 			double cost1 = o1.getCost();
 			double cost2 = o2.getCost();
-			if (cost1 < cost2)
+			if (cost1 < cost2) {
 				return -1;
-			else if (cost1 > cost2)
+			} else if (cost1 > cost2) {
 				return 1;
-			else
+			} else {
 				return 0;
+			}
 		}
 	}
 

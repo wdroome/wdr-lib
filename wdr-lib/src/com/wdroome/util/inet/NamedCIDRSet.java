@@ -82,16 +82,18 @@ public class NamedCIDRSet extends CIDRSet
 	@Override
 	public boolean equals(Object obj)
 	{
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (!super.equals(obj))
+		} else if (!super.equals(obj)) {
 			return false;
-		if (getClass() != obj.getClass())
+		} else if (getClass() != obj.getClass()) {
 			return false;
+		}
 		NamedCIDRSet other = (NamedCIDRSet) obj;
 		if (m_name == null) {
-			if (other.m_name != null)
+			if (other.m_name != null) {
 				return false;
+			}
 		} else if (!m_name.equals(other.m_name)) {
 			return false;
 		}

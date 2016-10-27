@@ -14,8 +14,9 @@ import com.wdroome.util.ImmutableList;
 
 /**
  * Information about an internet address and its subnet on the local host.
- * This is a convenience class with data from java.net.NetworkInterface
- * and java.net.NetworkAddress.
+ * This is a convenience class which combines data from
+ * java.net.NetworkInterface and java.net.NetworkAddress.
+ * It only considers the interfaces which are "up."
  * @author wdr
  */
 public class InetInterface
@@ -38,27 +39,33 @@ public class InetInterface
 	/** The broadcast address for the subnet with m_address. May be null. */
 	public final InetAddress m_broadcast;
 	
+	/**
+	 * The hardware address for the interface. Usually a MAC address.
+	 * Never null, but may be 0-length if the caller does not have permission
+	 * to get the hardware address.
+	 */
+	public final byte[] m_hardwareAddress;
+	
 	/** All internet addresses. */
-	private static List<InetInterface> g_inetInterfaces = null;
+	private static List<InetInterface> g_allInterfaces = null;
+	
+	/** All internet interfaces with a broadcast address. */
+	private static List<InetInterface> g_bcastInterfaces = null;
 	
 	/**
 	 * Create a new InetInterface.
 	 * @param ni The Network Interface.
 	 * @param ia An address within the ni interface.
-	 * @throws SocketException As thrown by NetworkInterface.isLoopback().
-	 * @throws UnknownHostException Should not happen. 
-	 * 
 	 */
 	public InetInterface(NetworkInterface ni, InterfaceAddress ia)
-			throws SocketException, UnknownHostException
 	{
 		m_interfaceName = ni.getName();
 		m_displayName = ni.getDisplayName();
-		m_isLoopback = ni.isLoopback();
+		m_isLoopback = isLoopback(ni);
+		m_hardwareAddress = getHardwareAddress(ni);
 		m_address = ia.getAddress();
 		m_broadcast = ia.getBroadcast();
-		m_cidr = new CIDRAddress(ia.getAddress().getAddress(),
-								ia.getNetworkPrefixLength());
+		m_cidr = new CIDRAddress(ia.getAddress(), ia.getNetworkPrefixLength());
 	}
 	
 	/**
@@ -88,24 +95,29 @@ public class InetInterface
 	}
 	
 	/**
-	 * Return all available InetInterfaces.
+	 * Return all available InetInterfaces which are "up".
 	 * The returned list is read-only.
 	 * @return All read-only list of all available InetInterfaces.
 	 */
 	public static synchronized List<InetInterface> getAllInterfaces()
 	{
-		if (g_inetInterfaces == null) {
+		if (g_allInterfaces == null) {
 			List<InetInterface> interfaces = new ArrayList<InetInterface>();
+			List<InetInterface> broadcasts = new ArrayList<InetInterface>();
 			try {
 				Enumeration<NetworkInterface> nis = NetworkInterface.getNetworkInterfaces();
 				while (nis.hasMoreElements()) {
 					NetworkInterface ni = nis.nextElement();
-					if (!ni.isUp()) {
+					if (!isUp(ni)) {
 						continue;
 					}
 					for (InterfaceAddress ia: ni.getInterfaceAddresses()) {
 						try {
-							interfaces.add(new InetInterface(ni, ia));
+							InetInterface ii = new InetInterface(ni, ia);
+							interfaces.add(ii);
+							if (ii.m_broadcast != null) {
+								broadcasts.add(ii);
+							}
 						} catch (Exception e) {
 							// Ignore. Shouldn't happen.
 						}
@@ -114,9 +126,57 @@ public class InetInterface
 			} catch (SocketException e1) {
 				// Very odd -- shouldn't happen.
 			}
-			g_inetInterfaces = new ImmutableList<InetInterface>(interfaces);
+			g_allInterfaces = new ImmutableList<InetInterface>(interfaces);
+			g_bcastInterfaces = new ImmutableList<InetInterface>(broadcasts);
 		}
-		return g_inetInterfaces;
+		return g_allInterfaces;
+	}
+	
+	private static boolean isUp(NetworkInterface ni)
+	{
+		try {
+			return ni.isUp();
+		} catch (SocketException e) {
+			return false;
+		}
+	}
+	
+	private static boolean isLoopback(NetworkInterface ni)
+	{
+		try {
+			return ni.isLoopback();
+		} catch (SocketException e) {
+			return false;
+		}
+	}
+	
+	private static byte[] getHardwareAddress(NetworkInterface ni)
+	{
+		try {
+			return ni.getHardwareAddress();
+		} catch (SocketException e) {
+			return new byte[0];
+		}
+	}
+	
+	/**
+	 * Return all available InetInterfaces which are "up" and which support broadcast.
+	 * The returned list is read-only.
+	 * @return All read-only list of all available broadcast InetInterfaces.
+	 */
+	public static List<InetInterface> getBcastInterfaces()
+	{
+		getAllInterfaces();
+		return g_bcastInterfaces;
+	}
+	
+	/**
+	 * 
+	 */
+	public static synchronized void rescan()
+	{
+		g_allInterfaces = null;
+		g_bcastInterfaces = null;
 	}
 	
 	/**
@@ -125,8 +185,13 @@ public class InetInterface
 	 */
 	public static void main(String[] args)
 	{
+		System.out.println("All Interfaces:");
 		for (InetInterface iface: InetInterface.getAllInterfaces()) {
-			System.out.println(iface);
+			System.out.println("  " + iface);
+		}
+		System.out.println("Broadcast Interfaces:");
+		for (InetInterface iface: InetInterface.getBcastInterfaces()) {
+			System.out.println("  " + iface.m_broadcast.getHostAddress() + " " + iface.m_cidr);
 		}
 	}
 }

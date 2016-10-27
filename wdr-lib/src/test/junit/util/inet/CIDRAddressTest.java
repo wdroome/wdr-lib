@@ -285,6 +285,34 @@ public class CIDRAddressTest
 	}
 
 	/**
+	 * Test method for {@link CIDRAddress(byte[], int)}.
+	 * @throws UnknownHostException 
+	 */
+	@Test
+	public void testFromInetAddress() throws UnknownHostException
+	{
+		byte[] addrBytes = {(byte)127, (byte)0, (byte)0, (byte)1};
+		InetAddress inetAddr = InetAddress.getByAddress(addrBytes);
+		CIDRAddress cidr = new CIDRAddress(inetAddr, 8);
+		assertEquals("getAddr", "127.0.0.0", cidr.getAddr());
+		assertEquals("toString", "127.0.0.0/8", cidr.toString());
+		assertEquals("maskLen", 8, cidr.getMaskLen());
+	}
+
+	/**
+	 * Test method for {@link CIDRAddress(String)}.
+	 * @throws UnknownHostException 
+	 */
+	@Test
+	public void testFromString() throws UnknownHostException
+	{
+		CIDRAddress cidr = new CIDRAddress("127.0.0.1/8");
+		assertEquals("getAddr", "127.0.0.0", cidr.getAddr());
+		assertEquals("toString", "127.0.0.0/8", cidr.toString());
+		assertEquals("maskLen", 8, cidr.getMaskLen());
+	}
+
+	/**
 	 * Test method for {@link CIDRAddress#equals(java.lang.Object)}.
 	 * @throws UnknownHostException 
 	 */

@@ -50,10 +50,11 @@ public class SrcDestAddrs implements Comparable
 	{
 		SrcDestAddrs other = (SrcDestAddrs)obj;
 		int rc = m_src.compareTo(other.m_src);
-		if (rc != 0)
+		if (rc != 0) {
 			return rc;
-		else
+		} else {
 			return m_dest.compareTo(other.m_dest);
+		}
 	}
 
 	@Override
@@ -69,23 +70,28 @@ public class SrcDestAddrs implements Comparable
 	@Override
 	public boolean equals(Object obj)
 	{
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		} else if (obj == null) {
 			return false;
-		if (!getClass().isInstance(obj))
+		} else if (!getClass().isInstance(obj)) {
 			return false;
+		}
 		SrcDestAddrs other = (SrcDestAddrs) obj;
 		if (m_dest == null) {
-			if (other.m_dest != null)
+			if (other.m_dest != null) {
 				return false;
-		} else if (!m_dest.equals(other.m_dest))
+			}
+		} else if (!m_dest.equals(other.m_dest)) {
 			return false;
+		}
 		if (m_src == null) {
-			if (other.m_src != null)
+			if (other.m_src != null) {
 				return false;
-		} else if (!m_src.equals(other.m_src))
+			}
+		} else if (!m_src.equals(other.m_src)) {
 			return false;
+		}
 		return true;
 	}
 

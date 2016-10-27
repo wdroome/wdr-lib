@@ -89,8 +89,9 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	{
 		// Split cidr into the address and mask parts.
 		int slashIndex = cidr.lastIndexOf("/");
-		if (slashIndex <= 0)
+		if (slashIndex <= 0) {
 			throw new UnknownHostException("CIDR \"" + cidr + "\" does not end in /##");
+		}
 		String addrStr = cidr.substring(0, slashIndex);
 		
 		// Get the address byte array.
@@ -107,8 +108,9 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 		} catch (Exception e) {
 			throw new UnknownHostException("CIDR \"" + cidr + "\" does not end in /##");
 		}
-		if (m_maskLen > (8*m_bytes.length) || m_maskLen < 0)
+		if (m_maskLen > (8*m_bytes.length) || m_maskLen < 0) {
 			throw new UnknownHostException("CIDR \"" + cidr + "\" mask length is too long");
+		}
 		
 		// Create the mask and clear all address bits not in the mask.
 		m_mask = createMask(m_maskLen);
@@ -132,17 +134,19 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	public CIDRAddress(byte[] bytes, int maskLen)
 		throws UnknownHostException, IllegalArgumentException
 	{
-		if (bytes.length != 4 && bytes.length != 16)
+		if (bytes.length != 4 && bytes.length != 16) {
 			throw new IllegalArgumentException("CIDR illegal byte array len " + bytes.length);
-		if (maskLen > 8*bytes.length)
+		} else if (maskLen > 8*bytes.length) {
 			throw new IllegalArgumentException("CIDR mask len " + maskLen
 											+ " > byte array bit len " + bytes.length);
+		}
 		
 		// Copy the address bytes.
 		m_maskLen = maskLen;
 		m_bytes = new byte[bytes.length];
-		for (int i = 0; i < bytes.length; i++)
+		for (int i = 0; i < bytes.length; i++) {
 			m_bytes[i] = bytes[i];
+		}
 		
 		// Create the mask and clear all address bits not in the mask.
 		m_mask = createMask(m_maskLen);
@@ -155,7 +159,40 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 		m_ipv4 = baseAddr.isIPV4();
 		m_ipv6 = baseAddr.isIPV6();
 	}
-	
+
+	/**
+	 * Create a CIDRAddress from an InetAddress and a mask length.
+	 * @param addr An interface address.
+	 * @param maskLen The mask length. Should be in [0,addr.length].
+	 * 		If not, it will be quietly truncated to that range.
+	 */
+	public CIDRAddress(InetAddress addr, int maskLen)
+	{
+		// Copy the address bytes.
+		byte[] addrBytes = addr.getAddress();
+		m_bytes = new byte[addrBytes.length];
+		for (int i = 0; i < addrBytes.length; i++) {
+			m_bytes[i] = addrBytes[i];
+		}
+
+		// Create the mask and clear all address bits not in the mask.
+		if (maskLen < 0) {
+			maskLen = 0;
+		} else if (maskLen > 8*addrBytes.length) {
+			maskLen = 8*addrBytes.length;
+		}
+		m_maskLen = maskLen;
+		m_mask = createMask(m_maskLen);
+		clearUnmaskedBits(m_bytes, m_mask);
+
+		// Regenerate the canonical address string from the address bits.
+		EndpointAddress baseAddr = new EndpointAddress(addr, m_mask);
+		m_addr = baseAddr.toIPAddr();
+		m_type = baseAddr.getType();
+		m_ipv4 = baseAddr.isIPV4();
+		m_ipv6 = baseAddr.isIPV6();
+	}
+
 	/**
 	 * Create a CIDRAddress from an EndpointAddress and a mask length.
 	 * @param endpoint The base address.
@@ -192,15 +229,17 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	public CIDRAddress(CIDRAddress src, int maskLen)
 		throws UnknownHostException, IllegalArgumentException
 	{
-		if (maskLen > src.m_maskLen)
+		if (maskLen > src.m_maskLen) {
 			throw new IllegalArgumentException("CIDR mask len " + maskLen
 											+ " > src mask len" + src.m_maskLen);
+		}
 		
 		// Copy the address bytes.
 		m_maskLen = maskLen;
 		m_bytes = new byte[src.m_bytes.length];
-		for (int i = 0; i < src.m_bytes.length; i++)
+		for (int i = 0; i < src.m_bytes.length; i++) {
 			m_bytes[i] = src.m_bytes[i];
+		}
 		
 		// Create the mask and clear all address bits not in the mask.
 		m_mask = createMask(m_maskLen);
@@ -234,8 +273,9 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 			mask = g_masks.get(maskLen);
 			if (mask == null) {
 				mask = new byte[(maskLen + 7)/8];
-				for (int i = 0; i < mask.length - 1; i++)
+				for (int i = 0; i < mask.length - 1; i++) {
 					mask[i] = (byte)0xff;
+				}
 				if (maskLen > 0) {
 					mask[mask.length-1] = g_lastMaskByte[maskLen % 8];
 				}
@@ -253,10 +293,11 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	private void clearUnmaskedBits(byte[] bytes, byte[] mask)
 	{
 		for (int i = 0; i < bytes.length; i++) {
-			if (i < mask.length)
+			if (i < mask.length) {
 				bytes[i] &= mask[i];
-			else
+			} else {
 				bytes[i] = 0;
+			}
 		}
 	}
 	
@@ -297,18 +338,21 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	@Override
 	public boolean equals(Object obj)
 	{
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		} else if (obj == null) {
 			return false;
-		if (!getClass().isInstance(obj))
+		} else if (!getClass().isInstance(obj)) {
 			return false;
+		}
 		CIDRAddress other = (CIDRAddress) obj;
-		if (m_maskLen != other.m_maskLen)
+		if (m_maskLen != other.m_maskLen) {
 			return false;
-		if (!Arrays.equals(m_bytes, other.m_bytes))
+		} else if (!Arrays.equals(m_bytes, other.m_bytes)) {
 			return false;
-		return true;
+		} else {
+			return true;
+		}
 	}
 
 	/**
@@ -419,11 +463,13 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	 */
 	public boolean contains(byte[] bytes)
 	{
-		if (bytes.length != m_bytes.length)
+		if (bytes.length != m_bytes.length) {
 			return false;
+		}
 		for (int i = 0; i < m_mask.length; i++) {
-			if ((bytes[i] & m_mask[i]) != m_bytes[i])
+			if ((bytes[i] & m_mask[i]) != m_bytes[i]) {
 				return false;
+			}
 		}
 		return true;
 	}
@@ -439,11 +485,13 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	 */
 	public boolean covers(CIDRAddress other)
 	{
-		if (this.m_bytes.length != other.m_bytes.length)
+		if (this.m_bytes.length != other.m_bytes.length) {
 			return false;
-		if (this.m_maskLen > other.m_maskLen)
+		} else if (this.m_maskLen > other.m_maskLen) {
 			return false;
-		return contains(other.m_bytes);
+		} else {
+			return contains(other.m_bytes);
+		}
 	}
 	
 	/**
@@ -515,8 +563,9 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	{
 		// Split cidr into the address and mask parts.
 		int slashIndex = addr.lastIndexOf("/");
-		if (slashIndex <= 0)
+		if (slashIndex <= 0) {
 			return false;
+		}
 		try {
 			return Integer.parseInt(addr.substring(slashIndex+1)) >= 0;
 		} catch (Exception e) {
@@ -551,14 +600,16 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	 */
 	public boolean addrBitsMatch(CIDRAddress other, int nbits)
 	{
-		if (nbits == 0)
+		if (nbits == 0) {
 			return true;
-		if (nbits > m_maskLen || nbits > other.m_maskLen)
+		} else if (nbits > m_maskLen || nbits > other.m_maskLen) {
 			return false;
+		}
 		byte[] mask = createMask(nbits);
 		for (int i = 0; i < mask.length; i++) {
-			if ((other.m_bytes[i] & mask[i]) != m_bytes[i])
+			if ((other.m_bytes[i] & mask[i]) != m_bytes[i]) {
 				return false;
+			}
 		}
 		return true;	
 	}
@@ -574,23 +625,27 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 		@Override
 		public int compare(CIDRAddress o1, CIDRAddress o2)
 		{
-			if (o1.m_bytes.length < o2.m_bytes.length)
+			if (o1.m_bytes.length < o2.m_bytes.length) {
 				return -1;
-			if (o1.m_bytes.length > o2.m_bytes.length)
+			} else if (o1.m_bytes.length > o2.m_bytes.length) {
 				return 1;
+			}
 			for (int i = 0; i < o1.m_bytes.length; i++) {
 				int b1 = o1.m_bytes[i] & 0xff;
 				int b2 = o2.m_bytes[i] & 0xff;
-				if (b1 < b2)
+				if (b1 < b2) {
 					return -1;
-				if (b1 > b2)
+				} else if (b1 > b2) {
 					return 1;
+				}
 			}
-			if (o1.m_maskLen < o2.m_maskLen)
+			if (o1.m_maskLen < o2.m_maskLen) {
 				return -1;
-			if (o1.m_maskLen > o2.m_maskLen)
+			} else if (o1.m_maskLen > o2.m_maskLen) {
 				return 1;
-			return 0;
+			} else {
+				return 0;
+			}
 		}
 	}
 	
@@ -613,10 +668,11 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 	 */
 	public static boolean equivalentArrays(CIDRAddress[] arr1, CIDRAddress[] arr2)
 	{
-		if (arr1 == null)
+		if (arr1 == null) {
 			arr1 = new CIDRAddress[0];
-		if (arr2 == null)
+		} else if (arr2 == null) {
 			arr2 = new CIDRAddress[0];
+		}
 		for (CIDRAddress a1:arr1) {
 			boolean found = false;
 			for (CIDRAddress a2:arr2) {

@@ -65,23 +65,28 @@ public class EndpointString implements Comparable<EndpointString>
 	@Override
 	public boolean equals(Object obj)
 	{
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		} else if (obj == null) {
 			return false;
-		if (!getClass().isInstance(obj))
+		} else if (!getClass().isInstance(obj)) {
 			return false;
+		}
 		EndpointString other = (EndpointString) obj;
 		if (m_string == null) {
-			if (other.m_string != null)
+			if (other.m_string != null) {
 				return false;
-		} else if (!m_string.equals(other.m_string))
+			}
+		} else if (!m_string.equals(other.m_string)) {
 			return false;
+		}
 		if (m_endpoint == null) {
-			if (other.m_endpoint != null)
+			if (other.m_endpoint != null) {
 				return false;
-		} else if (!m_endpoint.equals(other.m_endpoint))
+			}
+		} else if (!m_endpoint.equals(other.m_endpoint)) {
 			return false;
+		}
 		return true;
 	}
 
@@ -93,8 +98,10 @@ public class EndpointString implements Comparable<EndpointString>
 	public int compareTo(EndpointString other)
 	{
 		int v = m_endpoint.compareTo(other.m_endpoint);
-		if (v != 0)
+		if (v != 0) {
 			return v;
-		return m_string.compareTo(other.m_string);
+		} else {
+			return m_string.compareTo(other.m_string);
+		}
 	}
 }
