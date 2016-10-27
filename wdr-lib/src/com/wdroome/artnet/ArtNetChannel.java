@@ -12,6 +12,7 @@ import java.net.StandardProtocolFamily;
 import java.net.SocketAddress;
 import java.net.InetSocketAddress;
 import java.net.Inet4Address;
+import java.net.StandardSocketOptions;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.Selector;
@@ -82,15 +83,15 @@ public class ArtNetChannel extends Thread
 	private static class ChannelInfo
 	{
 		private final DatagramChannel m_channel;
-		private final CIDRAddress m_cidr;
+		private final int m_port;
 		
 		// Must synch on m_sendBuffs when accessing.
 		private ArrayDeque<SendBuffer> m_sendBuffs = new ArrayDeque<SendBuffer>();
 		
-		private ChannelInfo(DatagramChannel channel, CIDRAddress cidr)
+		private ChannelInfo(DatagramChannel channel, int port)
 		{
 			m_channel = channel;
-			m_cidr = cidr;
+			m_port = port;
 		}
 	}
 	
@@ -126,24 +127,22 @@ public class ArtNetChannel extends Thread
 		}
 		ArrayList<ChannelInfo> channels = new ArrayList<ChannelInfo>();
 		for (int port: ports) {
-			for (InetInterface iface: InetInterface.getAllInterfaces()) {
-				DatagramChannel chan = null;
-				try {
-					if (iface.m_address instanceof Inet4Address) {
-						chan = DatagramChannel.open(StandardProtocolFamily.INET);
-						chan.bind(new InetSocketAddress(iface.m_address, port));
-						chan.configureBlocking(false);
-						ChannelInfo chanInfo = new ChannelInfo(chan, iface.m_cidr);
-						chan.register(m_selector, SelectionKey.OP_READ, chanInfo);
-						channels.add(chanInfo);
-						//System.out.println("XXX: ArtNetChannel: " + iface.m_address + ":" + port);
-					}
-				} catch (IOException e) {
-					System.err.println("ArtNetChannel(); Could not bind to "
-								+ iface.m_address.getHostAddress() + ":" + port
-								+ " " + e);
-					if (chan != null) {
-						try { chan.close(); } catch (Exception e2) {}
+			DatagramChannel chan = null;
+			try {
+				chan = DatagramChannel.open(StandardProtocolFamily.INET);
+				chan.bind(new InetSocketAddress((Inet4Address)null, port));
+				chan.configureBlocking(false);
+				chan.setOption(StandardSocketOptions.SO_BROADCAST, true);
+				ChannelInfo chanInfo = new ChannelInfo(chan, port);
+				channels.add(chanInfo);
+				System.out.println("XXX: ArtNetChannel: " + port);
+			} catch (IOException e) {
+				System.err.println("ArtNetChannel(); Could not bind to "
+						+ port + " " + e);
+				if (chan != null) {
+					try {
+						chan.close();
+					} catch (Exception e2) {
 					}
 				}
 			}
@@ -168,11 +167,22 @@ public class ArtNetChannel extends Thread
 		byte[] msgBuff = new byte[ArtNetConst.MAX_MSG_LEN];
 		try {
 			while (m_running) {
+				ArrayList<SelectionKey> removeKeys = new ArrayList<SelectionKey>();
+				for (ChannelInfo ci: m_channels) {
+					int key = SelectionKey.OP_READ;
+					synchronized (ci.m_sendBuffs) {
+						if (!ci.m_sendBuffs.isEmpty()) {
+							key |= SelectionKey.OP_WRITE;
+						}
+					}
+					ci.m_channel.register(m_selector, key, ci);
+				}
 				int nsel = m_selector.select(1000);
 				if (nsel > 0) {
+					removeKeys.clear();
 					Set<SelectionKey> keySet = m_selector.selectedKeys();
 					for (SelectionKey key: keySet) {
-						keySet.remove(key);
+						removeKeys.add(key);
 						int ops = key.readyOps();
 						Object att = key.attachment();
 						if (!(att instanceof ChannelInfo)) {
@@ -223,16 +233,19 @@ public class ArtNetChannel extends Thread
 									try {
 										int nsent = chanInfo.m_channel.send(sendBuff.m_buff, sendBuff.m_target);
 										if (nsent == 0) {
-											System.err.println("ArtNetChannel.run(); Could not send msg.");
+											chanInfo.m_sendBuffs.addFirst(sendBuff);
+											break;
 										}
 									} catch (IOException e) {
 										System.err.println("ArtNetChannel.run(): send err: " + e);
 									}
 									releaseSendBuffer(sendBuff.m_buff);
 								}
-								chanInfo.m_channel.register(m_selector, SelectionKey.OP_READ, chanInfo);
 							}
 						}
+					}
+					for (SelectionKey key: removeKeys) {
+						keySet.remove(key);
 					}
 				}
 			}
@@ -288,9 +301,9 @@ public class ArtNetChannel extends Thread
 		}
 		int nsent = chanInfo.m_channel.send(sendBuff, target);
 		if (nsent == 0) {
+			// System.out.println("ArtNetChannel.send(): blocked, using thread.");
 			synchronized (chanInfo.m_sendBuffs) {
 				chanInfo.m_sendBuffs.add(new SendBuffer(target, sendBuff));
-				chanInfo.m_channel.register(m_selector, SelectionKey.OP_READ + SelectionKey.OP_WRITE, chanInfo);
 				m_selector.wakeup();
 			}
 		}
@@ -318,12 +331,17 @@ public class ArtNetChannel extends Thread
 	
 	private ChannelInfo getChannelInfo(InetSocketAddress target)
 	{
+		int targetPort = target.getPort();
 		for (ChannelInfo ci: m_channels) {
-			if (ci.m_cidr.contains(target.getAddress())) {
+			if (ci.m_port == targetPort) {
 				return ci;
 			}
 		}
-		return null;
+		if (m_channels.length > 0) {
+			return m_channels[0];
+		} else {
+			return null;
+		}
 	}
 	
 	/**

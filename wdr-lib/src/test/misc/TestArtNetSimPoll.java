@@ -38,7 +38,7 @@ public class TestArtNetSimPoll extends ArtNetChannel.MsgPrinter
 	@Override
 	public String msgPrefix()
 	{
-		return "TestArtNetPoll ";
+		return "TestArtNetSimPoll ";
 	}
 	
 	public void shutdown() { m_chan.shutdown(); }
@@ -72,7 +72,7 @@ public class TestArtNetSimPoll extends ArtNetChannel.MsgPrinter
 												new int[] {8001});
 		ArtNetChannel altChan2 = new ArtNetChannel(new ArtNetChannel.MsgPrinter(),
 												new int[] {8002});
-		for (int i = 0; i < 2; i++) {
+		for (int i = 0; i < 1; i++) {
 			System.out.println();
 			altChan1.send(new ArtNetPoll(),
 					new InetSocketAddress("127.0.0.1", ArtNetConst.ARTNET_PORT));
