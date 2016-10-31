@@ -85,6 +85,18 @@ public class ArtNetDmx extends ArtNetMsg
 	}
 	
 	/**
+	 * Increment the sequence number in the range 1 to 0xff.
+	 */
+	public void incrSeqn()
+	{
+		if (m_sequence == 0 | m_sequence == 0xff) {
+			m_sequence = 1;
+		} else {
+			m_sequence++;
+		}
+	}
+	
+	/**
 	 * Copy the data for the message into a buffer.
 	 * @param buff The buffer.
 	 * @param off The offset in buff. Must have space for size() bytes.

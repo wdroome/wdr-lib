@@ -300,7 +300,9 @@ public class ArtNetChannel extends Thread
 			new HexDump().dump(msgBuff, 0, msgLen);
 		}
 		int nsent = chanInfo.m_channel.send(sendBuff, target);
-		if (nsent == 0) {
+		if (nsent != 0) {
+			releaseSendBuffer(sendBuff);
+		} else {
 			// System.out.println("ArtNetChannel.send(): blocked, using thread.");
 			synchronized (chanInfo.m_sendBuffs) {
 				chanInfo.m_sendBuffs.add(new SendBuffer(target, sendBuff));
