@@ -279,12 +279,16 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 	private static InetSocketAddress getAddr(String s)
 	{
 		try {
-			int port = ArtNetConst.ARTNET_PORT;
+			int port;
+			InetAddress addr;
 			int iColon = s.lastIndexOf(":");
 			if (iColon >= 0) {
 				port = Integer.parseInt(s.substring(iColon+1));
+				addr = InetAddress.getByName(s.substring(0, iColon));
+			} else {
+				port = ArtNetConst.ARTNET_PORT;
+				addr = InetAddress.getByName(s);
 			}
-			InetAddress addr = InetAddress.getByName(s.substring(0, iColon));
 			return new InetSocketAddress(addr, port);
 		} catch (Exception e) {
 			System.out.println("Invalid addr:port \"" + s + "\"");

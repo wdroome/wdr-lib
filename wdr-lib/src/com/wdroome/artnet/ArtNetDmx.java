@@ -15,6 +15,8 @@ public class ArtNetDmx extends ArtNetMsg
 	public int m_subUni = 0;
 	public int m_net = 0;
 	public int m_dataLen = 0;
+	
+	/** The DMX values. Only the first m_dataLen bytes are valid. */
 	public byte[] m_data = null;
 
 	/**
@@ -30,10 +32,29 @@ public class ArtNetDmx extends ArtNetMsg
 	 * @param buff The message buffer.
 	 * @param off The starting offset of the data within buff.
 	 * @param length The length of the data.
+	 * @throws IllegalArgmentException
+	 * 		If the message is too short or it does not have the correct op code.
 	 */
 	public ArtNetDmx(byte[] buff, int off, int length)
 	{
 		super(ArtNetOpcode.OpDmx);
+		update(buff, off, length);
+	}
+	
+	/**
+	 * Replace the contents of an existing ArtNetDmx object
+	 * with the data received from a message.
+	 * This has the same effect as new ArtNetDmx(buff,off,length),
+	 * but it avoids the overhead of allocating a new ArtNetDmx
+	 * and a new data buffer.
+	 * @param buff The message buffer.
+	 * @param off The starting offset of the data within buff.
+	 * @param length The length of the data.
+	 * @throws IllegalArgmentException
+	 * 		If the message is too short or it does not have the correct op code.
+	 */
+	public void update(byte[] buff, int off, int length)
+	{
 		if (length < minSize()) {
 			throw new IllegalArgumentException("ArtNetDmx: short msg " + length);
 		}
@@ -54,9 +75,11 @@ public class ArtNetDmx extends ArtNetMsg
 			m_dataLen = length - off;
 		}
 		if (m_dataLen > 0) {
-			m_data = new byte[m_dataLen];
+			if (m_data == null || m_data.length < m_dataLen) {
+				m_data = new byte[m_dataLen];
+			}
 			copyBytes(m_data, 0, buff, off, m_dataLen);
-		}
+		}		
 	}
 	
 	/**
@@ -114,7 +137,8 @@ public class ArtNetDmx extends ArtNetMsg
 		copyBytes(buff, off, m_data, 0, m_dataLen);
 		off += m_dataLen;
 		if ((m_dataLen & 1) != 0) {
-			zeroBytes(buff, off, 1);
+			// Art-Net spec says length must be even.
+			buff[off] = 0;
 			off += 1;
 		}
 		return off;

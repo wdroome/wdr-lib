@@ -135,7 +135,7 @@ public class ArtNetChannel extends Thread
 				chan.setOption(StandardSocketOptions.SO_BROADCAST, true);
 				ChannelInfo chanInfo = new ChannelInfo(chan, port);
 				channels.add(chanInfo);
-				System.out.println("XXX: ArtNetChannel: " + port);
+				// System.out.println("XXX: ArtNetChannel: " + port);
 			} catch (IOException e) {
 				System.err.println("ArtNetChannel(); Could not bind to "
 						+ port + " " + e);
