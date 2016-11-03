@@ -111,20 +111,4 @@ public class ArtNetDiagData extends ArtNetMsg
 		b.append('}');
 		return b.toString();
 	}
-	
-	public static void main(String[] args)
-	{
-		ArtNetDiagData m = new ArtNetDiagData();
-		m.m_priority = ArtNetConst.DpMed;
-		m.m_data = "[Diagnostic data here]";
-		System.out.println("min/max size: " + ArtNetDiagData.minSize()
-						+ " " + ArtNetDiagData.size());
-		m.print(System.out, "");
-		byte[] buff = new byte[ArtNetDiagData.size()];
-		int mlen = m.putData(buff, 0);
-		String x = new ByteAOL(buff, 0, mlen).toHex();
-		System.out.println(x);
-		ArtNetDiagData m2 = new ArtNetDiagData(buff, 0, mlen);
-		m2.print(System.out, "");
-	}
 }

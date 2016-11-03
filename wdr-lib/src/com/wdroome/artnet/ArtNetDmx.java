@@ -177,37 +177,16 @@ public class ArtNetDmx extends ArtNetMsg
 			linePrefix = "";
 		}
 		int nPerLine = 16;
+		int n = (m_dataLen + 1) & ~0x1; 
 		out.print(linePrefix + "ArtNetDmx port: " + toPortString(m_net, m_subUni)
-					+ " seqn: " + m_sequence + " #chan: " + m_dataLen);
-		for (int i = 0; i < m_dataLen; i++) {
+					+ " seqn: " + m_sequence + " #chan: " + n);
+		for (int i = 0; i < n; i++) {
 			if ((i % nPerLine) == 0) {
 				out.println();
 				out.print(linePrefix);
 			}
-			out.print(String.format(" %3d", m_data[i] & 0xff));
+			out.print(String.format(" %3d", (i < m_dataLen ? m_data[i] & 0xff : 0)));
 		}
 		out.println();
-	}
-	
-	public static void main(String[] args)
-	{
-		ArtNetDmx m = new ArtNetDmx();
-		m.m_sequence = 5;
-		m.m_net = 0x4;
-		m.m_data = new byte[] {
-				(byte)(0x00), (byte)(0x20), (byte)(0x40), (byte)(0x60),
-				(byte)(0x80), (byte)(0xa0), (byte)(0xc0), (byte)(0xe0),
-				(byte)(0xff),
-		};
-		m.m_dataLen = m.m_data.length;
-		System.out.println("min/max size: " + ArtNetDmx.minSize()
-						+ " " + ArtNetDmx.size());
-		m.print(System.out, "");
-		byte[] buff = new byte[ArtNetDmx.size()];
-		int mlen = m.putData(buff, 0);
-		String x = new ByteAOL(buff, 0, mlen).toHex();
-		System.out.println(x);
-		ArtNetDmx m2 = new ArtNetDmx(buff, 0, mlen);
-		m2.print(System.out, "");
 	}
 }

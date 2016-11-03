@@ -265,24 +265,4 @@ public class ArtNetPollReply extends ArtNetMsg
 		b.append('}');
 		return b.toString();
 	}
-	
-	public static void main(String[] args) throws UnknownHostException
-	{
-		ArtNetPollReply m = new ArtNetPollReply();
-		m.m_ipAddr = (Inet4Address)InetAddress.getByName("10.1.2.3");
-		m.m_ipPort = 0x1936;
-		m.m_shortName = "enttec1";
-		m.m_longName = "Enttec Open DMX Ethernet";
-		m.m_macAddr = new byte[] {(byte)10, (byte)11, (byte)12, (byte)13, (byte)14, (byte)15};
-		m.m_status2 = 0x2;
-		System.out.println("size: " + ArtNetPollReply.size());
-		m.print(System.out, "");
-		byte[] buff = new byte[ArtNetPollReply.size()];
-		int len = m.putData(buff, 0);
-		System.out.println("put len: " + len);
-		HexDump dump = new HexDump();
-		dump.dump(buff, 0, len);
-		ArtNetPollReply m2 = new ArtNetPollReply(buff, 0, ArtNetPollReply.size());
-		m2.print(System.out, "");
-	}
 }
