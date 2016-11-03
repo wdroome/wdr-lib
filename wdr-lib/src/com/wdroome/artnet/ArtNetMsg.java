@@ -1,5 +1,6 @@
 package com.wdroome.artnet;
 
+import java.io.PrintStream;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -25,7 +26,20 @@ public abstract class ArtNetMsg
 	 * @return The length of the message.
 	 */
 	public abstract int putData(byte[] buff, int off);
-
+	
+	/**
+	 * Pretty-print the message.
+	 * @param out The output stream.
+	 * @param linePrefix A prefix for each line.
+	 */
+	public void print(PrintStream out, String linePrefix)
+	{
+		if (linePrefix == null) {
+			linePrefix = "";
+		}
+		out.println(linePrefix + toString().replace(",", "\n" + linePrefix + "  "));
+	}
+	
 	/**
 	 * If a buffer starts with the ArtNet header string and an opcode,
 	 * return the opcode. Otherwise return Invalid.
@@ -119,6 +133,30 @@ public abstract class ArtNetMsg
 	{
 		off = putHeader(buff, off);
 		return putBigEndInt16(buff, off, protoVers);
+	}
+	
+	/**
+	 * Return a String representation of an Art-Net port.
+	 * @param net The network number, 0-32,767.
+	 * @param subnet The subnet number, 0-15.
+	 * @param univ The universe number, 0-15.
+	 * @return An Art-Net port number in the form net.subnet.univ.
+	 */
+	public static String toPortString(int net, int subnet, int univ)
+	{
+		return net + "." + subnet + "." + univ;
+	}
+	
+	/**
+	 * Return a String representation of an Art-Net port.
+	 * @param net The network number, 0-32,768.
+	 * @param subUniv The subnet and universe numbers.
+	 * 		Subnet is bits 0xf0, univ is bits 0x0f.
+	 * @return An Art-Net port number in the form net.subnet.univ.
+	 */
+	public static String toPortString(int net, int subUniv)
+	{
+		return net + "." + (subUniv >> 4) + "." + (subUniv & 0x0f);
 	}
 	
 	protected static int getBigEndInt16(byte[] buff, int off)

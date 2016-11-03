@@ -91,12 +91,12 @@ public class ArtNetPoll extends ArtNetMsg
 		m.m_talkToMe = 0x02;
 		m.m_priority = ArtNetConst.DpMed;
 		System.out.println("size: " + ArtNetPoll.size());
-		System.out.println(m.toString());
+		m.print(System.out, "");
 		byte[] buff = new byte[ArtNetPoll.size()];
 		m.putData(buff, 0);
 		String x = new ByteAOL(buff, 0, buff.length).toHex();
 		System.out.println(x);
 		ArtNetPoll m2 = new ArtNetPoll(buff, 0, ArtNetPollReply.size());
-		System.out.println(m2.toString());
+		m2.print(System.out, "");
 	}
 }

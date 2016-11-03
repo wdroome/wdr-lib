@@ -276,13 +276,13 @@ public class ArtNetPollReply extends ArtNetMsg
 		m.m_macAddr = new byte[] {(byte)10, (byte)11, (byte)12, (byte)13, (byte)14, (byte)15};
 		m.m_status2 = 0x2;
 		System.out.println("size: " + ArtNetPollReply.size());
-		System.out.println(m.toString().replace(",", "\n  "));
+		m.print(System.out, "");
 		byte[] buff = new byte[ArtNetPollReply.size()];
 		int len = m.putData(buff, 0);
 		System.out.println("put len: " + len);
 		HexDump dump = new HexDump();
 		dump.dump(buff, 0, len);
 		ArtNetPollReply m2 = new ArtNetPollReply(buff, 0, ArtNetPollReply.size());
-		System.out.println(m2.toString().replace(",", "\n  "));
+		m2.print(System.out, "");
 	}
 }

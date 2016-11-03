@@ -1,5 +1,7 @@
 package com.wdroome.artnet;
 
+import java.io.PrintStream;
+
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.StringUtils;
 
@@ -163,6 +165,30 @@ public class ArtNetDmx extends ArtNetMsg
 		return b.toString();
 	}
 	
+	/**
+	 * Pretty-print the message.
+	 * @param out The output stream.
+	 * @param linePrefix A prefix for each line.
+	 */
+	@Override
+	public void print(PrintStream out, String linePrefix)
+	{
+		if (linePrefix == null) {
+			linePrefix = "";
+		}
+		int nPerLine = 16;
+		out.print(linePrefix + "ArtNetDmx port: " + toPortString(m_net, m_subUni)
+					+ " seqn: " + m_sequence + " #chan: " + m_dataLen);
+		for (int i = 0; i < m_dataLen; i++) {
+			if ((i % nPerLine) == 0) {
+				out.println();
+				out.print(linePrefix);
+			}
+			out.print(String.format(" %3d", m_data[i] & 0xff));
+		}
+		out.println();
+	}
+	
 	public static void main(String[] args)
 	{
 		ArtNetDmx m = new ArtNetDmx();
@@ -176,12 +202,12 @@ public class ArtNetDmx extends ArtNetMsg
 		m.m_dataLen = m.m_data.length;
 		System.out.println("min/max size: " + ArtNetDmx.minSize()
 						+ " " + ArtNetDmx.size());
-		System.out.println(m.toString().replace(",", "\n  "));
+		m.print(System.out, "");
 		byte[] buff = new byte[ArtNetDmx.size()];
 		int mlen = m.putData(buff, 0);
 		String x = new ByteAOL(buff, 0, mlen).toHex();
 		System.out.println(x);
 		ArtNetDmx m2 = new ArtNetDmx(buff, 0, mlen);
-		System.out.println(m2.toString().replace(",", "\n  "));
+		m2.print(System.out, "");
 	}
 }

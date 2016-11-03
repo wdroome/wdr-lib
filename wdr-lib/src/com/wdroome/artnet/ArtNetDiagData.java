@@ -119,12 +119,12 @@ public class ArtNetDiagData extends ArtNetMsg
 		m.m_data = "[Diagnostic data here]";
 		System.out.println("min/max size: " + ArtNetDiagData.minSize()
 						+ " " + ArtNetDiagData.size());
-		System.out.println(m.toString().replace(",", "\n  "));
+		m.print(System.out, "");
 		byte[] buff = new byte[ArtNetDiagData.size()];
 		int mlen = m.putData(buff, 0);
 		String x = new ByteAOL(buff, 0, mlen).toHex();
 		System.out.println(x);
 		ArtNetDiagData m2 = new ArtNetDiagData(buff, 0, mlen);
-		System.out.println(m2.toString().replace(",", "\n  "));
+		m2.print(System.out, "");
 	}
 }

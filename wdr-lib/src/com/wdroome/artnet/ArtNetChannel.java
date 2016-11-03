@@ -382,7 +382,7 @@ public class ArtNetChannel extends Thread
 		{
 			m_out.println(msgPrefix() + "Rcv " + msg.m_opcode
 							+ ": rmt: " + sender + " lcl: " + receiver);
-			m_out.println(msg.toString().replace(",", "\n  "));
+			msg.print(m_out, "");
 		}
 
 		@Override
