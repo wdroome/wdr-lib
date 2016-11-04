@@ -29,7 +29,7 @@ public class ArtNetDiagData extends ArtNetMsg
 	 */
 	public ArtNetDiagData(byte[] buff, int off, int length)
 	{
-		super(ArtNetOpcode.OpPoll);
+		super(ArtNetOpcode.OpDiagData);
 		if (length < minSize()) {
 			throw new IllegalArgumentException("ArtNetDiagData: short msg " + length);
 		}
@@ -104,7 +104,7 @@ public class ArtNetDiagData extends ArtNetMsg
 	public String toString()
 	{
 		StringBuilder b = new StringBuilder(300);
-		b.append("ArtNetPoll{");
+		b.append("ArtNetDiagData{");
 		append(b, "protoVers", m_protoVers);
 		appendHex(b, "priority", m_priority);
 		append(b, "data", m_data);

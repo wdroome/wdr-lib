@@ -37,7 +37,8 @@ public abstract class ArtNetMsg
 		if (linePrefix == null) {
 			linePrefix = "";
 		}
-		out.println(linePrefix + toString().replace(",", "\n" + linePrefix + "  "));
+		out.println(linePrefix
+				+ toString().replace(",}", "}").replace(",", "\n" + linePrefix + "  "));
 	}
 	
 	/**
@@ -80,6 +81,12 @@ public abstract class ArtNetMsg
 				return new ArtNetDmx(buff, off, length);
 			case OpDiagData:
 				return new ArtNetDiagData(buff, off, length);
+			case OpIpProg:
+				return new ArtNetIpProg(buff, off, length);
+			case OpIpProgReply:
+				return new ArtNetIpProgReply(buff, off, length);
+			case OpAddress:
+				return new ArtNetAddress(buff, off, length);
 			case Invalid:
 				return null;
 			default:
@@ -279,5 +286,15 @@ public abstract class ArtNetMsg
 			sep = '.';
 		}
 		b.append(',');
+	}
+	
+	protected static void append(StringBuilder b, String name, Inet4Address ipAddr)
+	{
+		if (ipAddr != null) {
+			b.append(name);
+			b.append(':');
+			b.append(ipAddr.getHostAddress());
+			b.append(',');
+		}
 	}
 }

@@ -226,15 +226,8 @@ public class ArtNetPollReply extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetPollReply{");
-		if (m_ipAddr != null) {
-			b.append("ipAddr:");
-			b.append(m_ipAddr.getHostAddress());
-			b.append(':');
-			b.append(m_ipPort);
-			b.append(',');
-		} else {
-			append(b, "ipPort", m_ipPort);
-		}
+		append(b, "ipAddr", m_ipAddr);
+		append(b, "ipPort", m_ipPort);
 		append(b, "firmwareVers", m_firmwareVers);
 		appendHex(b, "netAddr", m_netAddr);
 		appendHex(b, "subNetAddr", m_subNetAddr);
@@ -255,11 +248,7 @@ public class ArtNetPollReply extends ArtNetMsg
 		appendHex(b, "swRemote", m_swRemote);
 		appendHex(b, "style", m_style);
 		append(b, "macAddr", m_macAddr);
-		if (m_bindIpAddr != null) {
-			b.append("bindIpAddr:");
-			b.append(m_bindIpAddr.getHostAddress());
-			b.append(',');
-		}
+		append(b, "bindIpAddr", m_bindIpAddr);
 		append(b, "bindIndex", m_bindIndex);
 		appendHex(b, "status2", m_status2);
 		b.append('}');

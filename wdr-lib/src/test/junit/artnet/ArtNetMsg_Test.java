@@ -37,6 +37,8 @@ public class ArtNetMsg_Test
 		m.m_ipPort = ArtNetConst.ARTNET_PORT;
 		m.m_shortName = "enttec1";
 		m.m_longName = "Enttec Open DMX Ethernet";
+		m.m_swIn  = new byte[]{(byte)0x10, (byte)0x11, (byte)0x12, (byte)0x13};
+		m.m_swOut = new byte[]{(byte)0x14, (byte)0x15, (byte)0x16, (byte)0x17};
 		m.m_macAddr = new byte[] {(byte)10, (byte)11, (byte)12, (byte)13, (byte)14, (byte)15};
 		m.m_status2 = 0x2;
 		m.m_bindIpAddr = (Inet4Address)InetAddress.getByName("10.3.2.1");
@@ -88,6 +90,55 @@ public class ArtNetMsg_Test
 							+ ArtNetDiagData.size());
 		}
 		regen("ArtNetDiagData", m);
+	}
+	
+	@Test
+	public void testIpProg() throws UnknownHostException
+	{
+		ArtNetIpProg m = new ArtNetIpProg();
+		m.m_command = 0x82;
+		m.m_ipAddr = (Inet4Address)InetAddress.getByName("10.1.2.3");
+		m.m_ipMask = (Inet4Address)InetAddress.getByName("255.0.0.0");
+		m.m_ipPort = ArtNetConst.ARTNET_PORT;	
+		
+		if (false) {
+			m.print(System.out, "");
+		}
+		regen("ArtNetIpProg", m);
+	}
+	
+	@Test
+	public void testIpProgReply() throws UnknownHostException
+	{
+		ArtNetIpProgReply m = new ArtNetIpProgReply();
+		m.m_ipAddr = (Inet4Address)InetAddress.getByName("10.1.2.3");
+		m.m_ipMask = (Inet4Address)InetAddress.getByName("255.0.0.0");
+		m.m_ipPort = ArtNetConst.ARTNET_PORT;
+		m.m_status = 0x40;
+		
+		if (false) {
+			m.print(System.out, "");
+		}
+		regen("ArtNetIpProg", m);
+	}
+	
+	@Test
+	public void testAddress() throws UnknownHostException
+	{
+		ArtNetAddress m = new ArtNetAddress();
+		m.m_netAddr = 1;
+		m.m_subNetAddr = 2;
+		m.m_bindIndex = 3;
+		m.m_shortName = "enttec1";
+		m.m_longName = "Enttec Open DMX Ethernet";
+		m.m_swIn  = new byte[]{(byte)0x10, (byte)0x11, (byte)0x12, (byte)0x13};
+		m.m_swOut = new byte[]{(byte)0x14, (byte)0x15, (byte)0x16, (byte)0x17};
+		m.m_command = 0x03;
+		
+		if (false) {
+			m.print(System.out, "");
+		}
+		regen("ArtNetIpProg", m);
 	}
 	
 	public void regen(String descr, ArtNetMsg m)
