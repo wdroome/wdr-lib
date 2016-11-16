@@ -24,6 +24,12 @@ public class ArtNetConst
 	
 	/** Buffer size guaranteed to hold any Art-Net message. */
 	public static final int MAX_MSG_LEN = 1024;
+	
+	/** Max time for a node to reply to a poll request, in millisec. */
+	public static final long MAX_POLL_REPLY_MS = 3000;
+	
+	/** Interval between sending poll requests, in millisec. */ 
+	public static final long SEND_POLL_INTVL_MS = 2500;
 
 	/**
 	 *  Table 3: Node report codes.
