@@ -3,6 +3,7 @@ package com.wdroome.artnet;
 import java.io.PrintStream;
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 /**
@@ -164,6 +165,30 @@ public abstract class ArtNetMsg
 	public static String toPortString(int net, int subUniv)
 	{
 		return net + "." + (subUniv >> 4) + "." + (subUniv & 0x0f);
+	}
+	
+	/**
+	 * Parse an IP address-port string of the form addr:port
+	 * and return the corresponding InetSocketAddress.
+	 * If the port is omitted, use the default Art-Net port.
+	 * @param addrport A string of the form ipaddr[:port].
+	 * @return The address as an InetSocketAddress.
+	 * @throws UnknownHostExceptio
+	 * 		If the ipaddr part is not a valid IP address.
+	 * @throws NumberFormatException
+	 * 		If the :port part is not a number.
+	 */
+	public static InetSocketAddress makeSocketAddress(String addrport)
+			throws UnknownHostException, NumberFormatException
+	{
+		int port = ArtNetConst.ARTNET_PORT;
+		int iColon = addrport.lastIndexOf(':');
+		if (iColon > 0) {
+			port = Integer.parseInt(addrport.substring(iColon+1));
+		} else {
+			iColon = addrport.length();
+		}
+		return new InetSocketAddress(InetAddress.getByName(addrport.substring(0, iColon)), port);
 	}
 	
 	protected static int getBigEndInt16(byte[] buff, int off)

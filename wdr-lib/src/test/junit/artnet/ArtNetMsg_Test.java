@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 import java.io.*;
@@ -164,5 +165,14 @@ public class ArtNetMsg_Test
 			System.out.println(m2Str);
 		}
 		assertEquals(descr, mStr, m2Str);
+	}
+	
+	@Test
+	public void testMakeSocketAddress() throws UnknownHostException
+	{
+		InetSocketAddress sockAddr = ArtNetMsg.makeSocketAddress("10.0.0.1");
+		assertEquals("10.0.0.1:" + ArtNetConst.ARTNET_PORT, sockAddr.toString().replaceAll("^/", ""));
+		sockAddr = ArtNetMsg.makeSocketAddress("10.0.0.2:12345");
+		assertEquals("10.0.0.2:12345", sockAddr.toString().replaceAll("^/", ""));
 	}
 }
