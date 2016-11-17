@@ -6,7 +6,7 @@ import java.util.ArrayList;
  * Create an {@link ArrayList} object from an array.
  * If ArrayList has a constructor that does this,
  * or if an equivalent class exists in the standard library,
- * I cannpt find it.
+ * I cannot find it.
  * @author wdr
  */
 public class ArrayToList<T> extends ArrayList<T>
