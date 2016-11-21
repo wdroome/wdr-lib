@@ -87,6 +87,31 @@ public class ArtNetConst
 	public static final int RcUserFail = 0x000f;
 	
 	/**
+	 * Table 4: Style codes.
+	 */
+
+	// A DMX to / from Art-Net device
+	public static final int StNode = 0x00;
+
+	// A lighting console.
+	public static final int StController = 0x01;
+
+	// A Media Server.
+	public static final int StMedia = 0x02;
+
+	// A network routing device.
+	public static final int StRoute = 0x03;
+
+	// A backup device.
+	public static final int StBackup = 0x04;
+
+	// A configuration or diagnostic tool.
+	public static final int StConfig = 0x05;
+
+	// A visualiser.
+	public static final int StVisual = 0x06;
+	
+	/**
 	 * Table 5: Priority codes.
 	 */
 	// Priority code: Low priority message.
