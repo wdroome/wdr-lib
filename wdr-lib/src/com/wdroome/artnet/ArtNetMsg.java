@@ -164,7 +164,7 @@ public abstract class ArtNetMsg
 	 */
 	public static String toPortString(int net, int subUniv)
 	{
-		return net + "." + (subUniv >> 4) + "." + (subUniv & 0x0f);
+		return net + "." + ((subUniv & 0xf0) >> 4) + "." + (subUniv & 0x0f);
 	}
 	
 	/**

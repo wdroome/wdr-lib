@@ -224,6 +224,50 @@ public class ArtNetPollReply extends ArtNetMsg
 		return off;
 	}
 	
+	/**
+	 * Return the Art-Net port string for an output port of this node.
+	 * @param iPort The physical port number, starting with 0.
+	 * @return The Art-Net port string, in the form net.subnet.univ,
+	 * 		or null if there is no such output port.
+	 */
+	public String getOutputPortString(int iPort)
+	{
+		if (iPort >= 0
+				&& iPort <= m_numPorts
+				&& (m_portTypes[iPort] & 0x80) == 0x80) {
+			if (m_subNetAddr == 0 && (m_swOut[iPort] & 0xf0) != 0) {
+				return toPortString(m_netAddr, m_swOut[iPort] & 0xff);
+			} else {
+				return toPortString(m_netAddr, m_subNetAddr, m_swOut[iPort]);
+			}
+		} else {
+			return null;
+		}
+	}
+	
+	/**
+	 * Return the SubNet and Universe for an output port of this node.
+	 * The sub-net number is in the high nibble,
+	 * and the universe number is in the low nibble.
+	 * @param iPort The physical port number, starting with 0.
+	 * @return The subnet and universe numbers for that port,
+	 * 		or -1 if there is no such output port.
+	 */
+	public int getOutputSubUniv(int iPort)
+	{
+		if (iPort >= 0
+				&& iPort <= m_numPorts
+				&& (m_portTypes[iPort] & 0x80) == 0x80) {
+			if (m_subNetAddr == 0 && (m_swOut[iPort] & 0xf0) != 0) {
+				return m_swOut[iPort] & 0xff;
+			} else {
+				return (m_subNetAddr << 4) | (m_swOut[iPort] & 0x0f);
+			}
+		} else {
+			return -1;
+		}
+	}
+	
 	@Override
 	public String toString()
 	{
