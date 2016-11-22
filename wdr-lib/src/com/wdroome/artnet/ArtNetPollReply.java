@@ -225,20 +225,19 @@ public class ArtNetPollReply extends ArtNetMsg
 	}
 	
 	/**
-	 * Return the Art-Net port string for an output port of this node.
+	 * Return the Art-Net port for an output port of this node.
 	 * @param iPort The physical port number, starting with 0.
-	 * @return The Art-Net port string, in the form net.subnet.univ,
-	 * 		or null if there is no such output port.
+	 * @return The Art-Net port fields, or null if there is no such output port.
 	 */
-	public String getOutputPortString(int iPort)
+	public ArtNetPort getOutputPort(int iPort)
 	{
 		if (iPort >= 0
 				&& iPort <= m_numPorts
 				&& (m_portTypes[iPort] & 0x80) == 0x80) {
 			if (m_subNetAddr == 0 && (m_swOut[iPort] & 0xf0) != 0) {
-				return toPortString(m_netAddr, m_swOut[iPort] & 0xff);
+				return new ArtNetPort(m_netAddr, m_swOut[iPort]);
 			} else {
-				return toPortString(m_netAddr, m_subNetAddr, m_swOut[iPort]);
+				return new ArtNetPort(m_netAddr, m_subNetAddr, m_swOut[iPort]);
 			}
 		} else {
 			return null;
@@ -246,25 +245,22 @@ public class ArtNetPollReply extends ArtNetMsg
 	}
 	
 	/**
-	 * Return the SubNet and Universe for an output port of this node.
-	 * The sub-net number is in the high nibble,
-	 * and the universe number is in the low nibble.
+	 * Return the Art-Net port for an input port of this node.
 	 * @param iPort The physical port number, starting with 0.
-	 * @return The subnet and universe numbers for that port,
-	 * 		or -1 if there is no such output port.
+	 * @return The Art-Net port fields, or null if there is no such input port.
 	 */
-	public int getOutputSubUniv(int iPort)
+	public ArtNetPort getInputPort(int iPort)
 	{
 		if (iPort >= 0
 				&& iPort <= m_numPorts
-				&& (m_portTypes[iPort] & 0x80) == 0x80) {
-			if (m_subNetAddr == 0 && (m_swOut[iPort] & 0xf0) != 0) {
-				return m_swOut[iPort] & 0xff;
+				&& (m_portTypes[iPort] & 0x40) == 0x40) {
+			if (m_subNetAddr == 0 && (m_swIn[iPort] & 0xf0) != 0) {
+				return new ArtNetPort(m_netAddr, m_swIn[iPort]);
 			} else {
-				return (m_subNetAddr << 4) | (m_swOut[iPort] & 0x0f);
+				return new ArtNetPort(m_netAddr, m_subNetAddr, m_swIn[iPort]);
 			}
 		} else {
-			return -1;
+			return null;
 		}
 	}
 	

@@ -11,7 +11,47 @@ import java.net.UnknownHostException;
  * @author wdr
  */
 public abstract class ArtNetMsg
-{	
+{
+	/**
+	 * A simple struct with the components of an Art-Net Port Number.
+	 */
+	public static class ArtNetPort
+	{
+		public final int m_net;
+		public final int m_subNet;
+		public final int m_universe;
+		
+		public ArtNetPort(int net, int subNet, int univ)
+		{
+			m_net = net;
+			m_subNet = subNet;
+			m_universe = univ;
+		}
+		
+		public ArtNetPort(int net, int subNetUniv)
+		{
+			m_net = net;
+			m_subNet = (subNetUniv & 0xf0) >> 4;
+			m_universe = subNetUniv & 0x0f;
+		}
+		
+		public ArtNetPort(ArtNetPort anPort)
+		{
+			m_net = anPort.m_net;
+			m_subNet = anPort.m_subNet;
+			m_universe = anPort.m_universe;
+		}
+		
+		/**
+		 * Return a string of the form net.subnet.univ.
+		 */
+		@Override
+		public String toString()
+		{
+			return m_net + "." + m_subNet + "." + m_universe;
+		}
+	}
+	
 	public final ArtNetOpcode m_opcode;
 
 	/**
