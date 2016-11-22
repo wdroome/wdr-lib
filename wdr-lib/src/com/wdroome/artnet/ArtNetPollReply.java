@@ -10,6 +10,8 @@ import com.wdroome.util.HexDump;
 
 /**
  * An Art-Net Poll Reply message.
+ * Note: In early versions of the protocol, the sub-net number
+ * was in the high nibble of swIn and swOut.
  * @author wdr
  */
 public class ArtNetPollReply extends ArtNetMsg
@@ -131,6 +133,7 @@ public class ArtNetPollReply extends ArtNetMsg
 	/**
 	 * Return the minimum length of an ArtNetPollReply message.
 	 * This is up to the MAC address.
+	 * Apparently version 2 of the protocol had a shorter message. 
 	 * @return The minimum length of an ArtNetPollReply message.
 	 */
 	public static int minSize()
