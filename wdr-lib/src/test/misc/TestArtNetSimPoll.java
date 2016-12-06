@@ -44,9 +44,10 @@ public class TestArtNetSimPoll extends ArtNetChannel.MsgPrinter
 	public void shutdown() { m_chan.shutdown(); }
 
 	@Override
-	public void msgArrived(ArtNetMsg msg, InetSocketAddress sender, InetSocketAddress receiver)
+	public void msgArrived(ArtNetChannel chan, ArtNetMsg msg,
+							InetSocketAddress sender, InetSocketAddress receiver)
 	{
-		super.msgArrived(msg, sender, receiver);
+		super.msgArrived(chan, msg, sender, receiver);
 		ArtNetPollReply reply = new ArtNetPollReply();
 		InetAddress addr = ((InetSocketAddress)receiver).getAddress();
 		if (addr instanceof Inet4Address) {
