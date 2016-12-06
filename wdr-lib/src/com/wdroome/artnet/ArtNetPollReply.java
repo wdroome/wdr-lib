@@ -16,6 +16,9 @@ import com.wdroome.util.HexDump;
  */
 public class ArtNetPollReply extends ArtNetMsg
 {
+	/** Maximum number of input or output ports in one node. */
+	public static final int MAX_PORTS_PER_NODE = 4;
+	
 	public Inet4Address m_ipAddr = null;
 	public int m_ipPort = 0;
 	public int m_firmwareVers = 0;
@@ -29,11 +32,11 @@ public class ArtNetPollReply extends ArtNetMsg
 	public String m_longName = "";
 	public String m_nodeReport = "";
 	public int m_numPorts = 0;
-	public byte[] m_portTypes = new byte[4];
-	public byte[] m_goodInput = new byte[4];
-	public byte[] m_goodOutput = new byte[4];
-	public byte[] m_swIn = new byte[4];
-	public byte[] m_swOut = new byte[4];
+	public byte[] m_portTypes = new byte[MAX_PORTS_PER_NODE];
+	public byte[] m_goodInput = new byte[MAX_PORTS_PER_NODE];
+	public byte[] m_goodOutput = new byte[MAX_PORTS_PER_NODE];
+	public byte[] m_swIn = new byte[MAX_PORTS_PER_NODE];
+	public byte[] m_swOut = new byte[MAX_PORTS_PER_NODE];
 	public int m_swVideo = 0;
 	public int m_swMacro = 0;
 	public int m_swRemote = 0;
