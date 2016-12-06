@@ -1,5 +1,6 @@
 package com.wdroome.artnet;
 
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.Stack;
@@ -19,6 +20,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 
+import com.wdroome.util.ArrayToList;
 import com.wdroome.util.HexDump;
 import com.wdroome.util.inet.CIDRAddress;
 import com.wdroome.util.inet.InetInterface;
@@ -118,12 +120,12 @@ public class ArtNetChannel extends Thread
 	 * @throws IOException
 	 * 		As thrown by Selector.open().
 	 */
-	public ArtNetChannel(Receiver receiver, int[] ports) throws IOException
+	public ArtNetChannel(Receiver receiver, List<Integer> ports) throws IOException
 	{
 		m_selector = Selector.open();
 		m_receiver = receiver;
-		if (ports == null || ports.length == 0) {
-			ports = new int[] {ArtNetConst.ARTNET_PORT};
+		if (ports == null || ports.isEmpty()) {
+			ports = ArrayToList.toList(new int[] {ArtNetConst.ARTNET_PORT});
 		}
 		ArrayList<ChannelInfo> channels = new ArrayList<ChannelInfo>();
 		for (int port: ports) {
@@ -155,6 +157,21 @@ public class ArtNetChannel extends Thread
 		}
 		
 		start();
+	}
+	
+	/**
+	 * Create a new channel for sending and receiving Art-Net messages.
+	 * @param receiver
+	 * 		Methods of this class will be called when messages arrive.
+	 * @param ports
+	 * 		The ports to listen to. If null or 0-length, listen to
+	 * 		the default Art-Net port.
+	 * @throws IOException
+	 * 		As thrown by Selector.open().
+	 */
+	public ArtNetChannel(Receiver receiver, int[] ports) throws IOException
+	{
+		this(receiver, ArrayToList.toList(ports));
 	}
 	
 	/**
