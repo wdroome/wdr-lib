@@ -119,6 +119,8 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 			msg.m_dataLen = dmxLvls.length;
 			boolean mustSend = true;
 			
+			long nSent = 0;
+			
 			while (m_running) {
 				long curTS = System.currentTimeMillis();
 				long msFromStart = curTS - m_startTS;
@@ -138,6 +140,7 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 					try {
 						// System.out.println("Send: " + chan + " " + cur + " " + lvl + " " + msg);
 						send(msg, m_nodeAddr);
+						nSent++;
 					} catch (Exception e) {
 						e.printStackTrace();
 						m_running = false;
@@ -158,7 +161,7 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 				}
 				try {Thread.sleep(waitMS);} catch (Exception e) {}
 			}
-			System.out.println("Chaser stopped");
+			System.out.println("Chaser stopped; sent " + nSent + " DMX msgs to " + m_nodeAddr);
 		}
 	}
 
