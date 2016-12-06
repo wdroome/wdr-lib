@@ -84,6 +84,17 @@ public class ArtNetPort
 	}
 	
 	/**
+	 * Return the bottom 8 bits of the port adddress.
+	 * That is, the sub-net and universe parts.
+	 * @return The sub-net and universe in the top and bottom nibble
+	 * 		of the low-order byte.
+	 */
+	public int subUniv()
+	{
+		return (m_subNet << 4) + (m_universe);
+	}
+	
+	/**
 	 * Return a string of the form net.subnet.univ.
 	 */
 	@Override

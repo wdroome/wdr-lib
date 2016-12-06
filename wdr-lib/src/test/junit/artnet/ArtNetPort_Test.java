@@ -17,6 +17,7 @@ public class ArtNetPort_Test
 		assertEquals("net", 1, p.m_net);
 		assertEquals("subNet", 2, p.m_subNet);
 		assertEquals("universe", 3, p.m_universe);
+		assertEquals("subUniv", 0x23, p.subUniv());
 	}
 
 	@Test
@@ -26,6 +27,7 @@ public class ArtNetPort_Test
 		assertEquals("net", 0, p.m_net);
 		assertEquals("subNet", 1, p.m_subNet);
 		assertEquals("universe", 2, p.m_universe);
+		assertEquals("subUniv", 0x12, p.subUniv());
 	}
 
 	@Test
@@ -35,8 +37,9 @@ public class ArtNetPort_Test
 		assertEquals("net", 1, p.m_net);
 		assertEquals("subNet", 2, p.m_subNet);
 		assertEquals("universe", 3, p.m_universe);
+		assertEquals("subUniv", 0x23, p.subUniv());
 	}
-
+	
 	@Test
 	public void testEq()
 	{
