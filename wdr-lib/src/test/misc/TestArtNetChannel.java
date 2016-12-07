@@ -8,6 +8,8 @@ import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetPoll;
 import com.wdroome.artnet.ArtNetChannel;
 
+import com.wdroome.util.inet.InetInterface;
+
 /**
  * @author wdr
  */
@@ -34,6 +36,12 @@ public class TestArtNetChannel
 					new InetSocketAddress("127.0.0.1", 8001));
 			defChan.send(new ArtNetPoll(),
 					new InetSocketAddress("127.0.0.1", 8002));
+			for (InetInterface iface: InetInterface.getBcastInterfaces()) {
+				defChan.send(new ArtNetPoll(),
+						new InetSocketAddress(iface.m_broadcast, 8001));
+				defChan.send(new ArtNetPoll(),
+						new InetSocketAddress(iface.m_broadcast, 8002));
+			}
 			try {Thread.sleep(1000);} catch (Exception e) {}
 		}
 		

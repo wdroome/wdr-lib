@@ -3,6 +3,7 @@ package com.wdroome.artnet;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.Stack;
 import java.util.ArrayDeque;
 
@@ -13,6 +14,7 @@ import java.net.StandardProtocolFamily;
 import java.net.SocketAddress;
 import java.net.InetSocketAddress;
 import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.StandardSocketOptions;
 
 import java.nio.ByteBuffer;
@@ -131,19 +133,19 @@ public class ArtNetChannel extends Thread
 			ports = ArrayToList.toList(new int[] {ArtNetConst.ARTNET_PORT});
 		}
 		ArrayList<ChannelInfo> channels = new ArrayList<ChannelInfo>();
-		for (int port: ports) {
+		for (InetSocketAddress addr: getLocalInetAddrs(ports)) {
 			DatagramChannel chan = null;
 			try {
 				chan = DatagramChannel.open(StandardProtocolFamily.INET);
-				chan.bind(new InetSocketAddress((Inet4Address)null, port));
+				chan.bind(addr);
 				chan.configureBlocking(false);
 				chan.setOption(StandardSocketOptions.SO_BROADCAST, true);
-				ChannelInfo chanInfo = new ChannelInfo(chan, port);
+				ChannelInfo chanInfo = new ChannelInfo(chan, addr.getPort());
 				channels.add(chanInfo);
 				// System.out.println("XXX: ArtNetChannel: " + port);
 			} catch (IOException e) {
 				System.err.println("ArtNetChannel(); Could not bind to "
-						+ port + " " + e);
+						+ addr.getPort() + " " + e);
 				if (chan != null) {
 					try {
 						chan.close();
@@ -364,6 +366,36 @@ public class ArtNetChannel extends Thread
 		} else {
 			return null;
 		}
+	}
+	
+	/**
+	 * Return all the socket address on which we should listen.
+	 * I tried explicitly enumerating the local addresses,
+	 * but that caused unexplained problems with send().
+	 * So for now, anyway, this returns wildcard addresses for all ports.
+	 * @param ports The ports on which to listen.
+	 * @return The socket addresses on which to listen.
+	 */
+	private Set<InetSocketAddress> getLocalInetAddrs(List<Integer> ports)
+	{
+		Set<InetSocketAddress> addrs = new HashSet<>();
+		for (int port: ports) {
+			if (true) {
+				// Use a wildcard address for each port.
+				addrs.add(new InetSocketAddress((InetAddress)null, port));
+			} else {
+				// Explicitly listen to each ipv4 address on that port.
+				for (InetInterface iface: InetInterface.getAllInterfaces()) {
+					if (iface.m_address instanceof Inet4Address) {
+						addrs.add(new InetSocketAddress(iface.m_address, port));
+					}
+					if (iface.m_broadcast != null && iface.m_broadcast instanceof Inet4Address) {
+						addrs.add(new InetSocketAddress(iface.m_broadcast, port));
+					}
+				}
+			}
+		}
+		return addrs;
 	}
 	
 	/**
