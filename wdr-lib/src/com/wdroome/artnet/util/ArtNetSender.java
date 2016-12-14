@@ -11,6 +11,7 @@ import com.wdroome.util.MiscUtil;
 import com.wdroome.util.inet.InetInterface;
 
 import com.wdroome.artnet.ArtNetConst;
+import com.wdroome.artnet.ArtNetPort;
 import com.wdroome.artnet.ArtNetMsg;
 import com.wdroome.artnet.ArtNetPoll;
 import com.wdroome.artnet.ArtNetChannel;
@@ -58,14 +59,16 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 		
 		private boolean m_running;
 		private InetSocketAddress m_nodeAddr;
+		private ArtNetPort m_anPort;
 		private int m_fromChan;
 		private int m_toChan;
 		private int m_level;
 		private long m_periodMS;
 		
-		private Chaser(InetSocketAddress addr, int from, int to, int lvl, long periodMS)
+		private Chaser(InetSocketAddress addr, ArtNetPort anPort, int from, int to, int lvl, long periodMS)
 		{
 			m_nodeAddr = addr;
+			m_anPort = anPort;
 			m_fromChan = from;
 			m_toChan = to;
 			m_level = lvl;
@@ -117,6 +120,8 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 			ArtNetDmx msg = new ArtNetDmx();
 			msg.m_data = dmxLvls;
 			msg.m_dataLen = dmxLvls.length;
+			msg.m_net = m_anPort.m_net;
+			msg.m_subUni = m_anPort.subUniv();
 			boolean mustSend = true;
 			
 			long nSent = 0;
@@ -230,7 +235,7 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 					}
 				}
 			} else if (cmd.equals("chase")) {
-				String chaseUsage = "Usage: chase addr from-chan [to-chan max-level sec]";
+				String chaseUsage = "Usage: chase addr art-net-port from-chan [to-chan max-level sec]";
 				if (chaser != null) {
 					System.out.println("You must stop previous chaser first");
 					continue;
@@ -244,21 +249,23 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 					continue;
 				}
 				try {
-					int from = Integer.parseInt(cmdArgs[2]);
+					ArtNetPort anPort = new ArtNetPort(cmdArgs[2]);
+					int from = Integer.parseInt(cmdArgs[3]);
 					int to = from;
 					int level = 255;
 					double sec = 1.0;
-					if (cmdArgs.length >= 4) {
-						to = Integer.parseInt(cmdArgs[3]);
-					}
 					if (cmdArgs.length >= 5) {
-						level = Integer.parseInt(cmdArgs[4]);
+						to = Integer.parseInt(cmdArgs[4]);
 					}
 					if (cmdArgs.length >= 6) {
-						sec = Double.parseDouble(cmdArgs[5]);
+						level = Integer.parseInt(cmdArgs[5]);
 					}
-					chaser = monitor.new Chaser(addr, from, to, level, (long)(1000 * sec));
-				} catch (NumberFormatException e) {
+					if (cmdArgs.length >= 7) {
+						sec = Double.parseDouble(cmdArgs[6]);
+					}
+					chaser = monitor.new Chaser(addr, anPort, from, to, level, (long)(1000 * sec));
+				} catch (Exception e) {
+					System.out.println(e);
 					System.out.println(chaseUsage);
 					continue;
 				}
