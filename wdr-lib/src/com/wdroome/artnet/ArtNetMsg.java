@@ -173,7 +173,7 @@ public abstract class ArtNetMsg
 	 * If the port is omitted, use the default Art-Net port.
 	 * @param addrport A string of the form ipaddr[:port].
 	 * @return The address as an InetSocketAddress.
-	 * @throws UnknownHostExceptio
+	 * @throws UnknownHostException
 	 * 		If the ipaddr part is not a valid IP address.
 	 * @throws NumberFormatException
 	 * 		If the :port part is not a number.
