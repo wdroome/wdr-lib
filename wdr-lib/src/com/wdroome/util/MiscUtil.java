@@ -483,7 +483,7 @@ public class MiscUtil
 	 *	Sleeps for no less than sleepFor milliseconds.
 	 *	Unlike Thread.sleep(), guarantees minimum sleep time.
 	 *
-	 *	@param sleepFor the number of miliseconds to wait
+	 *	@param sleepFor the number of milliseconds to wait
 	 */
 	public static void sleep(long sleepFor)
 	{

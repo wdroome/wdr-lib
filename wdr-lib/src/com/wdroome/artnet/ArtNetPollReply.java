@@ -235,6 +235,7 @@ public class ArtNetPollReply extends ArtNetMsg
 	public ArtNetPort getOutputPort(int iPort)
 	{
 		if (iPort >= 0
+				&& iPort < MAX_PORTS_PER_NODE
 				&& iPort <= m_numPorts
 				&& (m_portTypes[iPort] & 0x80) == 0x80) {
 			if (m_subNetAddr == 0 && (m_swOut[iPort] & 0xf0) != 0) {
@@ -255,6 +256,7 @@ public class ArtNetPollReply extends ArtNetMsg
 	public ArtNetPort getInputPort(int iPort)
 	{
 		if (iPort >= 0
+				&& iPort < MAX_PORTS_PER_NODE
 				&& iPort <= m_numPorts
 				&& (m_portTypes[iPort] & 0x40) == 0x40) {
 			if (m_subNetAddr == 0 && (m_swIn[iPort] & 0xf0) != 0) {
