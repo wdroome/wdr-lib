@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.Stack;
 import java.util.ArrayDeque;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import java.io.IOException;
 import java.io.PrintStream;
 
@@ -113,7 +115,7 @@ public class ArtNetChannel extends Thread
 	private final Stack<ByteBuffer> m_freeSendBuffs;
 
 	// True if the thread is running.
-	private boolean m_running = true;
+	private final AtomicBoolean m_running = new AtomicBoolean(true);
 
 	/**
 	 * Create a new channel for sending and receiving Art-Net messages.
@@ -188,7 +190,7 @@ public class ArtNetChannel extends Thread
 		ByteBuffer rcvBuff = ByteBuffer.allocate(ArtNetConst.MAX_MSG_LEN);
 		byte[] msgBuff = new byte[ArtNetConst.MAX_MSG_LEN];
 		try {
-			while (m_running) {
+			while (m_running.get()) {
 				ArrayList<SelectionKey> removeKeys = new ArrayList<SelectionKey>();
 				for (ChannelInfo ci: m_channels) {
 					int key = SelectionKey.OP_READ;
@@ -272,7 +274,9 @@ public class ArtNetChannel extends Thread
 				}
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			if (m_running.get()) {
+				e.printStackTrace();
+			}
 		} finally {
 			for (ChannelInfo ci: m_channels) {
 				try {ci.m_channel.close();} catch (Exception e2) {}
@@ -285,8 +289,11 @@ public class ArtNetChannel extends Thread
 	 */
 	public void shutdown()
 	{
-		m_running = false;
+		m_running.set(false);
 		m_selector.wakeup();
+		for (ChannelInfo ci: m_channels) {
+			try {ci.m_channel.close();} catch (Exception e2) {}
+		}
 	}
 	
 	/**
