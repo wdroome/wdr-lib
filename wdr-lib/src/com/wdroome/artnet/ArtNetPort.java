@@ -5,7 +5,7 @@ package com.wdroome.artnet;
  * Note that the constructors do not verify that the components are in range.
  * @author wdr
  */
-public class ArtNetPort
+public class ArtNetPort implements Comparable<ArtNetPort>
 {
 	/** The network number. */
 	public final int m_net;
@@ -128,5 +128,28 @@ public class ArtNetPort
 		return m_net == other.m_net
 					&& m_subNet == other.m_subNet
 					&& m_universe == other.m_universe;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Comparable#compareTo(java.lang.Object)
+	 */
+	@Override
+	public int compareTo(ArtNetPort o)
+	{
+		if (this.m_net < o.m_net) {
+			return -1;
+		} else if (this.m_net > o.m_net) {
+			return 1;
+		} else if (this.m_subNet < o.m_subNet) {
+			return -1;
+		} else if (this.m_subNet > o.m_subNet) {
+			return 1;
+		} else if (this.m_universe < o.m_universe) {
+			return -1;
+		} else if (this.m_universe > o.m_universe) {
+			return 1;
+		} else {
+			return 0;
+		}
 	}
 }
