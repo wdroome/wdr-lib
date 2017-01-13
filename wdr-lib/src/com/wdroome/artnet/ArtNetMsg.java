@@ -6,6 +6,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
+import com.wdroome.util.inet.InetUtil;
+
 /**
  * Base class for Art-Net messages.
  * @author wdr
@@ -177,18 +179,13 @@ public abstract class ArtNetMsg
 	 * 		If the ipaddr part is not a valid IP address.
 	 * @throws NumberFormatException
 	 * 		If the :port part is not a number.
+	 * @throws IllegalArgumentException
+	 * 		If the :port part (or defPort, if used) is not a legal port number.
 	 */
 	public static InetSocketAddress makeSocketAddress(String addrport)
-			throws UnknownHostException, NumberFormatException
+			throws UnknownHostException, NumberFormatException, IllegalArgumentException
 	{
-		int port = ArtNetConst.ARTNET_PORT;
-		int iColon = addrport.lastIndexOf(':');
-		if (iColon > 0) {
-			port = Integer.parseInt(addrport.substring(iColon+1));
-		} else {
-			iColon = addrport.length();
-		}
-		return new InetSocketAddress(InetAddress.getByName(addrport.substring(0, iColon)), port);
+		return InetUtil.parseAddrPort(addrport, ArtNetConst.ARTNET_PORT);
 	}
 	
 	protected static int getBigEndInt16(byte[] buff, int off)
