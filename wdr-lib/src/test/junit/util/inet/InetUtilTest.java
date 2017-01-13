@@ -51,7 +51,7 @@ public class InetUtilTest
 	}
 
 	@Test
-	public void testParseAddrPort() throws NumberFormatException, UnknownHostException
+	public void testParseAddrPort() throws NumberFormatException, UnknownHostException, IllegalArgumentException
 	{
 		InetSocketAddress a = new InetSocketAddress("1.2.3.4", 80);
 		InetSocketAddress b = InetUtil.parseAddrPort("1.2.3.4:80");
@@ -60,7 +60,26 @@ public class InetUtilTest
 		assertEquals(a, c);
 		
 		a = new InetSocketAddress("1::2", 80);
-		b = InetUtil.parseAddrPort("1::2:80");
+		
+		b = InetUtil.parseAddrPort("1:0:0:0:0:0:0:2:80");
+		assertEquals(a, b);
+		
+		b = InetUtil.parseAddrPort("1:0:0:0:0:0:0:2", 80);
+		assertEquals(a, b);
+		
+		b = InetUtil.parseAddrPort("[1::2]:80");
+		assertEquals(a, b);
+		
+		b = InetUtil.parseAddrPort("[1::2]", 80);
+		assertEquals(a, b);
+		
+		b = InetUtil.parseAddrPort("1::2", 80);
+		assertEquals(a, b);
+		
+		b = InetUtil.parseAddrPort("1::2.80");
+		assertEquals(a, b);
+		
+		b = InetUtil.parseAddrPort("1::2#80");
 		assertEquals(a, b);
 	}
 	
@@ -68,6 +87,6 @@ public class InetUtilTest
 	public void testToAddrPort()
 	{
 		assertEquals("1.2.3.4:80", InetUtil.toAddrPort(new InetSocketAddress("1.2.3.4", 80)));		
-		assertEquals("0:0:0:0:0:0:0:0:80", InetUtil.toAddrPort(new InetSocketAddress("::0", 80)));		
+		assertEquals("[0:0:0:0:0:0:0:0]:80", InetUtil.toAddrPort(new InetSocketAddress("::0", 80)));		
 	}
 }

@@ -1,6 +1,7 @@
 package com.wdroome.util.inet;
 
 import java.net.InetAddress;
+import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
@@ -64,34 +65,35 @@ public class InetUtil
 	/**
 	 * Return a socket address as an addr:port string.
 	 * @param addr The socket address.
-	 * @return The address as an addr:port string.
+	 * @return The address as an addr:port string,
+	 * 		for ipv4, or [addr]:port, for ipv6.
 	 */
 	public static String toAddrPort(InetSocketAddress addr)
 	{
-		return addr.getAddress().getHostAddress() + ":" + addr.getPort();
+		InetAddress addrPart = addr.getAddress();
+		if (addrPart instanceof Inet6Address) {
+			return "[" + addrPart.getHostAddress() + "]:" + addr.getPort();
+		} else {
+			return addr.getAddress().getHostAddress() + ":" + addr.getPort();
+		}
 	}
 	
 	/**
 	 * Parse an IP address-port string of the form addr:port
 	 * and return the corresponding InetSocketAddress.
-	 * @param addrport A string of the form ipaddr[:port].
+	 * @param addrport A string of the form ipaddr:port.
 	 * @return The address as an InetSocketAddress.
 	 * @throws UnknownHostException
 	 * 		If the ipaddr part is not a valid IP address.
 	 * @throws NumberFormatException
-	 * 		If the :port part is missing or is not a number.
+	 * 		If the :port part is not a number.
+	 * @throws IllegalArgumentException
+	 * 		If the :port part is missing or it's not a legal port number.
 	 */
 	public static InetSocketAddress parseAddrPort(String addrport)
-			throws UnknownHostException, NumberFormatException
+			throws UnknownHostException, NumberFormatException, IllegalArgumentException
 	{
-		int port = 0;
-		int iColon = addrport.lastIndexOf(':');
-		if (iColon > 0) {
-			port = Integer.parseInt(addrport.substring(iColon+1));
-		} else {
-			throw new NumberFormatException("Missing :port");
-		}
-		return new InetSocketAddress(InetAddress.getByName(addrport.substring(0, iColon)), port);
+		return parseAddrPort(addrport, -1);
 	}
 	
 	/**
@@ -105,17 +107,85 @@ public class InetUtil
 	 * 		If the ipaddr part is not a valid IP address.
 	 * @throws NumberFormatException
 	 * 		If the :port part is not a number.
+	 * @throws IllegalArgumentException
+	 * 		If the :port part (or defPort, if used) is not a legal port number.
 	 */
 	public static InetSocketAddress parseAddrPort(String addrport, int defPort)
-			throws UnknownHostException, NumberFormatException
+			throws UnknownHostException, NumberFormatException, IllegalArgumentException
 	{
 		int port = defPort;
-		int iColon = addrport.lastIndexOf(':');
-		if (iColon > 0) {
-			port = Integer.parseInt(addrport.substring(iColon+1));
-		} else {
-			iColon = addrport.length();
+		if (addrport.startsWith("[")) {
+			// [addr]:port format
+			int iCloseBracket = addrport.lastIndexOf(']');
+			if (iCloseBracket > 0) {
+				InetAddress addr = InetAddress.getByName(addrport.substring(1, iCloseBracket));
+				if (iCloseBracket+2 < addrport.length()) {
+					switch (addrport.charAt(iCloseBracket+1)) {
+					case ':':
+					case '.':
+					case '#':
+						port = Integer.parseInt(addrport.substring(iCloseBracket+2));
+					}
+				}
+				return new InetSocketAddress(addr, port);
+			}
 		}
-		return new InetSocketAddress(InetAddress.getByName(addrport.substring(0, iColon)), port);
+		
+		int iLastColon = addrport.lastIndexOf(':');
+		if (iLastColon < 0) {
+			// addr format -- no port.
+			return new InetSocketAddress(InetAddress.getByName(addrport), port);
+		}
+		
+		int nColons = numColons(addrport);
+		if (nColons == 1 || nColons == 8) {
+			// ipv4-addr:port or ipv6-addr:port format
+			if (iLastColon+1 < addrport.length()) {
+				port = Integer.parseInt(addrport.substring(iLastColon+1));
+			}
+			return new InetSocketAddress(
+						InetAddress.getByName(addrport.substring(0, iLastColon)), port);
+		}
+		
+		// Must be ipv6. 
+		int iPortSep = lastNonDigit(addrport);
+		if (iPortSep > 0 && (addrport.charAt(iPortSep) == '.' || addrport.charAt(iPortSep) == '#')) {
+			// ipv6.port or ipv6#port format
+			port = Integer.parseInt(addrport.substring(iPortSep+1));
+			return new InetSocketAddress(InetAddress.getByName(addrport.substring(0, iPortSep)), port);
+		} else {
+			// ipv6 format
+			return new InetSocketAddress(InetAddress.getByName(addrport), port);
+		}
+	}
+	
+	/**
+	 * If a string ends with a decimal digit, return the index
+	 * of the last non-digit character. If not, return -1.
+	 * @param s The string.
+	 * @return The index of the last non digit, or -1.
+	 */
+	private static int lastNonDigit(String s)
+	{
+		int n = s.length();
+		if (n > 0 && Character.isDigit(s.charAt(n-1))) {
+			for (int i = n-1; --i >= 0; ) {
+				if (!Character.isDigit(s.charAt(i))) {
+					return i;
+				}
+			}
+		}
+		return -1;
+	}
+	
+	private static int numColons(String s)
+	{
+		int nColons = 0;
+		for (int i = s.length(); --i >= 0; ) {
+			if (s.charAt(i) == ':') {
+				nColons++;
+			}
+		}
+		return nColons;
 	}
 }
