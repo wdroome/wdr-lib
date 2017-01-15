@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Stack;
 import java.util.ArrayDeque;
+import java.util.Collection;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -127,7 +128,7 @@ public class ArtNetChannel extends Thread
 	 * @throws IOException
 	 * 		As thrown by Selector.open().
 	 */
-	public ArtNetChannel(Receiver receiver, List<Integer> ports) throws IOException
+	public ArtNetChannel(Receiver receiver, Collection<Integer> ports) throws IOException
 	{
 		m_selector = Selector.open();
 		m_receiver = receiver;
@@ -383,7 +384,7 @@ public class ArtNetChannel extends Thread
 	 * @param ports The ports on which to listen.
 	 * @return The socket addresses on which to listen.
 	 */
-	private Set<InetSocketAddress> getLocalInetAddrs(List<Integer> ports)
+	private Set<InetSocketAddress> getLocalInetAddrs(Collection<Integer> ports)
 	{
 		Set<InetSocketAddress> addrs = new HashSet<>();
 		for (int port: ports) {
