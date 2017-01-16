@@ -134,6 +134,8 @@ public class ArtNetChannel extends Thread
 		m_receiver = receiver;
 		if (ports == null || ports.isEmpty()) {
 			ports = ArrayToList.toList(new int[] {ArtNetConst.ARTNET_PORT});
+		} else if (!(ports instanceof Set)) {
+			ports = new HashSet(ports);
 		}
 		ArrayList<ChannelInfo> channels = new ArrayList<ChannelInfo>();
 		for (InetSocketAddress addr: getLocalInetAddrs(ports)) {
@@ -333,7 +335,7 @@ public class ArtNetChannel extends Thread
 		if (nsent != 0) {
 			releaseSendBuffer(sendBuff);
 		} else {
-			// System.out.println("ArtNetChannel.send(): blocked, using thread.");
+			System.out.println("ArtNetChannel.send(): blocked, using thread.");
 			synchronized (chanInfo.m_sendBuffs) {
 				chanInfo.m_sendBuffs.add(new SendBuffer(target, sendBuff));
 				m_selector.wakeup();
