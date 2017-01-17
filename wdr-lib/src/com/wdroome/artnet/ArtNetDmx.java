@@ -91,7 +91,7 @@ public class ArtNetDmx extends ArtNetMsg
 	public static int size()
 	{
 		return minSize()
-				+ 512;		// data
+				+ ArtNetConst.MAX_CHANNELS_PER_UNIVERSE;		// data
 	}
 	
 	/**

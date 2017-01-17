@@ -6,6 +6,12 @@ package com.wdroome.artnet;
  */
 public class ArtNetConst
 {
+	/** Maximum number of DMX channels per universe. */
+	public static final int MAX_CHANNELS_PER_UNIVERSE = 512;
+
+	/** Maximum number of input or output ports in one node. */
+	public static final int MAX_PORTS_PER_NODE = 4;
+	
 	/** Common message header string. */
 	public static final byte[] HEADER_STRING
 					= {'A', 'r', 't', '-', 'N', 'e', 't', 0};

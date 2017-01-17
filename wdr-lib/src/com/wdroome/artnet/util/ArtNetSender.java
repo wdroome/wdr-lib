@@ -76,13 +76,13 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 			
 			if (m_fromChan < 1) {
 				m_fromChan = 1;
-			} else if (m_fromChan > 512) {
-				m_fromChan = 512;
+			} else if (m_fromChan > ArtNetConst.MAX_CHANNELS_PER_UNIVERSE) {
+				m_fromChan = ArtNetConst.MAX_CHANNELS_PER_UNIVERSE;
 			}
 			if (m_toChan < 1) {
 				m_toChan = 1;
-			} else if (m_toChan > 512) {
-				m_toChan = 512;
+			} else if (m_toChan > ArtNetConst.MAX_CHANNELS_PER_UNIVERSE) {
+				m_toChan = ArtNetConst.MAX_CHANNELS_PER_UNIVERSE;
 			}
 			if (m_fromChan > m_toChan) {
 				int x = m_fromChan;
