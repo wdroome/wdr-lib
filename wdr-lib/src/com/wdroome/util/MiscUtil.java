@@ -13,6 +13,7 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  *	Miscellaneous static utility methods.
@@ -487,13 +488,31 @@ public class MiscUtil
 	 */
 	public static void sleep(long sleepFor)
 	{
+		sleep(sleepFor, null);
+	}
+
+	/**
+	 *	Sleeps for no less than sleepFor milliseconds.
+	 *	Unlike Thread.sleep(), guarantees minimum sleep time.
+	 *
+	 *	@param sleepFor the number of milliseconds to wait
+	 *	@param ignoreInterrupts
+	 *		Determines whether to return when interrupted.
+	 *		If false, return when interrupted.
+	 *		If true (or null), ignore interrupts and wait the remaining time.
+	 *		Typically this is a Thread's "isRunning" flag.
+	 */
+	public static void sleep(long sleepFor, AtomicBoolean ignoreInterrupts)
+	{
 		long startTime = System.currentTimeMillis();
 		long haveBeenSleeping = 0;
 		while (haveBeenSleeping < sleepFor) {
 			try {
 				Thread.sleep(sleepFor - haveBeenSleeping);
 			} catch (InterruptedException ex) {
-				//we-ll have to wait again!
+				if (ignoreInterrupts != null && !ignoreInterrupts.get()) {
+					return;
+				}
 			}
 			haveBeenSleeping = (System.currentTimeMillis() - startTime);
 		}
