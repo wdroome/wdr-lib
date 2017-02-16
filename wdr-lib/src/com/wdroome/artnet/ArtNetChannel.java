@@ -331,7 +331,14 @@ public class ArtNetChannel extends Thread
 			System.out.println("XXX: " + sendBuff.toString());
 			new HexDump().dump(msgBuff, 0, msgLen);
 		}
-		int nsent = chanInfo.m_channel.send(sendBuff, target);
+		int nsent;
+		try {
+			nsent = chanInfo.m_channel.send(sendBuff, target);
+		} catch (IOException e) {
+			releaseSendBuffer(sendBuff);
+			// System.out.println("ArtNetChannel.send: " + e);
+			throw e;
+		}
 		if (nsent != 0) {
 			releaseSendBuffer(sendBuff);
 		} else {
