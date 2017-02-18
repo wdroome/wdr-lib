@@ -19,6 +19,7 @@ public class ShowMidiMessages
 	 */
 	public static void main(String[] args)
 	{
+		showThreads();
         MidiTools.warnSysexPatch(System.out);
         try {
             System.out.println("MIDI Devices:");
@@ -31,10 +32,26 @@ public class ShowMidiMessages
 					device.setReceiver(new Rcvr(device.m_cookedDescription));
 				}
             }
+    		showThreads();
             Thread.sleep(60*60*1000);
         } catch (Exception e) {
             e.printStackTrace(System.out);
         }
+	}
+	
+	private static void showThreads()
+	{
+		int max = Thread.activeCount();
+		Thread[] threads = new Thread[max+20];
+		int n = Thread.enumerate(threads);
+		System.out.println(n + " Threads:");
+		for (int i = 0; i < n; i++) {
+			Thread t = threads[i];
+			System.out.println("  Thread " + t.getName() + " " + t.isDaemon());
+		}
+		if (n >= threads.length) {
+			System.out.println("  May be more!!");
+		}
 	}
 
 	private static class Rcvr implements Receiver
