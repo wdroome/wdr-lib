@@ -27,7 +27,7 @@ import com.wdroome.util.SystemErrorLogger;
 
 /**
  * Read and parse a XML cost map  specification file.
- * <br/>
+ * <br>
 <pre>
   The root element is &lt;cost-maps&gt;, with a &lt;cost-map&gt; child tag
   for each distinct cost map. If there is only one cost map,

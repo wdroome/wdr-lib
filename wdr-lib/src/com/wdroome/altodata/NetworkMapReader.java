@@ -24,7 +24,7 @@ import com.wdroome.util.inet.CIDRAddress;
 
 /**
  * Read and parse a XML network-map specification file.
- * <br/>
+ * <br>
 <pre>
   The root element is &lt;network-maps&gt;, with a &lt;network-map&gt; child element
   for each network map. If there is only one network map,

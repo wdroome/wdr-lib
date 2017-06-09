@@ -484,7 +484,6 @@ public class AltoResp_IndexedCostMap extends AltoResp_Base
 	/**
 	 * Write the cost-map as compact json-encoded data.
 	 * @param out The stream to write on.
-	 * @throws JSONException 
 	 */
 	public void writeJSON(PrintStream out)
 	{
@@ -532,7 +531,6 @@ public class AltoResp_IndexedCostMap extends AltoResp_Base
 	 * For testing, write the cost-map in an alternate, more efficient json format.
 	 * NOTE: This is NOT defined by the ALTO protocol spec.
 	 * @param out The stream to write on.
-	 * @throws JSONException 
 	 */
 	public void altWriteJSON(PrintStream out)
 	{

@@ -422,7 +422,7 @@ public abstract class AltoResp_Base extends AltoMsg_Base
 	/**
 	 * Set this message's dependent map-vtags to an array of entries.
 	 * Any previously set map-vtag entries are discarded. 
-	 * @param idTagPairs The new collection of <id,tag> pairs.
+	 * @param idTagPairs The new collection of &lt;id,tag&gt; pairs.
 	 * 		m_str1 is the resource id and m_str2 is the tag.
 	 */
 	public void setDependentVtags(Collection<String2> idTagPairs)

@@ -24,7 +24,7 @@ public class PropertyMapReader
 {
 	/**
 	 * Read initial properties from an XML file.
-	 * <br/>
+	 * <br>
 <pre>
   Specify the endpoint and PID properties.
   

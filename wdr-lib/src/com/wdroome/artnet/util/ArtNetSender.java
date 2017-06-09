@@ -18,6 +18,7 @@ import com.wdroome.artnet.ArtNetChannel;
 import com.wdroome.artnet.ArtNetDmx;
 
 /**
+ * Send ArtNet messages (for testing).
  * @author wdr
  */
 public class ArtNetSender extends ArtNetChannel.MsgPrinter
@@ -30,7 +31,7 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 	}
 	
 	/**
-	 * @throws IOException 
+	 * @throws IOException If an error occurs.
 	 */
 	public ArtNetSender(int[] ports) throws IOException
 	{

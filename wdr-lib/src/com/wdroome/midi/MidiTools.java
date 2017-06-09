@@ -215,6 +215,7 @@ public class MidiTools
 	 * If this is a Mac, and if the CoreMIDI4J sysex-patch package is not loaded,
 	 * return a string warning the user about the problem.
 	 * Return null if there is no problem.
+	 * @return A string warning the user about the problem, or null.
 	 */
 	public static String checkSysexPatch()
 	{
@@ -289,6 +290,8 @@ public class MidiTools
 	
     /**
      * For testing, print a summary of all devices.
+     * @param args Command line arguments. Ignored.
+     * @throws Exception If something goes wrong.
      */
     public static void main(String[] args) throws Exception
     {

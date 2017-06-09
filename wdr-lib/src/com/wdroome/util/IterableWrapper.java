@@ -39,7 +39,7 @@ public class IterableWrapper<T> implements Iterable<T>
 	}
 	
 	/**
-	 * Iterable<T> Interface: Return a new iterator for the wrapped object.
+	 * Iterable&lt;T&gt; Interface: Return a new iterator for the wrapped object.
 	 * The returned iterator is immutable: it rejects remove() requests.
 	 */
 	@Override

@@ -13,11 +13,11 @@ import javax.sound.midi.*;
 public class VerifySysex
 {
 	/**
-	 * @param args
-	 * @throws MidiUnavailableException 
-	 * @throws InvalidMidiDataException 
-	 * @throws ArrayIndexOutOfBoundsException 
-	 * @throws InterruptedException 
+	 * @param args Command line arguments (not used).
+	 * @throws MidiUnavailableException If an error occurs.
+	 * @throws InvalidMidiDataException  If an error occurs.
+	 * @throws ArrayIndexOutOfBoundsException  If an error occurs.
+	 * @throws InterruptedException  If an error occurs.
 	 */
 	public static void main(String[] args)
 			throws MidiUnavailableException, ArrayIndexOutOfBoundsException,

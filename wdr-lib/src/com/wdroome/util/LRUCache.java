@@ -9,7 +9,7 @@ import java.util.Map;
  *	Specify the maximum number of entries in the constructor,
  *	and (optionally) the initial size and load factor.
  *	After that, client uses just like a LinkedHashMap:
- *	e.g., client calls get() & put().
+ *	e.g., client calls get() &amp; put().
  *	put() and putAll() add elements to the head of the list,
  *	and if the list is too large, they remove the oldest
  *	items from the tail.  get() moves the returned element

@@ -212,7 +212,7 @@ public class AltoResp_EndpointProp extends AltoResp_Base implements Iterable<Str
 	 * Split a property name of the form "map-id.name"
 	 * into its two components.
 	 * @param fullName A property name of the form "name" or "map-id.name".
-	 * @return If fullName is of the form "map-id.name", a String pair <map-id,name>.
+	 * @return If fullName is of the form "map-id.name", a String pair &lt;map-id,name&gt;.
 	 * 		If fullName is a simple, unqualified property name, return null.
 	 */
 	public static String2 splitPropName(String fullName)

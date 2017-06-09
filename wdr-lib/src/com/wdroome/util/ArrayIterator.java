@@ -78,7 +78,7 @@ public class ArrayIterator<T>
 	}
 
 	/**
-	 * Return true iff there are more elements (Iterator<T> interface).
+	 * Return true iff there are more elements (Iterator&lt;T&gt; interface).
 	 */
 	@Override
 	public boolean hasNext()
@@ -87,7 +87,7 @@ public class ArrayIterator<T>
 	}
 	
 	/**
-	 * Return true iff there are more elements (ListIterator<T> interface).
+	 * Return true iff there are more elements (ListIterator&lt;T&gt; interface).
 	 */
 	@Override
 	public boolean hasPrevious()
@@ -96,7 +96,7 @@ public class ArrayIterator<T>
 	}
 
 	/**
-	 * Return the next element (Iterator<T> interface).
+	 * Return the next element (Iterator&lt;T&gt; interface).
 	 * This may or may not return null elements in the array,
 	 * depending on the flag given to the c'tor.
 	 * @throws NoSuchElementException If there are no more elements.
@@ -112,7 +112,7 @@ public class ArrayIterator<T>
 	}
 
 	/**
-	 * Return the previous element (ListIterator<T> interface).
+	 * Return the previous element (ListIterator&lt;T&gt; interface).
 	 * This may or may not return null elements in the array,
 	 * depending on the flag given to the c'tor.
 	 * @throws NoSuchElementException If there are no previous elements.
@@ -129,7 +129,7 @@ public class ArrayIterator<T>
 
 	/**
 	 * Return this object as an Iterator,
-	 * so the object can be used in a foreach statement (Iterable<T> interface).
+	 * so the object can be used in a foreach statement (Iterable&lt;T&gt; interface).
 	 * @see java.lang.Iterable#iterator()
 	 */
 	@Override
@@ -184,7 +184,7 @@ public class ArrayIterator<T>
 
 	/**
 	 * Return a description of the index of the most recently returned element
-	 * (IteratorWithPosition<T> interface).
+	 * (IteratorWithPosition&lt;T&gt; interface).
 	 * This returns "item[##]", where ## is the index of the item
 	 * in the array subset.
 	 * @see IteratorWithPosition#getPositionDescription()
@@ -196,7 +196,7 @@ public class ArrayIterator<T>
 	}
 
 	/**
-	 * Unsupported; cannot remove items from array (Iterator<T> interface).
+	 * Unsupported; cannot remove items from array (Iterator&lt;T&gt; interface).
 	 * @throws UnsupportedOperationException Always.
 	 */
 	@Override
@@ -206,7 +206,7 @@ public class ArrayIterator<T>
 	}
 
 	/**
-	 * Unsupported; cannot add items to array (ListIterator<T> interface).
+	 * Unsupported; cannot add items to array (ListIterator&lt;T&gt; interface).
 	 * @throws UnsupportedOperationException Always.
 	 */
 	@Override
@@ -216,7 +216,7 @@ public class ArrayIterator<T>
 	}
 
 	/**
-	 * Unsupported; cannot replace items in array (ListIterator<T> interface).
+	 * Unsupported; cannot replace items in array (ListIterator&lt;T&gt; interface).
 	 * @throws UnsupportedOperationException Always.
 	 */
 	@Override

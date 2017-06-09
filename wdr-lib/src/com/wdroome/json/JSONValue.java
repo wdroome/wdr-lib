@@ -13,12 +13,14 @@ public interface JSONValue
 	 * such as a string or a number or a keyword,
 	 * as opposed to a compound value, like an array
 	 * or an object dictionary.
+	 * @return True if this is a simple scalar value.
 	 */
 	public boolean isSimple();
 	
 	/**
 	 * Return the name of this JSON type.
 	 * E.g., String, Number, Object, etc.
+	 * @return The name of this JSON type.
 	 */
 	public String jsonType();
 	

@@ -349,8 +349,7 @@ public class MakeALTOMsg
 	 * call {@link #jsonToALTO(String,IJSONLexan)} to create
 	 * the appropriate ALTO message object for that media type,
 	 * and then print the message object.
-	 * @param args
-	 * @throws IOException
+	 * @param args Command line arguments.
 	 */
 	public static void main(String[] args)
 	{

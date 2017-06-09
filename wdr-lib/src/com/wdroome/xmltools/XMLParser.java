@@ -256,11 +256,11 @@ public class XMLParser
 	 *	Create and return a new DocumentBuilder.
 	 *	Set the error handler to that returned by {@link #getErrorHandler()}.
 	 *	The new parser has the following properties:
-	 *	<br />Validating: false
-	 *	<br />NamespaceAware: true
-	 *	<br />ExpandEntityReferences: true
-	 *	<br />IgnoringComments: false
-	 *	<br />Coalescing: false
+	 *	<br>Validating: false
+	 *	<br>NamespaceAware: true
+	 *	<br>ExpandEntityReferences: true
+	 *	<br>IgnoringComments: false
+	 *	<br>Coalescing: false
 	 *	@return A new XML parser.
 	 *	@throws ParserConfigurationException
 	 *		If thrown by {@link DocumentBuilderFactory#newInstance()}.

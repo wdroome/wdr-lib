@@ -34,7 +34,7 @@ public class ArtNetDmx extends ArtNetMsg
 	 * @param buff The message buffer.
 	 * @param off The starting offset of the data within buff.
 	 * @param length The length of the data.
-	 * @throws IllegalArgmentException
+	 * @throws IllegalArgumentException
 	 * 		If the message is too short or it does not have the correct op code.
 	 */
 	public ArtNetDmx(byte[] buff, int off, int length)
@@ -52,7 +52,7 @@ public class ArtNetDmx extends ArtNetMsg
 	 * @param buff The message buffer.
 	 * @param off The starting offset of the data within buff.
 	 * @param length The length of the data.
-	 * @throws IllegalArgmentException
+	 * @throws IllegalArgumentException
 	 * 		If the message is too short or it does not have the correct op code.
 	 */
 	public void update(byte[] buff, int off, int length)

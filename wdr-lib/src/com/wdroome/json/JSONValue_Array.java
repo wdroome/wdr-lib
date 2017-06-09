@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Collection;
 import java.math.BigInteger;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 /**
  * A JSON array.
@@ -44,7 +46,7 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	
 	/**
 	 * Create a JSONArray from an array of JSONValues.
-	 * @param src
+	 * @param src The source for the new array.
 	 */
 	public JSONValue_Array(JSONValue[] src)
 	{
@@ -56,7 +58,7 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	 * Create a JSONArray from an array of Java objects.
 	 * We use {@link JSONUtil#toValue(Object)} to convert
 	 * the Java Objects to JSON values.
-	 * @param src
+	 * @param src The source for the new array.
 	 */
 	public JSONValue_Array(Object[] src)
 	{
@@ -255,6 +257,7 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	/**
 	 * Return a numeric-valued element as a double.
 	 * @param index The element's index.
+	 * @param def The default value.
 	 * @return The numeric value of the element.
 	 * 		Return def if it's not a JSON number.
 	 * @throws IndexOutOfBoundsException If index is invalid.
@@ -276,6 +279,7 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	/**
 	 * Return an integer-valued element as a BigInteger.
 	 * @param index The element's index.
+	 * @param def The default value.
 	 * @return The numeric value of the element.
 	 * 		Return def if the value is not a JSON number,
 	 * 		or if it's not an integer,
@@ -302,6 +306,7 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	/**
 	 * Return a boolean-valued element.
 	 * @param index The element's index.
+	 * @param def The default value.
 	 * @return The boolean value of the element.
 	 * 		Return def if it's not a JSON boolean.
 	 * @throws IndexOutOfBoundsException If index is invalid.
@@ -436,5 +441,28 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	public String toString()
 	{
 		return JSONUtil.toJSONString(this, false);
+	}
+	
+	/**
+	 * Create a JSON Array with the rows in an SQL result set.
+	 * Ignore NULL-valued SQL entries.
+	 * @param rs The SQL Result Set.
+	 * @param colNames The names of the SQL columns to copy to JSON.
+	 * 		If null, copy all columns.
+	 * @param jsonNames The names of the JSON fields. If null, use the SQL column names.
+	 * @return A JSON Array with the results of the query.
+	 * @throws SQLException If a column name is invalid,
+	 * 			or the result set is closed, or some other SQL error occurs.
+	 */
+	public static JSONValue_Array makeArray(ResultSet rs, String[] colNames, String[] jsonNames)
+			throws SQLException
+	{
+		JSONValue_Array jsonResults = new JSONValue_Array();
+		while (rs.next()) {
+			JSONValue_Object jsonRow = new JSONValue_Object();
+			jsonRow.putCols(rs, colNames, jsonNames);
+			jsonResults.add(jsonRow);
+		}
+		return jsonResults;
 	}
 }

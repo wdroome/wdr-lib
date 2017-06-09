@@ -81,7 +81,7 @@ public enum MSCCommand
 	
 	/**
 	 * Print all commands, for testing.
-	 * @param args
+	 * @param args Command line args. Ignored.
 	 */
 	public static void main(String[] args)
 	{

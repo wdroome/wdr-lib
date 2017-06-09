@@ -132,7 +132,7 @@ public enum MSCCmdFormat
 	
 	/**
 	 * Print all command formats, for testing.
-	 * @param args
+	 * @param args Command line args. Ignored.
 	 */
 	public static void main(String[] args)
 	{

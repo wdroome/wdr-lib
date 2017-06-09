@@ -8,6 +8,12 @@ import java.util.HashMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.math.BigInteger;
+import java.math.BigDecimal;
+
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Types;
 
 /**
  * A JSON Object, or a dictionary from Strings to JSON values.
@@ -328,7 +334,7 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	 * Return an integer-valued entry as a BigInteger.
 	 * This works for Number values as well, as long as they
 	 * have an integral value.
-	 * @param key
+	 * @param key The entry's key.
 	 * @return The BigInteger value of the key.
 	 * @throws JSONFieldMissingException If field is missing or null.
 	 * @throws JSONValueTypeException If field exists, but it's not an integer.
@@ -792,5 +798,150 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 				putPath(path, value);
 			}
 		}
+	}
+	
+	/**
+	 * Copy columns from an SQL result row to fields in this dictionary.
+	 * Impute the JSON types from the SQL types. The INT, FLOAT and DOUBLE types
+	 * become JSON Numbers. BOOLEAN and BIT(1) become JSON Booleans.
+	 * Anything else becomes a JSON String (including DECIMAL).
+	 * Ignore NULL-valued SQL entries.
+	 * @param rs The result of an SQL query. Copy the columns in the current row.
+	 * @param colNames The column names to copy. If null, copy all columns.
+	 * @param jsonNames The names of the corresponding JSON fields.
+	 * 			If null, use the SQL column names.
+	 * @throws SQLException If a column name is invalid,
+	 * 			or the result set is closed, or some other SQL error occurs.
+	 */
+	public void putCols(ResultSet rs, String[] colNames, String[] jsonNames)
+			throws SQLException
+	{
+		ResultSetMetaData meta = rs.getMetaData();
+		if (colNames == null) {
+			int nCol = meta.getColumnCount();
+			colNames = new String[nCol];
+			for (int iCol = 1; iCol <= nCol; iCol++) {
+				colNames[iCol-1] = meta.getColumnName(iCol);
+			}
+		}
+		for (int iFld = 0; iFld < colNames.length; iFld++) {
+			String colName = colNames[iFld];
+			String jsonName = (jsonNames != null && iFld < jsonNames.length)
+							? jsonNames[iFld] : colName;
+			int iCol = rs.findColumn(colName);
+			switch (meta.getColumnType(iCol)) {
+			case Types.INTEGER:
+			case Types.SMALLINT:
+			case Types.TINYINT:
+				{
+					long v = rs.getLong(iCol);
+					if (!rs.wasNull()) {
+						put(jsonName, v);
+					}
+					break;
+				}
+			case Types.BIGINT:
+			{
+				BigDecimal v = rs.getBigDecimal(iCol);
+				if (!rs.wasNull()) {
+					put(jsonName, v.toBigInteger());
+				}
+				break;
+			}
+			case Types.FLOAT:
+			case Types.DOUBLE:
+				{
+					double v = rs.getDouble(iCol);
+					if (!rs.wasNull()) {
+						put(jsonName, v);
+					}
+					break;
+				}
+			case Types.BIT:
+			case Types.BOOLEAN:
+				{
+					if (meta.getPrecision(iCol) == 1) {
+						boolean v = rs.getBoolean(iCol);
+						if (!rs.wasNull()) {
+							put(jsonName, v);
+						}
+					} else {
+						String v = rs.getString(iCol);
+						if (!rs.wasNull()) {
+							put(jsonName, v);
+						}
+					}
+				}
+			default:
+				{
+					String v = rs.getString(iCol);
+					if (!rs.wasNull()) {
+						put(jsonName, v);
+					}				
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Copy columns from an SQL result row to fields in this dictionary.
+	 * Impute the JSON types from the SQL types. The INT, FLOAT and DOUBLE types
+	 * become JSON Numbers. BOOLEAN and BIT(1) become JSON Booleans.
+	 * Anything else becomes a JSON String (including DECIMAL).
+	 * Ignore NULL-valued SQL entries.
+	 * @param rs The result of an SQL query. Copy the columns in the current row.
+	 * @param colNames The column names to copy. If null, copy all columns.
+	 * 			Use these as the JSON field names.
+	 * @throws SQLException If a column name is invalid,
+	 * 			or the result set is closed, or some other SQL error occurs.
+	 */
+	public void putCols(ResultSet rs, String[] colNames)
+			throws SQLException
+	{
+		putCols(rs, colNames, null);
+	}
+	
+	/**
+	 * Copy all columns from an SQL result row to fields in this dictionary.
+	 * Impute the JSON types from the SQL types. The INT, FLOAT and DOUBLE types
+	 * become JSON Numbers. BOOLEAN and BIT(1) become JSON Booleans.
+	 * Anything else becomes a JSON String (including DECIMAL).
+	 * Ignore NULL-valued SQL entries.
+	 * @param rs The result of an SQL query. Copy the columns in the current row.
+	 * @throws SQLException If the result set is closed, or some other SQL error occurs.
+	 */
+	public void putCols(ResultSet rs)
+			throws SQLException
+	{
+		putCols(rs, null, null);
+	}
+	
+	/**
+	 * Create a JSON Object from the rows in an SQL result set.
+	 * Each row becomes an item in the dictionary, with the key
+	 * being a value from a column in that row (e.g., an ID field).
+	 * Ignore NULL-valued SQL entries, or rows with NULL-valued keys.
+	 * @param rs The SQL Result Set.
+	 * @param keyCol The name of the column with the key values.
+	 * @param colNames The names of the SQL columns to copy to JSON.
+	 * 		If null, copy all columns.
+	 * @param jsonNames The names of the JSON fields. If null, use the SQL column names.
+	 * @return A JSON Object with the results of the query.
+	 * @throws SQLException If a column name is invalid,
+	 * 			or the result set is closed, or some other SQL error occurs.
+	 */
+	public static JSONValue_Object makeObject(ResultSet rs, String keyCol, String[] colNames, String[] jsonNames)
+			throws SQLException
+	{
+		JSONValue_Object jsonResults = new JSONValue_Object();
+		while (rs.next()) {
+			String key = rs.getString(keyCol);
+			if (!rs.wasNull()) {
+				JSONValue_Object jsonRow = new JSONValue_Object();
+				jsonRow.putCols(rs, colNames, jsonNames);
+				jsonResults.put(key, jsonRow);
+			}
+		}
+		return jsonResults;
 	}
 }

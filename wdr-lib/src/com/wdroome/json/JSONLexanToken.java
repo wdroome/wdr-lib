@@ -127,6 +127,7 @@ public class JSONLexanToken
 	
 	/**
 	 * For STRING or UNKNOWN tokens, return the associated string.
+	 * @return The associated String.
 	 */
 	public String getString()
 	{
@@ -143,6 +144,7 @@ public class JSONLexanToken
 	
 	/**
 	 * For NUMBER tokens, return the number as a double.
+	 * @return The number as a double.
 	 */
 	public double getNumber()
 	{
@@ -162,6 +164,7 @@ public class JSONLexanToken
 	
 	/**
 	 * For BIGINT tokens, return the number as a BigInteger.
+	 * @return The number as a BigInteger.
 	 */
 	public BigInteger getBigInt()
 	{

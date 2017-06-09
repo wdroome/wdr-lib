@@ -111,7 +111,7 @@ public abstract class JSONScanner
 	 * Scan the input and call the appropriate handler functions.
 	 * Returns when finished.
 	 * @throws JSONParseException If there's an error.
-	 * @throws IOException 
+	 * @throws IOException If there's an error.
 	 */
 	public void scan() throws JSONParseException, IOException
 	{
@@ -264,6 +264,7 @@ public abstract class JSONScanner
 	
 	/**
 	 * Return the current nesting depth. Includes dictionaries and arrays.
+	 * @return The current nesting depth.
 	 */
 	public int getNestingDepth()
 	{
@@ -273,6 +274,7 @@ public abstract class JSONScanner
 	/**
 	 * Return true if we are currently in a dictionary,
 	 * even if we're in an array that's a value in a dictionary.
+	 * @return True if we are currently in a dictionary.
 	 */
 	public boolean inDictionary()
 	{
@@ -283,6 +285,7 @@ public abstract class JSONScanner
 	 * Return the current nesting depth of dictionaries.
 	 * E.g., if we're in an array that's a dictionary value,
 	 * this method doesn't count the array.
+	 * @return The current nesting depth of dictionaries.
 	 */
 	public int getNestedDictionaryDepth()
 	{

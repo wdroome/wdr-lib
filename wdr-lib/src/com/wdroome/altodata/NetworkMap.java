@@ -791,7 +791,7 @@ public class NetworkMap
 	}
 	
 	/**
-	 * Return a String representation of the pid=>cidr mapping.
+	 * Return a String representation of the pid=&gt;cidr mapping.
 	 */
 	@Override
 	public String toString()
@@ -814,7 +814,7 @@ public class NetworkMap
 	 * 
 	 * @param iter An iterator that returns PID names and CIDRs.
 	 * @return A frozen NetworkMap.
-	 * @throws UnknownAddresstypeException
+	 * @throws UnknownAddressTypeException
 	 * 		If a CIDR has an unknown address type prefix.
 	 * @throws UnknownHostException
 	 * 		If a CIDR is badly formed.
@@ -888,7 +888,7 @@ public class NetworkMap
 	 * 		If null, any such entries will be discarded.
 	 * @param makeVtagPrefix Prefix for automatically created vtags (may be null).
 	 * @return A list of frozen NetworkMaps. The key is the network map id.
-	 * @throws UnknownAddresstypeException
+	 * @throws UnknownAddressTypeException
 	 * 		If a CIDR has an unknown address type prefix.
 	 * @throws UnknownHostException
 	 * 		If a CIDR is badly formed.

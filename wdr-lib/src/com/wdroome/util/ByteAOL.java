@@ -909,7 +909,7 @@ public class ByteAOL implements java.io.Serializable, Cloneable, Comparable<Byte
 	 *	with 16 bytes per line:
 	 *<pre>
 	 *     ByteAOL data;
-	 *     for (int i = 0; i < data.size(); i += 16)
+	 *     for (int i = 0; i &lt; data.size(); i += 16)
 	 *        System.out.println(data.appendFormattedHex(null,i,16));
 	 *</pre>
 	 *

@@ -10,6 +10,8 @@ public interface IJSONLexan
 {
 	/**
 	 * Return the next token, or null if no more.
+	 * @return The next token, or null if no more.
+	 * @throws IOException On a read error.
 	 */
 	public JSONLexanToken nextToken() throws IOException;
 
@@ -17,6 +19,8 @@ public interface IJSONLexan
 	 * Return the next token, or null if no more,
 	 * but push it back so that the next {@link #nextToken()}
 	 * call will return it.
+	 * @return The next token, or null if no more.
+	 * @throws IOException On a read error.
 	 */
 	public JSONLexanToken peekToken() throws IOException;
 	
@@ -28,9 +32,12 @@ public interface IJSONLexan
 	public long estimatedSize();
 	
 	/**
-	 * Return a string describing the location of the last token returned by {@link #nextToken()}.
+	 * Return a string describing the location
+	 * of the last token returned by {@link #nextToken()}.
 	 * Normally this is of the form "LINE.OFFSET in FILE-NAME".
 	 * May return null.
+	 * @return A string describing the location
+	 * 		of the last last token returned by {@link #nextToken()}.
 	 */
 	public String lastTokenLocation();
 }

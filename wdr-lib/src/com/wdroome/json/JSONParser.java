@@ -271,7 +271,6 @@ public class JSONParser
 	 * @param args File names. "-" (or no names) means read stdin.
 	 * 		--fancy means pretty-print the output and write object dictionaries in key order;
 	 *		this is the default. --plain means output compact json with no spaces or indenting.
-	 * @throws FileNotFoundException If we cannot open a file.
 	 */
 	public static void main(String[] args)
 	{

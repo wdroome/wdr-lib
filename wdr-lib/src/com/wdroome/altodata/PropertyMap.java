@@ -22,7 +22,7 @@ import com.wdroome.util.ImmutableSet;
  * @param <E>
  *		The class for entity names.
  * 		Objects will be used as hash table keys,
- * 		so the class must implement hashCode() & equals() properly.
+ * 		so the class must implement hashCode() &amp; equals() properly.
  */
 public class PropertyMap<E> implements IPropertyMap<E>
 {

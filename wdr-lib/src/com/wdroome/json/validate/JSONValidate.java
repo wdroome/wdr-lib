@@ -168,7 +168,7 @@ public abstract class JSONValidate
 	/**
 	 * Return a string describing the location of the error in the tree.
 	 * @param path The path to the element, or null or "" for the root element.
-	 * @return A string of the form " at <path>" or " at root".
+	 * @return A string of the form " at &lt;path&gt;" or " at root".
 	 */
 	protected String atPath(String path)
 	{
