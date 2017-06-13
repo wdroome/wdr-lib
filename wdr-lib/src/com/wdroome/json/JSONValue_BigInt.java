@@ -120,4 +120,15 @@ public class JSONValue_BigInt implements JSONValue
 			return false;
 		return m_value == ((JSONValue_BigInt)obj).m_value;
 	}
+	
+	/**
+	 * Test if an integer value requires a JSONValue_BigInt.
+	 * @param v An integer value.
+	 * @return True if v cannot be stored as a JSONValue_Number
+	 * 		(that is, as a double) without loss of precision.
+	 */
+	public static boolean isBigInt(long v)
+	{
+		return (v > (1L>>53) || v < -(1L>>53));
+	}
 }

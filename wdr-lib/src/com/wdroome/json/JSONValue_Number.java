@@ -10,6 +10,7 @@ import java.math.BigInteger;
  * <p>
  * It would be nice if this could extend java.lang.Number, but that's final.
  * @see JSONValue_BigInt
+ * @see JSONValue_BigInt#isBigInt(long)
  * @author wdr
  */
 public class JSONValue_Number implements JSONValue

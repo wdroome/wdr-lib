@@ -149,10 +149,10 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	 */
 	public JSONValue put(String key, long value)
 	{
-		if (value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE) {
-			return put(key, new JSONValue_Number(value));
-		} else {
+		if (JSONValue_BigInt.isBigInt(value)) {
 			return put(key, new JSONValue_BigInt(value));
+		} else {
+			return put(key, new JSONValue_Number(value));
 		}
 	}
 	
