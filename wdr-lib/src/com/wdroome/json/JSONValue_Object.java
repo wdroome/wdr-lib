@@ -142,6 +142,22 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	
 	/**
 	 * Add a numeric value to the dictionary.
+	 * Create a {@link JSONValue_Number} or a @link JSONValue_BigInt} from the argument.
+	 * @param key The key.
+	 * @param value The value.
+	 * @return The previous value, or null.
+	 */
+	public JSONValue put(String key, long value)
+	{
+		if (value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE) {
+			return put(key, new JSONValue_Number(value));
+		} else {
+			return put(key, new JSONValue_BigInt(value));
+		}
+	}
+	
+	/**
+	 * Add a numeric value to the dictionary.
 	 * Create a {@link JSONValue_BigInt} from the argument.
 	 * @param key The key.
 	 * @param value The value.
@@ -833,13 +849,20 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 			case Types.INTEGER:
 			case Types.SMALLINT:
 			case Types.TINYINT:
-				{
+			{
+				if (meta.getPrecision(iCol) == 1) {
+					boolean v = rs.getBoolean(iCol);
+					if (!rs.wasNull()) {
+						put(jsonName, v);
+					}
+				} else {
 					long v = rs.getLong(iCol);
 					if (!rs.wasNull()) {
 						put(jsonName, v);
 					}
-					break;
 				}
+				break;
+			}
 			case Types.BIGINT:
 			{
 				BigDecimal v = rs.getBigDecimal(iCol);
@@ -857,21 +880,30 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 					}
 					break;
 				}
-			case Types.BIT:
 			case Types.BOOLEAN:
-				{
-					if (meta.getPrecision(iCol) == 1) {
-						boolean v = rs.getBoolean(iCol);
-						if (!rs.wasNull()) {
-							put(jsonName, v);
-						}
-					} else {
-						String v = rs.getString(iCol);
-						if (!rs.wasNull()) {
-							put(jsonName, v);
-						}
-					}
+			{
+				boolean v = rs.getBoolean(iCol);
+				if (!rs.wasNull()) {
+					put(jsonName, v);
 				}
+			}
+			case Types.BIT:
+			{
+				// 1-bit becomes a JSON boolean.
+				// Longer bit fields become JSON strings with 0/1.
+				if (meta.getPrecision(iCol) == 1) {
+					boolean v = rs.getBoolean(iCol);
+					if (!rs.wasNull()) {
+						put(jsonName, v);
+					}
+				} else {
+					String v = rs.getString(iCol);
+					if (!rs.wasNull()) {
+						put(jsonName, v);
+					}				
+				}
+				break;
+			}
 			default:
 				{
 					String v = rs.getString(iCol);
