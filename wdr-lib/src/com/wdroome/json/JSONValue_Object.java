@@ -966,13 +966,15 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 			throws SQLException
 	{
 		JSONValue_Object jsonResults = new JSONValue_Object();
-		while (rs.next()) {
-			String key = rs.getString(keyCol);
-			if (!rs.wasNull()) {
-				JSONValue_Object jsonRow = new JSONValue_Object();
-				jsonRow.putCols(rs, colNames, jsonNames);
-				jsonResults.put(key, jsonRow);
-			}
+		if (rs != null) {
+			while (rs.next()) {
+				String key = rs.getString(keyCol);
+				if (!rs.wasNull()) {
+					JSONValue_Object jsonRow = new JSONValue_Object();
+					jsonRow.putCols(rs, colNames, jsonNames);
+					jsonResults.put(key, jsonRow);
+				}
+			} 
 		}
 		return jsonResults;
 	}
