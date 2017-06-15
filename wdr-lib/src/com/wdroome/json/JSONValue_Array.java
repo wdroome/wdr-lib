@@ -458,10 +458,12 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 			throws SQLException
 	{
 		JSONValue_Array jsonResults = new JSONValue_Array();
-		while (rs.next()) {
-			JSONValue_Object jsonRow = new JSONValue_Object();
-			jsonRow.putCols(rs, colNames, jsonNames);
-			jsonResults.add(jsonRow);
+		if (rs != null) {
+			while (rs.next()) {
+				JSONValue_Object jsonRow = new JSONValue_Object();
+				jsonRow.putCols(rs, colNames, jsonNames);
+				jsonResults.add(jsonRow);
+			} 
 		}
 		return jsonResults;
 	}
