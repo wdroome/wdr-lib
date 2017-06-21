@@ -69,6 +69,9 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	@Override
 	public JSONValue put(String key, JSONValue value)
 	{
+		if (value == null) {
+			value = JSONValue_Null.NULL;
+		}
 		JSONValue prevValue = super.put(key, value);
 		if (m_pathName != null && value instanceof JSONValue_Object) {
 			((JSONValue_Object)value).setPathName(m_pathName + "/" + key);
@@ -633,6 +636,10 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 					? new TreeMap<String,JSONValue>(this) : this;
 		int n = 0;
 		for (Map.Entry<String,JSONValue> entry: map.entrySet()) {
+			JSONValue value = entry.getValue();
+			if (value == null) {
+				value = JSONValue_Null.NULL;
+			}
 			if (n > 0) {
 				writer.write(',');
 			}
@@ -641,7 +648,7 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 			}
 			writer.write(JSONValue_String.quotedString(entry.getKey()));
 			writer.write(':');
-			entry.getValue().writeJSON(writer);
+			value.writeJSON(writer);
 			n++;
 		}
 		if (indent) {

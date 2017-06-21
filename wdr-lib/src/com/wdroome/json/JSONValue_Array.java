@@ -71,6 +71,21 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	}
 	
 	/**
+	 * Add a JSON value to the array.
+	 * @param value The value.
+	 * @return True.
+	 */
+	@Override
+	public boolean add(JSONValue value)
+	{
+		if (value == null) {
+			value = JSONValue_Null.NULL;
+		}
+		super.add(value);
+		return true;
+	}
+	
+	/**
 	 * Add a string value to the array.
 	 * Create a {@link JSONValue_String} from the argument.
 	 * @param value The value.
@@ -397,6 +412,9 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 		}
 		int n = 0;
 		for (JSONValue value: this) {
+			if (value == null) {
+				value = JSONValue_Null.NULL;
+			}
 			if (n > 0) {
 				writer.write(',');
 			}
