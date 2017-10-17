@@ -68,6 +68,26 @@ public class LogFileWriter
 	}
 	
 	/**
+	 * Write a blank line into the log file.
+	 * @return True if the write succeeded; false if there was an IO error.
+	 */
+	public boolean println()
+	{
+		if (m_writer == null) {
+			// File was closed.
+			return false;
+		}
+		check();
+		try {
+			m_writer.write(m_endOfLine);
+			m_writer.flush();
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+	
+	/**
 	 * Write and flush a formatted to the log file.
 	 * @param format The format string (without a line terminator).
 	 * @param args The arguments.
