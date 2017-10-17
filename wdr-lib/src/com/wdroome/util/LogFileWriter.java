@@ -27,19 +27,21 @@ public class LogFileWriter
 	 */
 	public LogFileWriter(String fileName) throws IOException
 	{
-		this(new File(fileName));
+		this(new File(fileName), true);
 	}
 	
 	/**
 	 * Create a log file writer.
 	 * @param file The log file.
-	 * 		If it does not exist, create it. If it does exist, append to it.
+	 * 		If it does not exist, create it.
+	 * @param append If true, append to the file if it exists.
+	 * 		If false, truncate the file.
 	 * @throws IOException If we cannot create or open the file for writing.
 	 */
-	public LogFileWriter(File file) throws IOException
+	public LogFileWriter(File file, boolean append) throws IOException
 	{
 		m_file = file;
-		m_writer = new FileWriter(m_file, true);
+		m_writer = new FileWriter(m_file, append);
 		m_lastCheckTS = System.currentTimeMillis();		
 	}
 
