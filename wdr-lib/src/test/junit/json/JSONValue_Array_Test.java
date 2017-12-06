@@ -87,6 +87,7 @@ public class JSONValue_Array_Test
 		
 		JSONValue_StringArray sarr1 = new JSONValue_StringArray(jarr, true);
 		sarr1.add("end");
+		// System.out.println("XXX: " + sarr1.toString());
 		assertEquals("size/cvt", 5, sarr1.size());
 		assertEquals("get(0)/cvt", "hi", sarr1.get(0));
 		assertEquals("get(1)/cvt", "1.0", sarr1.get(1));
@@ -112,7 +113,7 @@ public class JSONValue_Array_Test
 		
 		JSONValue_StringArray sarr1 = new JSONValue_StringArray(jarr, false);
 		sarr1.add("end");
-		System.out.println("XXX: " + sarr1.toString());
+		// System.out.println("XXX: " + sarr1.toString());
 		assertEquals("size/no-cvt", 3, sarr1.size());
 		assertEquals("get(0)/no-cvt", "hi", sarr1.get(0));
 		assertEquals("get(1)/no-cvt", "last", sarr1.get(1));

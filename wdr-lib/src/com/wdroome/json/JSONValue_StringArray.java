@@ -23,15 +23,17 @@ public class JSONValue_StringArray implements JSONValue, Iterable<String>
 
 	/**
 	 * Create a new String array from an existing JSON array.
-	 * @param array The existing JSON array.
+	 * This class creates a shallow clone of the existing array;
+	 * it does not change that array.
+	 * @param array The existing JSON array. Ignored if null.
 	 * @param convert If true, replace number &amp; boolean elements with
 	 * 		the equivalent string elements, and delete all other elements.
 	 *		If false, delete all non-string elements.
 	 */
 	public JSONValue_StringArray(JSONValue_Array array, boolean convert)
 	{
-		m_array = array;
-		for (ListIterator<JSONValue> iter = array.listIterator(); iter.hasNext(); ) {
+		m_array = array != null ? new JSONValue_Array(array) : new JSONValue_Array();
+		for (ListIterator<JSONValue> iter = m_array.listIterator(); iter.hasNext(); ) {
 			JSONValue v = iter.next();
 			if (v instanceof JSONValue_String) {
 				// ok!

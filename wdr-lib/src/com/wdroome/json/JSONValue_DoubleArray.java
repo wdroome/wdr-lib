@@ -23,6 +23,8 @@ public class JSONValue_DoubleArray implements JSONValue, Iterable<Double>
 
 	/**
 	 * Create a new Double array from an existing JSON array.
+	 * This class creates a shallow clone of the existing array;
+	 * it does not change that array.
 	 * @param array The existing JSON array.
 	 * @param convert If true, replace numeric-valued String elements
 	 * 		and BigInt elements with the equivalent double element,
@@ -31,8 +33,8 @@ public class JSONValue_DoubleArray implements JSONValue, Iterable<Double>
 	 */
 	public JSONValue_DoubleArray(JSONValue_Array array, boolean convert)
 	{
-		m_array = array;
-		for (ListIterator<JSONValue> iter = array.listIterator(); iter.hasNext(); ) {
+		m_array = array != null ? new JSONValue_Array(array) : new JSONValue_Array();
+		for (ListIterator<JSONValue> iter = m_array.listIterator(); iter.hasNext(); ) {
 			JSONValue v = iter.next();
 			if (v instanceof JSONValue_Number) {
 				// ok!
