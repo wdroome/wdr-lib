@@ -24,7 +24,7 @@ public class JSONValue_StringArray implements JSONValue, Iterable<String>
 	/**
 	 * Create a new String array from an existing JSON array.
 	 * @param array The existing JSON array.
-	 * @param convert If true, replace number & boolean elements with
+	 * @param convert If true, replace number &amp; boolean elements with
 	 * 		the equivalent string elements, and delete all other elements.
 	 *		If false, delete all non-string elements.
 	 */
