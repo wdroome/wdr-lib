@@ -2,9 +2,13 @@ package test.junit.json;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.Test;
 
 import com.wdroome.json.*;
+import com.wdroome.util.ArrayToList;
 
 /**
  * @author wdr
@@ -99,6 +103,14 @@ public class JSONValue_Array_Test
 		assertEquals("eq2/cvt", "[\"hello\",\"1.0\",\"3\",\"last\",\"end\"]", sarr1.toString());
 		sarr1.remove(1);
 		assertEquals("eq3/cvt", "[\"hello\",\"3\",\"last\",\"end\"]", sarr1.toString());
+		
+		List<String> iterRes = new ArrayList<>();
+		for (String s: sarr1) {
+			iterRes.add(s);
+		}
+		assertEquals("size/2", 4, iterRes.size());
+		List<String> expected = new ArrayToList<>(new String[] {"hello","3","last","end"});
+		assertEquals("eq3/cvt", expected, iterRes);
 	}
 	
 	@Test
@@ -123,6 +135,14 @@ public class JSONValue_Array_Test
 		assertEquals("eq2/no-cvt", "[\"hello\",\"last\",\"end\"]", sarr1.toString());
 		sarr1.remove(1);
 		assertEquals("eq3/no-cvt", "[\"hello\",\"end\"]", sarr1.toString());
+		
+		List<String> iterRes = new ArrayList<>();
+		for (String s: sarr1) {
+			iterRes.add(s);
+		}
+		assertEquals("size/2", 2, iterRes.size());
+		List<String> expected = new ArrayToList<>(new String[] {"hello","end"});
+		assertEquals("eq3/no-cvt", expected, iterRes);
 	}
 	
 	@Test
