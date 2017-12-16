@@ -129,6 +129,6 @@ public class JSONValue_BigInt implements JSONValue
 	 */
 	public static boolean isBigInt(long v)
 	{
-		return (v > (1L>>53) || v < -(1L>>53));
+		return (v > (1L<<53) || v < -(1L<<53));
 	}
 }

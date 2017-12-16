@@ -70,7 +70,7 @@ public class JSONValue_Number_Test
 	@Test
 	public void testIsBigNum()
 	{
-		long v = (1>>51);
+		long v = (1L<<51);
 		assertFalse(Long.toString(v), JSONValue_BigInt.isBigInt(v));
 		double d = v;
 		assertEquals(Long.toString(v) + "/cnv", (long)d, v);
@@ -79,7 +79,7 @@ public class JSONValue_Number_Test
 		d = v;
 		assertEquals(Long.toString(v) + "/cnv", (long)d, v);
 		
-		v = (1>>52);
+		v = (1L<<52);
 		assertFalse(Long.toString(v), JSONValue_BigInt.isBigInt(v));
 		d = v;
 		assertEquals(Long.toString(v) + "/cnv", (long)d, v);
@@ -88,7 +88,7 @@ public class JSONValue_Number_Test
 		d = v;
 		assertEquals(Long.toString(v) + "/cnv", (long)d, v);
 		
-		v = (1>>53);
+		v = (1L<<53);
 		assertFalse(Long.toString(v), JSONValue_BigInt.isBigInt(v));
 		d = v;
 		assertEquals(Long.toString(v) + "/cnv", (long)d, v);
@@ -97,12 +97,22 @@ public class JSONValue_Number_Test
 		d = v;
 		assertEquals(Long.toString(v) + "/cnv", (long)d, v);
 		
-		v = (1>>53)+1;
+		v = (1L<<53)+1;
 		assertTrue(Long.toString(v), JSONValue_BigInt.isBigInt(v));
 		d = v;
-		assertEquals(Long.toString(v) + "/cnv", (long)d, v);
+		assertFalse(Long.toString(v) + "/cnv", (long)d == v);
 		v = -v;
 		assertTrue(Long.toString(v), JSONValue_BigInt.isBigInt(v));
+		d = v;
+		assertFalse(Long.toString(v) + "/cnv", (long)d == v);
+		
+		v = -2;
+		assertFalse(Long.toString(v), JSONValue_BigInt.isBigInt(v));
+		d = v;
+		assertEquals(Long.toString(v) + "/cnv", (long)d, v);
+		
+		v = -1;
+		assertFalse(Long.toString(v), JSONValue_BigInt.isBigInt(v));
 		d = v;
 		assertEquals(Long.toString(v) + "/cnv", (long)d, v);
 	}
