@@ -68,6 +68,18 @@ public class JSONValue_Number_Test
 	}
 	
 	@Test
+	public void testNaN()
+	{
+		JSONValue_Number nan = new JSONValue_Number(Double.NaN);
+		JSONValue_Number pinf = new JSONValue_Number(Double.POSITIVE_INFINITY);
+		JSONValue_Number ninf = new JSONValue_Number(Double.NEGATIVE_INFINITY);
+		String nullValue = "null";
+		assertEquals(nullValue, nan.toString());
+		assertEquals(nullValue, pinf.toString());
+		assertEquals(nullValue, ninf.toString());
+	}
+	
+	@Test
 	public void testIsBigNum()
 	{
 		long v = (1L<<51);

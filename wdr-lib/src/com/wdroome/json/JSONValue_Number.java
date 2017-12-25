@@ -51,10 +51,15 @@ public class JSONValue_Number implements JSONValue
 	
 	/**
 	 * Return the string value of the number.
+	 * If the value is not a valid number,
+	 * return the string value of the JSON null constant.
 	 */
 	@Override
 	public String toString()
 	{
+		if (Double.isNaN(m_value) || Double.isInfinite(m_value)) {
+			return JSONValue_Null.NULL.toString();
+		}
 		String s = Double.toString(m_value);
 		if (s.endsWith(".0")) {
 			s = s.substring(0, s.length()-2);
