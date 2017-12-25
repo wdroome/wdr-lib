@@ -29,7 +29,19 @@ public class RunProcess
 	public RunProcess(String[] cmdArray, File dir)
 			throws IOException
 	{
-		ProcessBuilder builder = new ProcessBuilder(new ArrayToList<String>(cmdArray));
+		this(new ArrayToList<String>(cmdArray), dir);
+	}
+	
+	/**
+	 * Start the process, read its output, and wait for it to complete.
+	 * @param cmdArray The command name and its arguments.
+	 * @param dir If not null, run the command in this directory.
+	 * @throws IOException If the process could not be started.
+	 */
+	public RunProcess(List<String> cmdArray, File dir)
+			throws IOException
+	{
+		ProcessBuilder builder = new ProcessBuilder(cmdArray);
 		if (dir != null) {
 			builder.directory(dir);
 		}
