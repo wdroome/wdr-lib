@@ -1,0 +1,222 @@
+PropertyCollection
+	private Map<String, IPropertyMap<? extends Object,String>> m_propertyMaps;
+	
+	publc addMap(IPropertyMap<? extends Object, String> pmap)
+	{
+		m_propertyMaps.put(pmap.getEntityType, pmap);
+	}
+	
+	public String2 splitEntityName(String typedEntityName)
+	{
+		int i = typedEntityName.indexOf(':');
+		return new String2(typedEntityName.substring(0,i), typedEntityName.substring(i));
+	}
+	
+	public IPropertyMap<? extends Object, String> getPropMap(String entityType)
+	{
+		return m_propertyMaps.get(pair.m_str1);
+	}
+	
+	public String getProp(String typedEntityName, String propName)
+	{
+		String2 pair = splitEntityName(typedEntityName)
+		IPropertyMap<? extends Object, String> pmap = m_propertyMaps.get(pair.m_str1);
+		if (pmap == null) {
+			return null;
+		}
+		return pmap.getProp(pmap.makeEntity(pair.m_str2), propName);
+	}
+
+	/* (non-Javadoc)
+	 * @see IPropertyMap#getProperties(IPropertyMap.PropValueCB)
+	 */
+	@Override
+	public boolean getProperties(PropValueCB<String> propValueCB)
+	{
+		for (IPropertyMap<? extends Object, String> pmap: m_propertyMaps.valueSet()) {
+			if (!pmap.getProperties(propValueCB)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+IPropertyMap<E,V> interface:
+	V getProp(E, prop-name);
+	V setProp(E, prop-name, V);
+	V removeProp(E, prop-name);
+			
+Ipv4PropertyMap extends PropertyMap<InetAddress>
+
+	CIDRv4PropMap m_cidrMap;
+
+	Ipv4PropertyMap(CIDRv4PropertyMap cidrMap)
+	{
+		super("ipv4", false);
+		m_cidrMap = cidrMap;
+	}
+	
+	getProp(EndpointAddress addr, String propName)
+	{
+		verify is ipv4
+		return getProp(addr.toInetAddress(), propName);
+	}
+	
+	setProp(EndpointAddress addr, String propName, String value)
+	{
+		verify is ipv4
+		return setProp(addr.toInetAddress(), propName, value);
+	}
+	
+	getProp(InetAddress addr, String propName):
+		verify is ipv4
+		value = super.get(addr, prop)
+		if (value != null || super.valueExists(addr, prop-name)
+			return value;
+		forall cidrs which cover this address, starting with longest
+			value = m_cidrMap.valueExists(cidr, prop-name);
+			if (value != null || m_cidrMap.valueExists(cidr, prop-name)
+				return value;
+		return null;
+		
+				
+CIDRv4PropertyMap extends PropertyMap<CIDRAddress>
+
+	Map<CIDRAddress,CIDRAddress> m_cidrParent = new HashMap<CIDRAddress,CIDRAddress>();
+	
+	static final CIDRAddress ZERO_LEN_CIDR = new CIDRAddress("0.0.0.0/0", "ipv4");
+
+	Ipv4PropertyMap(CIDRv4PropertyMap cidrMap)
+	{
+		super("cidrv4", false);
+		m_cidrParent.put(ZERO_LEN_CIDR, null);
+	}
+	
+	getProp():
+		verify is ipv4
+		value = super.get(cidr, prop)
+		if (value != null || super.valueExists(cidr, prop-name)
+			return value;
+		CIDRAddress parent = m_cidrParent.get(cidr);
+		if (parent != null)
+			return getProp(parent, propName);
+		return null;
+	
+	setProp():
+		verify is ipv4
+		super.set(cidr, value);
+		if (!m_cirdParent.containsKey(cidr)) {
+			parentCidr = ZERO_LEN_CIDR;
+			forall entries in im_cidrParent {
+				if entry covers cidr & has short mask & entry longer than parentCidr
+					parentCidr = entry
+				else if cidr covers entry key
+						&& cidr shorter than entry key
+						&& cidr longer than entry value
+					set entry cidr to cidr
+			}
+			m_cidrParent.put(cidr, parentCidr)
+		}	
+
+IPropertyMap Interface
+
+BasePropertyMap:
+	getEntityType()
+	getPropNames() -- and m_propNames set
+	
+	
+public interface MakeEntity<E>
+{
+	public E makeEntity(String entity, String type);
+}
+
+public class MakeEndpointAddress implements MakeEntity<E>
+{
+	public EndpointAddress makeEntity(String entity, String type)
+	{
+		try {
+			return new EndpointAddress(entity, type);
+		} catch (UnknownHostException e) {
+			throw new IllegalArgumentException("Invalid " + type + ": '"
+												+ entity + "'", e);
+		}
+	}
+}
+
+public class MakeString<String>
+{
+	public String makeEntity(String entity, String type)
+	{
+		return entity;
+	}
+}
+
+	private final MakeEntity<E> m_entityMaker;
+	public PropertyMap("ipv4", entityMaker, false) {}
+
+	public E makeEntity(String str)
+	{
+		if (m_entityMaker != null) {
+			return m_entityMaker.makeEntity(str, getEntityType());
+		} else {
+			return str;
+		}
+	}
+
+
+PidPropertyMap implements interface
+	
+	PidPropertyMap(NetworkMap, CIDRv4PropertyMap, CIDRv6PropertyMap)
+		save both
+		
+	getProp():
+		String value = null;
+		boolean first = true;
+		for all cidrs for PID:
+			IPropertyMap cidrMap = appropriate map for cidr
+			String tvalue = cidrMap.get(cidr, propName)
+			if (first) {
+				value = tvalue
+				first = false;
+			} else if (value == null && tvalue == null) {
+				continue;
+			} else if (!value.equals(tvalue)) {
+				return null;
+			}
+		}
+		return value;
+		
+	propExists():
+		return getProp(pid, prop) != null
+		
+	setProp():
+		for all cidrs for PID:
+			IPropertyMap cidrMap = appropriate map for cidr
+			cidrMap.setProp(cidr, propName, value);
+		}
+		
+	deleteProp():
+		for all cidrs for PID:
+			IPropertyMap cidrMap = appropriate map for cidr
+			cidrMap.deleteProp(cidr, propName);
+		}
+		
+	getPropNames():
+		HashSet<String> props = new HashSet<String>(cidr4.size + cidr6.size())
+		props.addAll(cidr4Props.getPropNames());
+		props.addAll(cidr6Props.getPropNames());
+		return props;
+	
+	getEntityNames:
+		use NetworkMap
+		
+	getProps(CB, propName)
+		forall pid names,
+			value = getProp(pid, propName);
+			if (value != null)
+				CB.propValue(pid, propName, value)'
+
+	getProps(CB)
+		forall propNames,
+			getProps(propName)'
+				
