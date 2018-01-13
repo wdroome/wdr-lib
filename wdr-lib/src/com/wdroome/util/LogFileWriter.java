@@ -7,6 +7,7 @@ import java.io.IOException;
 /**
  * Create a moveable log file: if another process renames the log file,
  * automatically re-create the original file.
+ * This class is thread-safe.
  * @author wdr
  */
 public class LogFileWriter
@@ -50,7 +51,7 @@ public class LogFileWriter
 	 * @param line The line (without a line terminator).
 	 * @return True if the write succeeded; false if there was an IO error.
 	 */
-	public boolean println(String line)
+	public synchronized boolean println(String line)
 	{
 		if (m_writer == null) {
 			// File was closed.
@@ -71,7 +72,7 @@ public class LogFileWriter
 	 * Write a blank line into the log file.
 	 * @return True if the write succeeded; false if there was an IO error.
 	 */
-	public boolean println()
+	public synchronized boolean println()
 	{
 		if (m_writer == null) {
 			// File was closed.
@@ -88,7 +89,7 @@ public class LogFileWriter
 	}
 	
 	/**
-	 * Write and flush a formatted to the log file.
+	 * Write and flush a formatted line to the log file.
 	 * @param format The format string (without a line terminator).
 	 * @param args The arguments.
 	 * @return True if the write succeeded; false if there was an IO error.
@@ -102,7 +103,7 @@ public class LogFileWriter
 	/**
 	 * Close the log file. All subsequent writes will return false.
 	 */
-	public void close()
+	public synchronized void close()
 	{
 		if (m_writer != null) {
 			try {
@@ -118,7 +119,7 @@ public class LogFileWriter
 	 * Default is 10 seconds (10,000 milliseconds).
 	 * @param millis The file-check interval, in milliseconds.
 	 */
-	public void setCheckIntvl(long millis)
+	public synchronized void setCheckIntvl(long millis)
 	{
 		m_checkIntvlMS = millis;
 	}
