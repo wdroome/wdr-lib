@@ -23,6 +23,12 @@
   	<property file="${WDR-LIB.jars.osUnamePropFile}" />
 
   	<manifest file="${WDR-LIB.jars.manifestInfoFile}">
+	    <attribute name="Specification-Title" value="Personal Utility Library"/>
+	    <attribute name="Specification-Version" value="(${WDR-LIB.dateTime})"/>
+	    <attribute name="Specification-Vendor" value="Wendy Roome"/>
+	    <attribute name="Implementation-Title" value="WDR-LIB Implementation"/>
+	    <attribute name="Implementation-Version" value="(${WDR-LIB.dateTime})"/>
+	    <attribute name="Implementation-Vendor" value="Wendy Roome"/>
     	<section name="common">
 	      <attribute name="Specification-Title" value="Personal Utility Library"/>
 	      <attribute name="Implementation-Title" value="WDR-LIB Implementation"/>
