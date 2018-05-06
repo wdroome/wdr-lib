@@ -22,7 +22,7 @@ public class BuildInfo extends HashMap<String,String>
 	private static final long serialVersionUID = -550419960018462380L;
 
 	/** The default name for the build-info resource. */
-	public static final String DEF_BUILD_INFO_RESOURCE = "/ALTO_MANIFEST_INFO.txt";
+	public static final String DEF_BUILD_INFO_RESOURCE = "/WDR-LIB_MANIFEST_INFO.txt";
 	
 	private static final String NAME_VALUE_SEP = ": ";
 	

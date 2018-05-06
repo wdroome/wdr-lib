@@ -51,6 +51,7 @@
     	manifest="${WDR-LIB.jars.manifestInfoFile}">
   		<fileset dir="bin"
   			includes="
+  					*.txt
   					com/wdroome/*/*.class
 					com/wdroome/*/*/*.class
 					"
