@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.wdroome.util.ImmutableList;
+import com.wdroome.util.MiscUtil;
 
 /**
  * Information about an internet address and its subnet on the local host.
@@ -187,11 +188,12 @@ public class InetInterface
 	{
 		System.out.println("All Interfaces:");
 		for (InetInterface iface: InetInterface.getAllInterfaces()) {
-			System.out.println("  " + iface);
+			System.out.println("  " + iface + " mac: " + MiscUtil.bytesToHex(iface.m_hardwareAddress));
 		}
 		System.out.println("Broadcast Interfaces:");
 		for (InetInterface iface: InetInterface.getBcastInterfaces()) {
-			System.out.println("  " + iface.m_broadcast.getHostAddress() + " " + iface.m_cidr);
+			System.out.println("  " + iface.m_broadcast.getHostAddress() + " " + iface.m_cidr
+						+ " mac: " + MiscUtil.bytesToHex(iface.m_hardwareAddress));
 		}
 	}
 }
