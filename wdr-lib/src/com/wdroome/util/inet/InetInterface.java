@@ -133,6 +133,32 @@ public class InetInterface
 		return g_allInterfaces;
 	}
 	
+	/**
+	 * Get the MAC address for an InetAddress which this machine listens to.
+	 * @param inetAddr A (local) internet address.
+	 * @return The hardware address (generally the MAC address)
+	 * 		for the interface with inetAddr. If no interface has
+	 * 		that addresses, or if inetAddr is null, return a new byte[0].
+	 */
+	public static synchronized byte[] getMacAddress(InetAddress inetAddr)
+	{
+		if (inetAddr == null) {
+			return new byte[0];
+		}
+		getAllInterfaces();
+		for (InetInterface iface: g_allInterfaces) {
+			if (iface.m_address.equals(inetAddr)) {
+				return iface.m_hardwareAddress;
+			}
+		}
+		for (InetInterface iface: g_bcastInterfaces) {
+			if (iface.m_address.equals(inetAddr)) {
+				return iface.m_hardwareAddress;
+			}
+		}
+		return new byte[0];
+	}
+	
 	private static boolean isUp(NetworkInterface ni)
 	{
 		try {
@@ -154,7 +180,8 @@ public class InetInterface
 	private static byte[] getHardwareAddress(NetworkInterface ni)
 	{
 		try {
-			return ni.getHardwareAddress();
+			byte[] hardwareAddr = ni.getHardwareAddress();
+			return hardwareAddr != null ? hardwareAddr : new byte[0];
 		} catch (SocketException e) {
 			return new byte[0];
 		}
@@ -194,6 +221,16 @@ public class InetInterface
 		for (InetInterface iface: InetInterface.getBcastInterfaces()) {
 			System.out.println("  " + iface.m_broadcast.getHostAddress() + " " + iface.m_cidr
 						+ " mac: " + MiscUtil.bytesToHex(iface.m_hardwareAddress));
+		}
+		for (String arg: args) {
+			try {
+				InetAddress inetAddr = InetAddress.getByName(arg);
+				byte[] mac = getMacAddress(inetAddr);
+				System.out.println(arg + ": " + (mac.length > 0 ? MiscUtil.bytesToHex(mac) : "[NOT FOUND]"));
+			} catch (Exception e) {
+				System.err.println(arg + ": " + e);
+				e.printStackTrace();
+			}
 		}
 	}
 }
