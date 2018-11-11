@@ -71,8 +71,8 @@ public class ShowMidiMessages
 				case ShortMessage.NOTE_ON: cmdName = "NOTE_ON"; break;
 				case ShortMessage.NOTE_OFF: cmdName = "NOTE_OFF"; break;
 				case ShortMessage.CONTROL_CHANGE: cmdName = "CC"; break;
-				case ShortMessage.PITCH_BEND: cmdName = "CC"; break;
-				case ShortMessage.PROGRAM_CHANGE: cmdName = "CC"; break;
+				case ShortMessage.PITCH_BEND: cmdName = "PB"; break;
+				case ShortMessage.PROGRAM_CHANGE: cmdName = "PC"; break;
 				default: cmdName = "0x" + Integer.toHexString(sm.getCommand()); break;
 				}
 				System.out.println(cmdName
