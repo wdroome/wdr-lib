@@ -107,7 +107,7 @@ public class ArtNetChannel extends Thread
 	
 	private static final int MAX_SEND_BUFFS = 10;
 	
-	private final ChannelInfo[] m_channels;
+	private final List<ChannelInfo> m_listenChans;
 	private final Selector m_selector;
 	private final Receiver m_receiver;
 	
@@ -122,23 +122,23 @@ public class ArtNetChannel extends Thread
 	 * Create a new channel for sending and receiving Art-Net messages.
 	 * @param receiver
 	 * 		Methods of this class will be called when messages arrive.
-	 * @param ports
+	 * @param listenPorts
 	 * 		The ports to listen to. If null or 0-length, listen to
 	 * 		the default Art-Net port.
 	 * @throws IOException
 	 * 		As thrown by Selector.open().
 	 */
-	public ArtNetChannel(Receiver receiver, Collection<Integer> ports) throws IOException
+	public ArtNetChannel(Receiver receiver, Collection<Integer> listenPorts) throws IOException
 	{
 		m_selector = Selector.open();
 		m_receiver = receiver;
-		if (ports == null || ports.isEmpty()) {
-			ports = ArrayToList.toList(new int[] {ArtNetConst.ARTNET_PORT});
-		} else if (!(ports instanceof Set)) {
-			ports = new HashSet(ports);
+		if (listenPorts == null || listenPorts.isEmpty()) {
+			listenPorts = ArrayToList.toList(new int[] {ArtNetConst.ARTNET_PORT});
+		} else if (!(listenPorts instanceof Set)) {
+			listenPorts = new HashSet(listenPorts);
 		}
-		ArrayList<ChannelInfo> channels = new ArrayList<ChannelInfo>();
-		for (InetSocketAddress addr: getLocalInetAddrs(ports)) {
+		ArrayList<ChannelInfo> listenChans = new ArrayList<ChannelInfo>();
+		for (InetSocketAddress addr: getLocalInetAddrs(listenPorts)) {
 			DatagramChannel chan = null;
 			try {
 				chan = DatagramChannel.open(StandardProtocolFamily.INET);
@@ -146,20 +146,16 @@ public class ArtNetChannel extends Thread
 				chan.configureBlocking(false);
 				chan.setOption(StandardSocketOptions.SO_BROADCAST, true);
 				ChannelInfo chanInfo = new ChannelInfo(chan, addr.getPort());
-				channels.add(chanInfo);
-				// System.out.println("XXX: ArtNetChannel: " + port);
+				listenChans.add(chanInfo);
 			} catch (IOException e) {
 				System.err.println("ArtNetChannel(); Could not bind to "
-						+ addr.getPort() + " " + e);
+						+ addr + " " + e);
 				if (chan != null) {
-					try {
-						chan.close();
-					} catch (Exception e2) {
-					}
+					try { chan.close(); } catch (Exception e2) {}
 				}
 			}
 		}
-		m_channels = channels.toArray(new ChannelInfo[channels.size()]);
+		m_listenChans = listenChans;
 		
 		m_freeSendBuffs = new Stack<ByteBuffer>();
 		for (int i = 0; i < MAX_SEND_BUFFS; i++) {
@@ -195,7 +191,7 @@ public class ArtNetChannel extends Thread
 		try {
 			while (m_running.get()) {
 				ArrayList<SelectionKey> removeKeys = new ArrayList<SelectionKey>();
-				for (ChannelInfo ci: m_channels) {
+				for (ChannelInfo ci: m_listenChans) {
 					int key = SelectionKey.OP_READ;
 					synchronized (ci.m_sendBuffs) {
 						if (!ci.m_sendBuffs.isEmpty()) {
@@ -281,10 +277,18 @@ public class ArtNetChannel extends Thread
 				e.printStackTrace();
 			}
 		} finally {
-			for (ChannelInfo ci: m_channels) {
-				try {ci.m_channel.close();} catch (Exception e2) {}
+			for (ChannelInfo ci: m_listenChans) {
+				try {
+					ci.m_channel.disconnect();
+					ci.m_channel.close();
+					// System.err.println("XXX: ArtNetChannel close " + ci.m_port + " " + ci.m_channel);
+				} catch (Exception e2) {
+					System.err.println("ArtNetChannel.run: Error closing channel: " + e2);
+				}
 			}
+			try {m_selector.close();} catch (Exception e) {}
 		}
+		// System.err.println("XXX: ArtNetChannel.run: Exiting");
 	}
 	
 	/**
@@ -294,8 +298,15 @@ public class ArtNetChannel extends Thread
 	{
 		m_running.set(false);
 		m_selector.wakeup();
+		/**
 		for (ChannelInfo ci: m_channels) {
 			try {ci.m_channel.close();} catch (Exception e2) {}
+		}
+		*/
+		try {
+			this.join();
+		} catch (Exception e) {
+			System.err.println("ArtNetChannel.shutdown: Error waiting for Listener to stop: " + e);
 		}
 	}
 	
@@ -311,7 +322,7 @@ public class ArtNetChannel extends Thread
 	 */
 	public boolean send(ArtNetMsg msg, InetSocketAddress target) throws IOException
 	{
-		ChannelInfo chanInfo = getChannelInfo(target);
+		ChannelInfo chanInfo = getChannelInfo(target.getPort());
 		if (chanInfo == null) {
 			System.err.println("ArtNetChannel.send(): No channel for " + target);	// XXX
 			return false;
@@ -370,23 +381,21 @@ public class ArtNetChannel extends Thread
 		}
 	}
 	
-	private ChannelInfo getChannelInfo(InetSocketAddress target)
+	private ChannelInfo getChannelInfo(int port)
 	{
-		int targetPort = target.getPort();
-		for (ChannelInfo ci: m_channels) {
-			if (ci.m_port == targetPort) {
+		for (ChannelInfo ci: m_listenChans) {
+			if (ci.m_port == port) {
 				return ci;
 			}
 		}
-		if (m_channels.length > 0) {
-			return m_channels[0];
-		} else {
-			return null;
+		if (!m_listenChans.isEmpty()) {
+			return m_listenChans.get(0);
 		}
+		return null;
 	}
 	
 	/**
-	 * Return all the socket address on which we should listen.
+	 * Return all the socket addresses on which we should listen.
 	 * I tried explicitly enumerating the local addresses,
 	 * but that caused unexplained problems with send().
 	 * So for now, anyway, this returns wildcard addresses for all ports.
