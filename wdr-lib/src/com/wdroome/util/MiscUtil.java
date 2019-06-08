@@ -2,6 +2,7 @@ package com.wdroome.util;
 
 import java.io.IOException;
 import java.io.FileReader;
+import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
@@ -420,14 +421,40 @@ public class MiscUtil
 	public static String readFile(String fileName)
 		throws IOException
 	{
-		FileReader reader = new FileReader(fileName);
 		StringBuilder fileBuff = new StringBuilder();
 		int n;
 		char[] buff = new char[4096];
-		while ((n = reader.read(buff, 0, buff.length)) > 0) {
-			fileBuff.append(buff, 0, n);
+		FileReader reader = new FileReader(fileName);
+		try {
+			while ((n = reader.read(buff, 0, buff.length)) > 0) {
+				fileBuff.append(buff, 0, n);
+			}
+		} finally {
+			try { reader.close(); } catch (Exception e) {}
 		}
-		try { reader.close(); } catch (Exception e) {}
+		return fileBuff.toString();
+	}
+
+	/**
+	 *	Read and return the contents of a file.
+	 *	@param file The file.
+	 *	@return The file contents.
+	 *	@throws IOException If we cannot open or read the file.
+	 */
+	public static String readFile(File file)
+		throws IOException
+	{
+		StringBuilder fileBuff = new StringBuilder();
+		int n;
+		char[] buff = new char[4096];
+		FileReader reader = new FileReader(file);
+		try {
+			while ((n = reader.read(buff, 0, buff.length)) > 0) {
+				fileBuff.append(buff, 0, n);
+			}
+		} finally {
+			try { reader.close(); } catch (Exception e) {}
+		}
 		return fileBuff.toString();
 	}
 	
