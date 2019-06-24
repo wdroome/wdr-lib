@@ -151,4 +151,46 @@ public class LogFileWriter
 			}
 		}
 	}
+	
+	/**
+	 * Copy standard input to a log file, and re-create the log file
+	 * if another process removes or renames it. In other words,
+	 * /usr/bin/tee meets {@link #LogFileWriter(String)}.
+	 * Usage:
+	 * <pre>
+	 *     LogFileWriter [-a] filename
+	 * </pre>
+	 * @param args Command-line arguments, as above.
+	 */
+	public static void main(String[] args)
+	{
+		String usage = "Usage: LogFileWriter [-a] filename";
+		boolean append = false;
+		String fname = null;
+		int iarg = 0;
+		if (iarg < args.length && args[iarg].equals("-a")) {
+			append = true;
+			iarg++;
+		}
+		if (iarg < args.length) {
+			fname = args[iarg];
+			iarg++;
+		}
+		if (fname == null || iarg < args.length) {
+			System.err.println(usage);
+			return;
+		}
+		LogFileWriter logger = null;
+		try {
+			logger = new LogFileWriter(new File(fname), append);
+		} catch (IOException e) {
+			System.err.println("LogFileWriter: Error opening '" + fname + "': " + e);
+			return;
+		}
+		String line;
+		while ((line = MiscUtil.readLine(System.in)) != null) {
+			logger.println(line);
+		}
+		logger.close();
+	}
 }
