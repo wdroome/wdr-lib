@@ -153,9 +153,9 @@ public class LogFileWriter
 	}
 	
 	/**
-	 * Copy standard input to a log file, and re-create the log file
-	 * if another process removes or renames it. In other words,
-	 * /usr/bin/tee meets {@link #LogFileWriter(String)}.
+	 * Read standard input, and write it to a log file as well as standard output.
+	 * Re-create the log file if another process removes or renames it
+	 * In other words, /usr/bin/tee meets {@link #LogFileWriter(String)}.
 	 * Usage:
 	 * <pre>
 	 *     LogFileWriter [-a] filename
@@ -190,6 +190,7 @@ public class LogFileWriter
 		String line;
 		while ((line = MiscUtil.readLine(System.in)) != null) {
 			logger.println(line);
+			System.out.println(line);
 		}
 		logger.close();
 	}
