@@ -229,7 +229,7 @@ public class MiscUtil
 	}
 
 	/**
-	 *	Return true if cname is limitted to the characters in a
+	 *	Return true if cname is limited to the characters in a
 	 *	fully qualified class name: letters, numbers, underbar, or period.
 	 *	Return false if cname is null or empty.
 	 */
@@ -289,6 +289,7 @@ public class MiscUtil
 	{
 		return itoa(val, minWidth, ' ');
 	}
+	
 	/**
 	 *	Return a string representing a long, with a minimum width.
 	 *
