@@ -89,4 +89,15 @@ public class InetUtilTest
 		assertEquals("1.2.3.4:80", InetUtil.toAddrPort(new InetSocketAddress("1.2.3.4", 80)));		
 		assertEquals("[0:0:0:0:0:0:0:0]:80", InetUtil.toAddrPort(new InetSocketAddress("::0", 80)));		
 	}
+	
+	@Test
+	public void testCanonicalInetAddr() throws Exception
+	{
+		assertEquals("1.2.3.4", InetUtil.getCanonicalInetAddr(InetAddress.getByName("1.2.3.4")));
+		assertEquals("0.0.0.0", InetUtil.getCanonicalInetAddr(null));
+		assertEquals("1::2", InetUtil.getCanonicalInetAddr(InetAddress.getByName("1:0:0:0:0:0:0:2")));
+		assertEquals("1:2:3:abcd:dcba:fe00:a:b", InetUtil.getCanonicalInetAddr(InetAddress.getByName("1:2:3:ABCD:dcba:fe00:a:b")));
+		assertEquals("::", InetUtil.getCanonicalInetAddr(InetAddress.getByName("0:0:0:0:0:0:0:0")));
+		assertEquals("::1", InetUtil.getCanonicalInetAddr(InetAddress.getByName("0:0:0:0:0:0:0:1")));
+	}
 }

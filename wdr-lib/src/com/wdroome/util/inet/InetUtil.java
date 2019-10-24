@@ -188,4 +188,87 @@ public class InetUtil
 		}
 		return nColons;
 	}
+	
+	/**
+	 * Return the canonical string format for an IP address.
+	 * For IPv6, this is colon-hex with the longest 0-sequence replaced by "::".
+	 * @param addr The address.
+	 * @return
+	 */
+	public static String getCanonicalInetAddr(InetAddress addr)
+	{
+		if (addr == null) {
+			return "0.0.0.0";
+		}
+		if (addr instanceof Inet6Address) {
+			return getColonHex(addr.getAddress());
+		}
+		return addr.getHostAddress();
+	}
+	
+	/**
+	 * Return colon-hex format bytes.
+	 * @param addr The bytes.
+	 */
+	 private static String getColonHex(byte[] addr)
+	{
+		StringBuilder buff = new StringBuilder();
+		int values[] = new int[addr.length/2];
+		for (int i = 0; i < values.length; i++) {
+			values[i] = ((addr[2*i] & 0xff) << 8) | (addr[2*i+1] & 0xff);
+		}
+		boolean needSep = false;
+		int doubleColonStartIndex = findLongestZeroString(values);
+		for (int i = 0; i < values.length; i++) {
+			if (i == doubleColonStartIndex) {
+				buff.append("::");
+				needSep = false;
+				for (i++; i < values.length && values[i] == 0; i++) {
+					;
+				}
+				if (i < values.length) {
+					--i;
+				}
+			} else {
+				if (needSep) {
+					buff.append(':');
+				}
+				buff.append(Integer.toHexString(values[i]));
+				needSep = true;
+			}
+		}
+		return buff.toString();
+	}
+		
+	/**
+	 * If values has a string of two or more zeros,
+	 * return the starting index of the longest such string.
+	 * If several strings have the same length, return the first one.
+	 * If there are no such strings of zeros, return -1.
+	 * @param values An array of integers.
+	 * @return The starting index of the longest string of zeros, or -1.
+	 */
+	private static int findLongestZeroString(int[] values)
+	{
+		int[] zeroCounts = new int[values.length];
+		for (int i = 0; i < values.length; i++) {
+			if (values[i] == 0) {
+				int iend;
+				for (iend = i+1; iend < values.length && values[iend] == 0; iend++) {
+					;
+				}
+				zeroCounts[i] = iend - i;
+				i = iend - 1;
+			}
+		}
+		int max = 1;
+		int imax = -1;
+		for (int i = 0; i < values.length; i++) {
+			if (zeroCounts[i] > max) {
+				imax = i;
+				max = zeroCounts[i];
+			}
+		}
+		return imax;
+	}
 }
