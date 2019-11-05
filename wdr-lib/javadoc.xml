@@ -16,7 +16,7 @@
 			classpath="../../../coremidi4j/coremidi4j-0.9.jar"
 			destdir="doc"
 			packagenames="com.wdroome.*"
-			sourcepath="src"
+			sourcepath="src/main/java"
 			source="1.7" splitindex="true"
 			bottom="&lt;pre&gt;Page generated on ${myprops.date} at ${myprops.time}&lt;/pre&gt;"
 			nodeprecated="false" nodeprecatedlist="false" noindex="false"
