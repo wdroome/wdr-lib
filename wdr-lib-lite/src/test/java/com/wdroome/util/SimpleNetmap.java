@@ -1,4 +1,4 @@
-package junit.util;
+package com.wdroome.util;
 
 import java.net.UnknownHostException;
 import java.net.InetAddress;
