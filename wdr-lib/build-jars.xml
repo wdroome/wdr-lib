@@ -9,8 +9,8 @@
       <format property="WDR-LIB.date" pattern="dd-MMM-yyyy" />
       <format property="WDR-LIB.time" pattern="HH:mm:ss zzz" />
     </tstamp>
-    <property name="WDR-LIB.jars.manifestInfoFile" value="bin/WDR-LIB_MANIFEST_INFO.txt" />
-    <property name="WDR-LIB.jars.osUnamePropFile" value="bin/WDR-LIB_OS_UNAME.properties" />
+    <property name="WDR-LIB.jars.manifestInfoFile" value="build-jars/tmp/WDR-LIB_MANIFEST_INFO.txt" />
+    <property name="WDR-LIB.jars.osUnamePropFile" value="build-jars/tmp/WDR-LIB_OS_UNAME.properties" />
   </target>
 
   <target name="makeManifestFiles" description="Setup common manifest files" depends="init">
@@ -49,7 +49,7 @@
   <target name ="makejars" description="Create WDR-LIB deliverable jar" depends="makeManifestFiles">
   	<jar jarfile="build-jars/wdrlib.jar"
     	manifest="${WDR-LIB.jars.manifestInfoFile}">
-  		<fileset dir="bin"
+  		<fileset dir="target/classes"
   			includes="
   					*.txt
   					com/wdroome/*/*.class
