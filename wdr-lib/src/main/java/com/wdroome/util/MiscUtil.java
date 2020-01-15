@@ -14,7 +14,10 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 /**
  *	Miscellaneous static utility methods.
@@ -946,6 +949,53 @@ public class MiscUtil
 		} catch (Exception e) {
 			return null;
 		}
+	}
+	
+	/**
+	 * Return a list of all entries in a jar file.
+	 * @param jarPath The name of the jar file.
+	 * @param content If not null, append names to this list and return it.
+	 * 		If null, create & return a new List.
+	 * @return A List of the entries.
+	 */
+	public static List<String> getJarContent(String jarPath, List<String> content)
+	{
+		JarFile jarFile = null;
+		if (content == null) {
+			content = new ArrayList<>();
+		}
+		try {
+			jarFile = new JarFile(jarPath);
+			Enumeration<JarEntry> e = jarFile.entries();
+			while (e.hasMoreElements()) {
+				JarEntry entry = (JarEntry) e.nextElement();
+				String name = entry.getName();
+				content.add(name);
+			}
+			return content;
+		} catch (Exception e) {
+			return content;
+		} finally {
+			if (jarFile != null) {
+				try {jarFile.close();} catch (Exception e) {}
+			}
+		}
+	}
+	
+	/**
+	 * Return the names of all items in the class path jars.
+	 * @return A list with the names of all items in the classpath jars.
+	 */
+	public static List<String> getClassPathFileNames()
+	{
+		List<String> content = new ArrayList<>();
+		for (String jar: System.getProperty("java.class.path", "")
+				.split(System.getProperty("path.separator", ";"))) {
+			if (jar.endsWith(".jar")) {
+				getJarContent(jar, content);
+			}
+		}
+		return content;
 	}
 
 	/**
