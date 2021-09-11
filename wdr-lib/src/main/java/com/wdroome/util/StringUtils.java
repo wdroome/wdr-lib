@@ -132,6 +132,57 @@ public class StringUtils
 		}
 		return new String[] {b.toString()};
 	}
+	
+	/**
+	 * Split a string into quoted args. That is, split by white space,
+	 * unless the argument starts with a double or single quote.
+	 * Use backslash to escape quotes in a quoted argument.
+	 * @param line The line to split.
+	 * @param useQuotes If false, ignore quotes and list split on white space.
+	 * @return A List with the String arguments. Return an empty List if there
+	 * 		if line is null or is just white space.
+	 */
+	public static List<String> splitByQuotes(String line, boolean useQuotes)
+	{
+		if (line == null) {
+			return new ArrayList<String>();
+		}
+		String wsChars = " \t\n\r";
+		List<String> ret = new ArrayList<>();
+		int lineLen = line.length();
+		for (int iLine = 0; iLine < lineLen; iLine++) {
+			for (; iLine < lineLen && iLine < lineLen
+							&& wsChars.indexOf(line.charAt(iLine)) >= 0; iLine++) {
+				// Skip over white space
+			}
+			if (iLine >= lineLen) {
+				return ret;
+			}
+			char firstChar = line.charAt(iLine);
+			if (useQuotes && (firstChar == '"' || firstChar == '\'')) {
+				StringBuilder arg = new StringBuilder(lineLen - iLine);
+				for (iLine++; iLine < lineLen; iLine++) {
+					char c = line.charAt(iLine);
+					if (c == firstChar) {
+						break;
+					} else if (c == '\\' && iLine+1 < lineLen && line.charAt(iLine+1) == firstChar) {
+						arg.append(firstChar);
+						iLine++;
+					} else {
+						arg.append(c);
+					}
+				}
+				ret.add(arg.toString());
+			} else {
+				int iArgStart = iLine;
+				for (; iLine < lineLen && iLine < lineLen
+								&& wsChars.indexOf(line.charAt(iLine)) < 0; iLine++) {
+				}
+				ret.add(line.substring(iArgStart, iLine));
+			}
+		}
+		return ret;
+	}
 
 	/**
 	 * Escape double-quotes or backslashes in src.

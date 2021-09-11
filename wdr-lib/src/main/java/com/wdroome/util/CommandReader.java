@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 
 import java.util.Queue;
 import java.util.LinkedList;
+import java.util.List;
 
 /**
  *	Base class for a "manager" that reads commands from an InputStream.
@@ -24,6 +25,7 @@ public abstract class CommandReader extends Thread
 	protected boolean m_inEOF = false;
 	protected PrintStream m_out = System.out;
 	protected boolean m_waitFlag = false;
+	protected boolean m_honorQuotes = true;
 	
 	private Queue<String> m_initialCmds = new LinkedList<String>();
 		
@@ -130,11 +132,10 @@ public abstract class CommandReader extends Thread
 	}
 	
 	private StringBuilder lastCmdLine = null;
-	private static final String SPLIT_ARGS_REGEX = "[ \t\r\n]+";
 
 	/**
 	 *	Read a command from input, trim leading/trailing whitespace,
-	 *	and return array with blank-sep tokens.
+	 *	and return array with blank-sep possibly quoted tokens.
 	 *	If a line ends with "\\", automatically read the next line.
 	 *	For EOF, return null.
 	 *	For a blank line, return a zero-length array.
@@ -144,7 +145,8 @@ public abstract class CommandReader extends Thread
 		if (!m_initialCmds.isEmpty()) {
 			String line = m_initialCmds.remove();
 			if (!line.equals("")) {
-				return line.split(SPLIT_ARGS_REGEX);
+				List<String> res = StringUtils.splitByQuotes(line, m_honorQuotes);
+				return res.toArray(new String[res.size()]);
 			} else {
 				return new String[0];
 			}
@@ -177,7 +179,8 @@ public abstract class CommandReader extends Thread
 		}
 		String fullLine = lastCmdLine.toString().trim();
 		if (!fullLine.equals("")) {
-			return fullLine.split(SPLIT_ARGS_REGEX);
+			List<String> res = StringUtils.splitByQuotes(fullLine, m_honorQuotes);
+			return res.toArray(new String[res.size()]);
 		} else if (m_inEOF) {
 			return null;
 		} else {
@@ -193,11 +196,17 @@ public abstract class CommandReader extends Thread
 		if (lastCmdLine == null) {
 			return "";
 		} else {
-			String[] x = lastCmdLine.toString().split(SPLIT_ARGS_REGEX, 2);
-			if (x != null && x.length >= 2)
-				return x[1];
-			else
-				return "";
+			List<String> lastArgs = StringUtils.splitByQuotes(lastCmdLine.toString(), m_honorQuotes);
+			StringBuilder res = new StringBuilder();
+			boolean first = true;
+			for (String arg: lastArgs) {
+				if (!first) {
+					res.append(" ");
+				}
+				res.append(arg);
+				first = false;
+			}
+			return res.toString();
 		}
 	}
 	
@@ -212,9 +221,9 @@ public abstract class CommandReader extends Thread
 		} else {
 			String v = cmd[iArg].toLowerCase();
 			if (v.equals("t") || v.equals("true") || v.equals("1")) {
-				return new Boolean(true);
+				return Boolean.TRUE;
 			} else if (v.equals("f") || v.equals("false") || v.equals("0")) {
-				return new Boolean(false);
+				return Boolean.FALSE;
 			} else if (v.equals("-") || v.equals("")) {
 				return null;
 			} else {
@@ -224,6 +233,14 @@ public abstract class CommandReader extends Thread
 		}
 	}
 		
+	public boolean isHonorQuotes() {
+		return m_honorQuotes;
+	}
+
+	public void setHonorQuotes(boolean honorQuotes) {
+		this.m_honorQuotes = honorQuotes;
+	}
+
 	/** Display warning message to user. */
 	public synchronized void warn(String m)
 	{

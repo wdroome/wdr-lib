@@ -137,6 +137,32 @@ public class StringUtilsTest
 	}
 	
 	@Test
+	public void splitByQuotes_test1()
+	{
+		assertEquals(StringUtils.splitByQuotes(" abc xyz ", true),
+				List.of("abc", "xyz"));
+		assertEquals(StringUtils.splitByQuotes(" \tabc\nxyz ", true),
+				List.of("abc", "xyz"));
+		assertEquals(StringUtils.splitByQuotes("", true),
+				List.of());
+			// System.out.println(StringUtils.splitByQuotes("'x' abc", true));
+		assertEquals(StringUtils.splitByQuotes("\"\"", true),
+				List.of(""));
+		assertEquals(StringUtils.splitByQuotes("\"\"", true),
+				List.of(""));
+		assertEquals(StringUtils.splitByQuotes("arg0 \"arg 1\"", true),
+				List.of("arg0", "arg 1"));
+			// System.out.println(StringUtils.splitByQuotes("\"arg0\\\"\"", true));
+		assertEquals(StringUtils.splitByQuotes("\"arg0\\\"\"", true),
+				List.of("arg0\""));
+		assertEquals(StringUtils.splitByQuotes("'arg0\\\"'", true),
+				List.of("arg0\\\""));
+			// System.out.println(StringUtils.splitByQuotes("\"arg0\\\"\"  ", true));
+		assertEquals(StringUtils.splitByQuotes("\"arg0\\\"\"  ", true),
+				List.of("arg0\""));
+	}
+	
+	@Test
 	public void makeStringTest()
 	{
 		byte[] buff = new byte[] {'a', 'b', 'c', 0, 0, 'd'};
