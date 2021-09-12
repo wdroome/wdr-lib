@@ -955,7 +955,7 @@ public class MiscUtil
 	 * Return a list of all entries in a jar file.
 	 * @param jarPath The name of the jar file.
 	 * @param content If not null, append names to this list and return it.
-	 * 		If null, create & return a new List.
+	 * 		If null, create and return a new List.
 	 * @return A List of the entries.
 	 */
 	public static List<String> getJarContent(String jarPath, List<String> content)

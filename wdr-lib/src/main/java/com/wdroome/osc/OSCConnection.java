@@ -36,17 +36,15 @@ public class OSCConnection
 	 * Callback for response messages.
 	 * @author wdr
 	 */
-	public interface ResponseHandler
+	public interface MessageHandler
 	{
 		/**
 		 * Called when a response message arrives from the OSC target.
-		 * @param msg The message: [0] is the method, [1] gives the argument types,
-		 * 		and [2:end] are the typed arguments. If there are no arguments,
-		 * 		the length is 1.
+		 * @param msg The message.
 		 */
-		void handleOscResponse(List<Object> msg);
+		void handleOscResponse(OSCMessage msg);
 	}
-	
+
 	public static final int DEF_CONNECT_TIMEOUT = 30 * 1000;
 
 	private final InetSocketAddress m_oscIpAddr;
@@ -57,7 +55,7 @@ public class OSCConnection
 	private OutputStream m_oscOutputStream;
 	private InputStream m_oscInputStream;
 
-	private ResponseHandler m_responseHandler = null;
+	private MessageHandler m_messageHandler = null;
 
 	private int m_connectTimeout = DEF_CONNECT_TIMEOUT;
 	
@@ -166,21 +164,14 @@ public class OSCConnection
 	}
 	
 	/**
-	 * Send a request to the OSC server and return.
-	 * @param req The request.
+	 * Send a message to the OSC server and return.
+	 * @param msg The message.
 	 * @throws IOException
-	 * 		If an error occurs while sending the request.
-	 * 		In this case, we will NOT call one of reply() methods in req.
-	 * @throws IllegalArgumentException
-	 * 		Internal error: this method does not recognize req's argument type.
+	 * 		If an error occurs while sending the message.
 	 */
-	public void sendRequest(OSCRequest req) throws IOException
+	public void sendMessage(OSCMessage msg) throws IOException
 	{
-		String method = req.getMethod();
-		List<byte[]> byteArrays = req.getOSCBytes(null);
-		if (false) {
-			System.out.println("XXX: Sending:"); hexDump(byteArrays);
-		}
+		List<byte[]> byteArrays = msg.getOSCBytes(null);
 		synchronized (m_oscOutputStream) {
 			try {
 				OSCUtil.writeSlipMsg(m_oscOutputStream, byteArrays);
@@ -192,19 +183,19 @@ public class OSCConnection
 	
 	/**
 	 * Set the callback for asynchronous response messages from the OSC server.
-	 * There can only be one update handler;
+	 * There can only be one handler;
 	 * setting a new one removes the previous one.
-	 * Furthermore, you must set the update handler BEFORE calling {@link #connect()}.
-	 * @param updateHandler The new update handler, or null.
+	 * Furthermore, you must set the handler BEFORE calling {@link #connect()}.
+	 * @param messageHandler The new update handler, or null.
 	 * @throws IllegalStateException
 	 * 		If we are currently connected to a server.
 	 */
-	public void setResponseHandler(ResponseHandler responseHandler)
+	public void setMessageHandler(MessageHandler messageHandler)
 	{
 		if (m_listener != null) {
-			throw new IllegalStateException("OSCConnection.setResponseHandler(): already connected");
+			throw new IllegalStateException("OSCConnection.setMessageHandler(): already connected");
 		}
-		m_responseHandler = responseHandler;
+		m_messageHandler = messageHandler;
 	}
 	
 	/**
@@ -279,26 +270,17 @@ public class OSCConnection
 		public void run()
 		{
 			while (m_running) {
-				ArrayList<Object> msg = readOscMessage();
+				OSCMessage msg = readOscMessage2();
 				if (msg == null) {
 					break;
 				}
-				if (m_responseHandler != null) {
-					m_responseHandler.handleOscResponse(msg);
+				if (m_messageHandler != null) {
+					m_messageHandler.handleOscResponse(msg);
 				}
 			}
 		}
 		
-		/**
-		 * Read and return the next message sent by the OSC server
-		 * .
-		 * @return
-		 * 		An ArrayList with the next message.
-		 * 		The first element is the String method, and is never null.
-		 * 		The remaining elements are the typed arguments.
-		 * 		Return null on EOF or permanent I/O error.
-		 */
-		private ArrayList<Object> readOscMessage()
+		private OSCMessage readOscMessage2()
 		{
 			List<Byte> reply;
 			try {
@@ -314,33 +296,39 @@ public class OSCConnection
 			if (reply == null) {
 				return null;
 			}
-			ArrayList<Object> ret = new ArrayList<>();
 			Iterator<Byte> iter = reply.iterator();
-			ret.add(OSCUtil.getOSCString(iter));
+			OSCMessage ret = new OSCMessage(OSCUtil.getOSCString(iter));
 			String argFmt = OSCUtil.getOSCString(iter);
 			int argCnt = argFmt.length();
 			for (int iArg = 0; iArg < argCnt; iArg++) {
 				char c = argFmt.charAt(iArg);
-				if (iArg == 0 && c == OSCUtil.OSC_ARG_FMT_HEADER.charAt(0)) {
-					continue;
-				} else if (c == OSCUtil.OSC_STR_ARG_FMT.charAt(0)) {
-					ret.add(OSCUtil.getOSCString(iter));
-				} else if (c == OSCUtil.OSC_INT32_ARG_FMT.charAt(0)) {
-					ret.add(OSCUtil.getOSCInt32(iter));
-				} else if (c == OSCUtil.OSC_FLOAT_ARG_FMT.charAt(0)) {
-					ret.add(OSCUtil.getOSCFloat32(iter));
-				} else if (c == OSCUtil.OSC_INT64_ARG_FMT.charAt(0)) {
-					ret.add(OSCUtil.getOSCInt64(iter));
-				} else if (c == OSCUtil.OSC_BLOB_ARG_FMT.charAt(0)) {
-					ret.add(OSCUtil.getOSCBlob(iter));
-				} else if (c == OSCUtil.OSC_TIME_TAG_ARG_FMT.charAt(0)) {
-					ret.add(OSCUtil.getOSCInt64(iter));
-				} else {
-					logError("Listener: unexpected OSC arg format '" + c
-									+ "' in '" + argFmt + "'");
+				switch (c) {
+				case OSCUtil.OSC_STR_ARG_FMT_CHAR:
+					ret.addArg(OSCUtil.getOSCString(iter));
+					break;
+				case OSCUtil.OSC_INT32_ARG_FMT_CHAR:
+					ret.addArg(OSCUtil.getOSCInt32(iter));
+					break;
+				case OSCUtil.OSC_FLOAT_ARG_FMT_CHAR:
+					ret.addArg(OSCUtil.getOSCFloat32(iter));
+					break;
+				case OSCUtil.OSC_INT64_ARG_FMT_CHAR:
+					ret.addArg(OSCUtil.getOSCInt64(iter));
+					break;
+				case OSCUtil.OSC_BLOB_ARG_FMT_CHAR:
+					ret.addArg(OSCUtil.getOSCBlob(iter));
+					break;
+				case OSCUtil.OSC_TIME_TAG_ARG_FMT_CHAR:
+					ret.addArg(OSCUtil.getOSCInt64(iter));
+					break;
+				default:
+					if (!(c == OSCUtil.OSC_ARG_FMT_HEADER_CHAR && iArg == 0)) {
+						logError("Listener: unexpected OSC arg format '" + c
+								+ "' in '" + argFmt + "' " + iArg);						
+					}
 				}
 			}
-			return ret;
+			return ret;			
 		}
 	
 		private void shutdown()
@@ -348,7 +336,7 @@ public class OSCConnection
 			m_running = false;
 			interrupt();
 		}
-	};
+	}
 	
 	private static void hexDump(byte[] bytes)
 	{

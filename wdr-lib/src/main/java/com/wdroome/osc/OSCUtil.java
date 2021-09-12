@@ -18,13 +18,89 @@ public class OSCUtil
 	private static final byte SLIP_ESC_END_BYTE = (byte)0xDC;	// 0334
 	private static final byte SLIP_ESC_ESC_BYTE = (byte)0xDD;	// 0335
 	
-	public static String OSC_ARG_FMT_HEADER = ",";
-	public static String OSC_STR_ARG_FMT = "s";
-	public static String OSC_INT32_ARG_FMT = "i";
-	public static String OSC_FLOAT_ARG_FMT = "f";
-	public static String OSC_INT64_ARG_FMT = "h";
-	public static String OSC_BLOB_ARG_FMT = "b";
-	public static String OSC_TIME_TAG_ARG_FMT = "t";
+	public static final char OSC_ARG_FMT_HEADER_CHAR = ',';
+	public static final String OSC_ARG_FMT_HEADER
+					= Character.valueOf(OSC_ARG_FMT_HEADER_CHAR).toString();
+
+	public static final char OSC_STR_ARG_FMT_CHAR = 's';
+	public static final String OSC_STR_ARG_FMT
+					= Character.valueOf(OSC_STR_ARG_FMT_CHAR).toString();
+
+	public static final char OSC_INT32_ARG_FMT_CHAR = 'i';
+	public static final String OSC_INT32_ARG_FMT
+					= Character.valueOf(OSC_INT32_ARG_FMT_CHAR).toString();
+
+	public static final char OSC_FLOAT_ARG_FMT_CHAR = 'f';
+	public static final String OSC_FLOAT_ARG_FMT
+					= Character.valueOf(OSC_FLOAT_ARG_FMT_CHAR).toString();
+
+	public static final char OSC_INT64_ARG_FMT_CHAR = 'h';
+	public static final String OSC_INT64_ARG_FMT
+					= Character.valueOf(OSC_INT64_ARG_FMT_CHAR).toString();
+
+	public static final char OSC_BLOB_ARG_FMT_CHAR = 'b';
+	public static final String OSC_BLOB_ARG_FMT
+					= Character.valueOf(OSC_BLOB_ARG_FMT_CHAR).toString();
+
+	public static final char OSC_TIME_TAG_ARG_FMT_CHAR = 't';
+	public static final String OSC_TIME_TAG_ARG_FMT
+					= Character.valueOf(OSC_TIME_TAG_ARG_FMT_CHAR).toString();
+
+	/**
+	 * Return the format spec string (OSC_STR_ARG_FMT, etc) for an OSC argument.
+	 * @param arg The argument.
+	 * @return The type string.
+	 * @throws IllegalArgumentException If arg isn't an acceptable type.
+	 */
+	public static String getArgFormatSpec(Object arg)
+	{
+		if (arg instanceof String) {
+			return OSC_STR_ARG_FMT;
+		} else if (arg instanceof Integer) {
+			return OSC_INT32_ARG_FMT;
+		} else if (arg instanceof Float) {
+			return OSC_FLOAT_ARG_FMT;
+		} else if (arg instanceof Long) {
+			return OSC_INT64_ARG_FMT;
+		} else if (arg instanceof byte[]) {
+			return OSC_BLOB_ARG_FMT;
+		} else {
+			// Shouldn't happen: c'tor should ensure everything is valid.
+			throw new IllegalArgumentException(
+						"OSCUtil.getArgType(): Unknown argument class "
+						+ arg.getClass().getName());
+		}		
+	}
+	
+	/**
+	 * Convert an OSC argument value to an OSC byte array.
+	 * @param argFmt The argument format specifier -- OSC_STR_ARG_FMT_CHAR, etc.
+	 * @param arg An Object with the argument value.
+	 * @return A byte[] representing the argument.
+	 * @throws ClassCastException
+	 * 		If the arg type does not match argFmt. Normally the caller verifies
+	 * 		that the type is correct.
+	 */
+	public static byte[] getArgByteArray(char argFmt, Object arg)
+	{
+		switch (argFmt) {
+		case OSC_STR_ARG_FMT_CHAR:
+			return toOSCBytes((String)arg);
+		case OSC_INT32_ARG_FMT_CHAR:
+			return toOSCBytes(((Integer)arg));
+		case OSC_FLOAT_ARG_FMT_CHAR:
+			return toOSCBytes((Float)arg);
+		case OSC_INT64_ARG_FMT_CHAR:
+			return toOSCBytes((Long)arg);
+		case OSC_BLOB_ARG_FMT_CHAR:
+			return (byte[])arg;
+		case OSC_TIME_TAG_ARG_FMT_CHAR:
+			return toOSCBytes((Long)arg);
+		default:
+			throw new IllegalArgumentException(
+					"OSCUtil.getArgByteArray(): Unknown argument type '" + argFmt + "'");
+		}
+	}
 	
 	/**
 	 * Convert a java String into a byte array
