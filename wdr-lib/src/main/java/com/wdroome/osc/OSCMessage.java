@@ -18,8 +18,7 @@ public class OSCMessage
 	 */
 	public OSCMessage(String method)
 	{
-		m_method = method;
-		m_createTS = System.currentTimeMillis();
+		this(method, null);
 	}
 	
 	/**
