@@ -4,8 +4,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.TreeSet;
 import java.util.Comparator;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
 import java.net.UnknownHostException;
 import java.net.InetAddress;
+
 import java.security.MessageDigest;
 
 /**
@@ -14,7 +18,7 @@ import java.security.MessageDigest;
  * and cannot be changed.
  * @author wdr
  */
-public class CIDRAddress implements Comparable<CIDRAddress>
+public class CIDRAddress implements Comparable<CIDRAddress>, Iterable<InetAddress>
 {
 	private final String m_addr;	// The base address, in canonical string format.
 
@@ -699,4 +703,95 @@ public class CIDRAddress implements Comparable<CIDRAddress>
 		}
 		return true;
 	}
+	
+	/**
+	 * Return an iterator over all InetAddresses in this CIDR.
+	 * This is only defined for ipv4 addresses.
+	 * Also, when given the loopback CIDR 127.0.0.1/8,
+	 * it only returns the single address 127.0.0.1.
+	 */
+	@Override
+	public Iterator<InetAddress> iterator()
+	{
+		return new InetAddressIterator();
+	}
+
+	/**
+	 * An iterator over all addresses in this CIDR.
+	 */
+	private class InetAddressIterator implements Iterator<InetAddress>
+	{
+		private long m_next;
+		private int m_remaining;
+		
+		private InetAddressIterator()
+		{
+			if (!m_ipv4) {
+				throw new IllegalArgumentException(
+						"CIDRAddress: InetAddress iterator only defined for IPv4 addresses.");
+			} else if (m_maskLen < 8) {
+				throw new IllegalArgumentException(
+						"CIDRAddress: mask len " + m_maskLen + " too short.");
+			}
+			m_remaining = (int)(1L<<(32 - m_maskLen));
+			if (m_bytes[0] == 127) {
+				m_remaining = 2;
+			}
+			m_next =  ((long)(m_bytes[0] & 0xff) << 24)
+					+ ((long)(m_bytes[1] & 0xff) << 16)
+					+ ((long)(m_bytes[2] & 0xff) <<  8)
+					+ ((long)(m_bytes[3] & 0xff)      );
+			if (m_bytes[0] == 127) {
+				m_remaining = 1;
+				m_next++;
+			}
+			// System.out.println("m_next=" + m_next + " remain=" + m_remaining);
+		}
+		
+		@Override
+		public boolean hasNext()
+		{
+			return m_remaining > 0;
+		}
+
+		@Override
+		public InetAddress next()
+		{
+			if (m_remaining <= 0) {
+				throw new NoSuchElementException();
+			}
+			long addr = m_next;
+			m_next++;
+			m_remaining--;
+			try {
+				return InetAddress.getByAddress(new byte[] {
+							(byte)((addr >> 24) & 0xff),
+							(byte)((addr >> 16) & 0xff),
+							(byte)((addr >>  8) & 0xff),
+							(byte)((addr      ) & 0xff)
+						});
+			} catch (UnknownHostException e) {
+				// Oops!! Shouldn't happen.
+				throw new NoSuchElementException();
+			}
+		}
+	}
+	
+	/*
+	public static void main(String[] args) throws UnknownHostException
+	{
+		for (InetAddress addr: new CIDRAddress("127.0.0.1/8")) {
+			System.out.println(addr.getHostAddress());
+		}
+		for (InetAddress addr: new CIDRAddress("192.168.1.128/28")) {
+			System.out.println(addr.getHostAddress());
+		}
+		for (InetAddress addr: new CIDRAddress("255.168.1.128/28")) {
+			System.out.println(addr.getHostAddress());
+		}
+		for (InetAddress addr: new CIDRAddress("1.2.3.4/28")) {
+			System.out.println(addr.getHostAddress());
+		}
+	}
+	*/
 }
