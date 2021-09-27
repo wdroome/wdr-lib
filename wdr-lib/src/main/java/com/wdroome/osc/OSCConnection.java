@@ -112,7 +112,6 @@ public class OSCConnection
 		if (m_oscIpAddr.isUnresolved()) {
 			throw new IllegalArgumentException("OSCConnection: invalid or unknown addr '" + addr + "'");
 		}
-		System.out.println("XXX connect " + addr + " " + port + " " + m_oscIpAddr);
 	}
 	
 	/**
@@ -130,7 +129,7 @@ public class OSCConnection
 		m_oscSocket = new Socket();
 		m_oscSocket.setSoTimeout(0);
 		
-		System.out.println("XXX connecting to " + m_oscIpAddr);
+		// System.out.println("XXX connecting to " + m_oscIpAddr);
 		m_oscSocket.connect(m_oscIpAddr, m_connectTimeout);
 		try {
 			m_oscOutputStream = m_oscSocket.getOutputStream();
@@ -139,7 +138,7 @@ public class OSCConnection
 			try { disconnect(); } catch (Exception ex) {}
 			throw e;
 		}
-		System.out.println("XXX connected to " + m_oscIpAddr);
+		// System.out.println("XXX connected to " + m_oscIpAddr);
 		
 		m_listener = new Listener();
 	}
