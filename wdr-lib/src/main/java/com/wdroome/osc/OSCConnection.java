@@ -171,7 +171,7 @@ public class OSCConnection
 	}
 
 	/**
-	 * Disconnect from the QLab server.
+	 * Disconnect from the OSC server.
 	 */
 	public void disconnect()
 	{
@@ -225,8 +225,8 @@ public class OSCConnection
 	}
 	
 	/**
-	 * Return IP address of QLab server.
-	 * @return IP address of QLab server.
+	 * Return IP address of OSC server.
+	 * @return IP address of OSC server.
 	 */
 	public InetSocketAddress getIpAddress()
 	{

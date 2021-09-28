@@ -95,7 +95,7 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 				m_out.println("quit    ## Bye-bye.");
 			} else if (cmd.equals("send")) {
 				if (!(parsedCmd.length >= 2)) {
-					m_out.println("Usage: send qlab-cmd [str-arg str-arg ...]");
+					m_out.println("Usage: send osc-method [str-arg str-arg ...]");
 					continue;
 				}
 				sendCmd(parsedCmd, 1);
