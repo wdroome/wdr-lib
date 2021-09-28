@@ -115,6 +115,33 @@ public class OSCConnection
 	}
 	
 	/**
+	 * Create a new connection to OSC server.
+	 * Note: You must also call {@link #connect()} to establish the connection.
+	 * @param addr The server's internet address.
+	 * @param port The server's port.
+	 */
+	public OSCConnection(InetAddress addr, int port)
+	{
+		m_oscIpAddr = new InetSocketAddress(addr, port);
+		if (m_oscIpAddr.isUnresolved()) {
+			throw new IllegalArgumentException("OSCConnection: invalid or unknown addr '" + addr + "'");
+		}		
+	}
+	
+	/**
+	 * Create a new connection to OSC server.
+	 * Note: You must also call {@link #connect()} to establish the connection.
+	 * @param addr The server's internet address & port.
+	 */
+	public OSCConnection(InetSocketAddress addr)
+	{
+		m_oscIpAddr = addr;
+		if (m_oscIpAddr.isUnresolved()) {
+			throw new IllegalArgumentException("OSCConnection: invalid or unknown addr '" + addr + "'");
+		}		
+	}
+	
+	/**
 	 * Create a TP connection to the OSC server.
 	 * @throws IOException
 	 * 		If we cannot connect to OSC server,
