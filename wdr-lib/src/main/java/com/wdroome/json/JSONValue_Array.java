@@ -17,6 +17,7 @@ import java.sql.SQLException;
 public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 {
 	private static final long serialVersionUID = 3869583752810778476L;
+	private boolean m_autoCvt2Array = false;
 
 	/**
 	 * Create an empty JSON array.
@@ -334,6 +335,8 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 
 	/**
 	 * Return an array-valued element.
+	 * If the convert2array flag option is set {@link #setAutoCvt2Array(boolean)}
+	 * automatically convert a scalar value to a new single-element array.
 	 * @param index The element's index.
 	 * @return The array value of the element.
 	 * 		Return null if it's not a JSON array.
@@ -342,7 +345,17 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 	public JSONValue_Array getArray(int index)
 	{
 		JSONValue value = get(index);
-		return (value instanceof JSONValue_Array) ? (JSONValue_Array)value : null;
+		if (value == null) {
+			return null;
+		} else if (m_autoCvt2Array && value.isSimple()) {
+			JSONValue_Array ret = new JSONValue_Array();
+			ret.add(value);
+			return ret;
+		} else if (!(value instanceof JSONValue_Array)) {
+        	return null;
+		} else {
+			return (JSONValue_Array)value;
+		}
 	}
 
 	/**
@@ -380,6 +393,50 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 		} else {
 			return true;
 		}
+	}
+	
+	/**
+	 * Restrict the types of the values. If all values are of the correct types,
+	 * return this array. If not, return a new array with the acceptable values. 
+	 * @param validClasses The classes of the acceptable JSON values.
+	 * @return An array whose values are all in validClasses. This may be this array
+	 * 		or a shallow clone of this array.
+	 */
+	public JSONValue_Array restrictValueTypes(List<Class<? extends JSONValue>> validClasses)
+	{
+		boolean allOk = true;
+		for (JSONValue value: this) {
+			if (!isInstance(value, validClasses)) {
+				allOk = false;
+				break;
+			}
+		}
+		if (allOk) {
+			return this;
+		}
+		JSONValue_Array newArray = new JSONValue_Array(size());
+		for (JSONValue value: this) {
+			if (isInstance(value, validClasses)) {
+				newArray.add(value);
+			}
+		}
+		return newArray;
+	}
+	
+	/**
+	 * Return true if a value is an instance of a class in a list.
+	 * @param value The value.
+	 * @param clazzes The list of classes.
+	 * @return True iff value is an instance of a class in clazzes.
+	 */
+	private boolean isInstance(Object value, List<Class<? extends JSONValue>> clazzes)
+	{
+		for (Class clazz: clazzes) {
+			if (clazz.isInstance(value)) {
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	/**
@@ -484,5 +541,22 @@ public class JSONValue_Array extends ArrayList<JSONValue> implements JSONValue
 			} 
 		}
 		return jsonResults;
+	}
+
+	/**
+	 * Return true if getArray() automatically converts scalar values to 1-element arrays.
+	 * @return True if getArray() automatically converts scalar values to 1-element arrays.
+	 */
+	public boolean isAutoCvt2Array() {
+		return m_autoCvt2Array;
+	}
+
+	/**
+	 * Control whether getArray() automatically converts scalar values to arrays.
+	 * @param autoCvt2Array If true, getArray() will automatically convert a scalar value
+	 * 		to a 1-element JSON array.
+	 */
+	public void setAutoCvt2Array(boolean autoCvt2Array) {
+		this.m_autoCvt2Array = autoCvt2Array;
 	}
 }

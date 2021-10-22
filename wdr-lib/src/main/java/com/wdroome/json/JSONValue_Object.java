@@ -3,6 +3,7 @@ package com.wdroome.json;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
@@ -23,6 +24,7 @@ import java.sql.Types;
 public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONValue
 {
 	private static final long serialVersionUID = 7951974441619152479L;
+	private boolean m_autoCvt2Array = false;
 	
 	/**
      * The pathname for this object, or null.
@@ -443,11 +445,13 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	}
 
 	/**
-	 * Return an array-valued entry.
+	 * Return an array-valued entry. If the convert2array flag option is set
+	 * {@link #setAutoCvt2Array(boolean)} automatically convert a scalar value
+	 * to a new single-element array.
 	 * @param key The entry's key.
 	 * @return The array value of the key.
 	 * @throws JSONFieldMissingException If field is missing.
-	 * @throws JSONValueTypeException If field exists, but it's not a string.
+	 * @throws JSONValueTypeException If field exists, but it's not an array.
 	 */
 	public JSONValue_Array getArray(String key) throws JSONFieldMissingException, JSONValueTypeException
 	{
@@ -457,17 +461,23 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
             		"JSONObject[" + JSONValue_String.quotedString(key) + "] not found.",
             		makePathName(key));
 
-		}
-		if (!(value instanceof JSONValue_Array)) {
+		} else if (m_autoCvt2Array && value.isSimple()) {
+			JSONValue_Array ret = new JSONValue_Array();
+			ret.add(value);
+			return ret;
+		} else if (!(value instanceof JSONValue_Array)) {
         	throw new JSONValueTypeException(
         			"JSONObject[" + JSONValue_String.quotedString(key) + "] is not an Array.",
         			makePathName(key));
+		} else {
+			return (JSONValue_Array)value;
 		}
-		return (JSONValue_Array)value;
 	}
 
 	/**
-	 * Return an array-valued entry.
+	 * Return an array-valued entry. If the convert2array flag option is set
+	 * {@link #setAutoCvt2Array(boolean)} automatically convert a scalar value
+	 * to a new single-element array.
 	 * @param key The entry's key.
 	 * @param def The default value.
 	 * @return The array value of the key, or def if it doesn't exist or it's not an array.
@@ -475,7 +485,17 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	public JSONValue_Array getArray(String key, JSONValue_Array def)
 	{
 		JSONValue value = get(key);
-		return (value != null && value instanceof JSONValue_Array) ? (JSONValue_Array)value : def;
+		if (value == null) {
+			return def;
+		} else if (m_autoCvt2Array && value.isSimple()) {
+			JSONValue_Array ret = new JSONValue_Array();
+			ret.add(value);
+			return ret;
+		} else if (!(value instanceof JSONValue_Array)) {
+        	return def;
+		} else {
+			return (JSONValue_Array)value;
+		}
 	}
 
 	/**
@@ -658,6 +678,80 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 		} else {
 			writer.write('}');
 		}
+	}
+	
+	/**
+	 * Find invalid keys.
+	 * @param validKeys A list of valid simple names. May be null.
+	 * @param validRegexes A list of regular expressions for valid keys. May be null.
+	 * @return Any keys which are not in validKeys, and which do not match
+	 * 		a regular expression in validRegexes. If all keys are valid, return null.
+	 */
+	public List<String> findInvalidKeys(List<String> validKeys, List<String> validRegexes)
+	{
+		ArrayList<String> invalidKeys = null;
+		for (String key: keySet()) {
+			if (validKeys != null && validKeys.contains(key)) {
+				continue;
+			} else if (validRegexes != null) {
+				for (String regex: validRegexes) {
+					if (key.matches(regex)) {
+						continue;
+					}
+				}
+			} else {
+				if (invalidKeys == null) {
+					invalidKeys = new ArrayList<>();
+				}
+				invalidKeys.add(key);
+			}
+		}
+		return invalidKeys;
+	}
+	
+	/**
+	 * Restrict the types of the values. If all values are of the correct types,
+	 * return this object. If not, return a new object with the acceptable values. 
+	 * @param validClasses The classes of the acceptable JSON values.
+	 * @return An object whose values are all in validClasses. This may be this object
+	 * 		or a shallow clone of this object.
+	 */
+	public JSONValue_Object restrictValueTypes(List<Class<? extends JSONValue>> validClasses)
+	{
+		boolean allOk = true;
+		for (JSONValue value: values()) {
+			if (!isInstance(value, validClasses)) {
+				allOk = false;
+				break;
+			}
+		}
+		if (allOk) {
+			return this;
+		}
+		JSONValue_Object newObj = new JSONValue_Object(size());
+		for (Map.Entry<String, JSONValue> ent: entrySet()) {
+			JSONValue value = ent.getValue();
+			if (isInstance(value, validClasses)) {
+				newObj.put(ent.getKey(), value);
+			}
+		}
+		return newObj;
+	}
+	
+	/**
+	 * Return true if a value is an instance of a class in a list.
+	 * @param value The value.
+	 * @param clazzes The list of classes.
+	 * @return True iff value is an instance of a class in clazzes.
+	 */
+	private boolean isInstance(Object value, List<Class<? extends JSONValue>> clazzes)
+	{
+		for (Class clazz: clazzes) {
+			if (clazz.isInstance(value)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -984,5 +1078,22 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 			} 
 		}
 		return jsonResults;
+	}
+
+	/**
+	 * Return true if getArray() automatically converts scalar values to 1-element arrays.
+	 * @return True if getArray() automatically converts scalar values to 1-element arrays.
+	 */
+	public boolean isAutoCvt2Array() {
+		return m_autoCvt2Array;
+	}
+
+	/**
+	 * Control whether getArray() automatically converts scalar values to arrays.
+	 * @param autoCvt2Array If true, getArray() will automatically convert a scalar value
+	 * 		to a 1-element JSON array.
+	 */
+	public void setAutoCvt2Array(boolean autoCvt2Array) {
+		this.m_autoCvt2Array = autoCvt2Array;
 	}
 }
