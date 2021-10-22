@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Test;
 
@@ -221,5 +222,112 @@ public class JSONValue_Object_Test
 		writer.setIndented(true);
 		obj.writeJSON(writer);
 		System.out.println(buff.toString());
+	}
+	
+	@Test
+	public void testFindInvalidKey()
+	{
+		List<String> validNames = List.of("F1", "F23");
+		List<String> validRegexes = List.of("#.*");
+		List<String> validRegexNames = List.of("##1", "#");
+		List<String> badNames = List.of("badname1", "badname2", "bad##name3");
+
+		JSONValue_Object obj = new JSONValue_Object();
+		for (String key:validNames) {
+			obj.put(key, key+"-value");
+		}
+		for (String key:validRegexNames) {
+			obj.put(key, key+"-value");
+		}
+		assertTrue("Test good names", obj.findInvalidKeys(validNames, validRegexes) == null);
+		
+		List<String> badNameResults = obj.findInvalidKeys(null, validRegexes);
+		assertTrue("Test no simple names", badNameResults.containsAll(validNames)
+									&& validNames.containsAll(badNameResults));
+		
+		badNameResults = obj.findInvalidKeys(validNames, null);
+		assertTrue("Test no regex", badNameResults.containsAll(validRegexNames)
+				&& validRegexNames.containsAll(badNameResults));
+		
+		for (String key: badNames) {
+			obj.put(key, key+"-value");
+		}
+		badNameResults = obj.findInvalidKeys(validNames, validRegexes);
+		assertEquals("Test bad names", badNameResults, badNames);
+		
+		obj = new JSONValue_Object();
+		for (String key:validRegexNames) {
+			obj.put(key, key+"-value");
+		}
+		badNameResults = obj.findInvalidKeys(validNames, validRegexes);
+		assertTrue("Test good regex", obj.findInvalidKeys(validNames, validRegexes) == null);
+	}
+	
+	@Test
+	public void testRestrictTypes()
+	{
+		Map<String, JSONValue> stringSrc = Map.of(
+				"str1", new JSONValue_String("str1-value"),
+				"str2", new JSONValue_String("str2-value"));
+		Map<String, JSONValue> numberSrc = Map.of(
+				"num1", new JSONValue_Number(100),
+				"num2", new JSONValue_Number(101));
+		Map<String, JSONValue> booleanSrc = Map.of(
+				"bool1", new JSONValue_Boolean(true),
+				"bool2", new JSONValue_Boolean(false));
+		Map<String, JSONValue> arraySrc = Map.of(
+				"arr1", new JSONValue_Array(),
+				"arr2", new JSONValue_Array());
+		Map<String, JSONValue> objectSrc = Map.of(
+				"obj1", new JSONValue_Object(),
+				"obj2", new JSONValue_Object());
+		
+		JSONValue_Object stringObj = new JSONValue_Object(stringSrc);
+		JSONValue_Object numberObj = new JSONValue_Object(numberSrc);
+		JSONValue_Object booleanObj = new JSONValue_Object(booleanSrc);
+		JSONValue_Object arrayObj = new JSONValue_Object(arraySrc);
+		JSONValue_Object objectObj = new JSONValue_Object(objectSrc);
+		
+		JSONValue_Object obj = makeObj(stringObj, numberObj, booleanObj, arrayObj, objectObj);
+		assertEquals("obj size", obj.size(), 10);
+		
+		JSONValue_Object testObj;
+		
+		testObj = obj.restrictValueTypes(List.of(JSONValue_String.class, JSONValue_Number.class));
+		assertEquals("String & Number", testObj, makeObj(stringObj, numberObj));
+		assertEquals("String & Number size", testObj.size(), 4);
+		
+		testObj = obj.restrictValueTypes(List.of(JSONValue_Boolean.class));
+		assertEquals("Boolean", testObj, makeObj(booleanObj));
+		assertNotEquals("Boolean2", testObj, makeObj(booleanObj, stringObj));
+
+		testObj = obj.restrictValueTypes(List.of(JSONValue_Array.class, JSONValue_Object.class));
+		assertEquals("Array & Object", testObj, makeObj(objectObj, arrayObj));
+		assertNotEquals("Array & Object2", testObj, makeObj(objectObj, arrayObj, numberObj));
+	}
+	
+	private static JSONValue_Object makeObj(JSONValue_Object... srcObjs)
+	{
+		JSONValue_Object obj = new JSONValue_Object();
+		for (Map<String, ? extends JSONValue> srcMap: srcObjs) {
+			obj.putAll(srcMap);
+		}
+		return obj;
+	}
+	
+	@Test
+	public void testCvtArray()
+	{
+		JSONValue_Object obj = new JSONValue_Object();
+		obj.put("key1", new JSONValue_String("key1-value"));
+		JSONValue_Array key2Arr = new JSONValue_Array(List.of(new JSONValue_String("key2-value")));
+		obj.put("key2", key2Arr);
+		assertEquals("no cvt 1", obj.getArray("key1", null), null);
+		assertEquals("no cvt 2", obj.getArray("key2", null), key2Arr);
+		
+		obj.setAutoCvt2Array(true);
+		assertEquals("cvt 1", obj.getArray("key1", null),
+				new JSONValue_Array(List.of(new JSONValue_String("key1-value"))));
+		assertEquals("cvt 2", obj.getArray("key2", null), key2Arr);
 	}
 }

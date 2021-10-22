@@ -691,15 +691,16 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 	{
 		ArrayList<String> invalidKeys = null;
 		for (String key: keySet()) {
-			if (validKeys != null && validKeys.contains(key)) {
-				continue;
-			} else if (validRegexes != null) {
+			boolean valid = validKeys != null && validKeys.contains(key);
+			if (!valid && validRegexes != null) {
 				for (String regex: validRegexes) {
 					if (key.matches(regex)) {
-						continue;
+						valid = true;
+						break;
 					}
 				}
-			} else {
+			}
+			if (!valid) {
 				if (invalidKeys == null) {
 					invalidKeys = new ArrayList<>();
 				}

@@ -192,4 +192,73 @@ public class JSONValue_Array_Test
 		darr1.remove(1);
 		assertEquals("eq3", "[1]", darr1.toString());
 	}
+	
+	
+	@Test
+	public void testRestrictTypes()
+	{
+		List<JSONValue> stringSrc = List.of(
+				new JSONValue_String("str1-value"),
+				new JSONValue_String("str2-value"));
+		List<JSONValue> numberSrc = List.of(
+				new JSONValue_Number(100),
+				new JSONValue_Number(101));
+		List<JSONValue> booleanSrc = List.of(
+				new JSONValue_Boolean(true),
+				new JSONValue_Boolean(false));
+		List<JSONValue> arraySrc = List.of(
+				new JSONValue_Array(),
+				new JSONValue_Array());
+		List<JSONValue> objectSrc = List.of(
+				new JSONValue_Array(),
+				new JSONValue_Array());
+		
+		JSONValue_Array stringArr = new JSONValue_Array(stringSrc);
+		JSONValue_Array numberArr = new JSONValue_Array(numberSrc);
+		JSONValue_Array booleanArr = new JSONValue_Array(booleanSrc);
+		JSONValue_Array arrayArr = new JSONValue_Array(arraySrc);
+		JSONValue_Array objectArr = new JSONValue_Array(objectSrc);
+		
+		JSONValue_Array arr = makeArr(stringArr, numberArr, booleanArr, arrayArr, objectArr);
+		assertEquals("arr size", arr.size(), 10);
+		
+		JSONValue_Array testArr;
+		
+		testArr = arr.restrictValueTypes(List.of(JSONValue_String.class, JSONValue_Number.class));
+		assertEquals("String & Number", testArr, makeArr(stringArr, numberArr));
+		assertEquals("String & Number size", testArr.size(), 4);
+		
+		testArr = arr.restrictValueTypes(List.of(JSONValue_Boolean.class));
+		assertEquals("Boolean", testArr, makeArr(booleanArr));
+		assertNotEquals("Boolean2", testArr, makeArr(booleanArr, stringArr));
+
+		testArr = arr.restrictValueTypes(List.of(JSONValue_Array.class, JSONValue_Array.class));
+		assertEquals("Array & Arrect", testArr, makeArr(objectArr, arrayArr));
+		assertNotEquals("Array & Arrect2", testArr, makeArr(objectArr, arrayArr, numberArr));
+	}
+	
+	private static JSONValue_Array makeArr(JSONValue_Array... srcArrays)
+	{
+		JSONValue_Array arr = new JSONValue_Array();
+		for (JSONValue_Array srcArray: srcArrays) {
+			arr.addAll(srcArray);
+		}
+		return arr;
+	}
+	
+	@Test
+	public void testCvtArray()
+	{
+		JSONValue_Array arr = new JSONValue_Array();
+		arr.add(new JSONValue_String("key1-value"));
+		JSONValue_Array arr2 = new JSONValue_Array(List.of(new JSONValue_String("key2-value")));
+		arr.add(arr2);
+		assertEquals("no cvt 1", arr.getArray(0), null);
+		assertEquals("no cvt 2", arr.getArray(1), arr2);
+		
+		arr.setAutoCvt2Array(true);
+		assertEquals("cvt 1", arr.getArray(0),
+				new JSONValue_Array(List.of(new JSONValue_String("key1-value"))));
+		assertEquals("cvt 2", arr.getArray(1), arr2);
+	}
 }
