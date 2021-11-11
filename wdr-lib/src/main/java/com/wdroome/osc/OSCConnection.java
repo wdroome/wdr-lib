@@ -40,7 +40,9 @@ public class OSCConnection
 	{
 		/**
 		 * Called when a response message arrives from the OSC target.
-		 * @param msg The message.
+		 * @param msg The message. If null, the OSC server disconnected
+		 * 			or an unrecoverable error occurred,
+		 * 			and no more messages will be arriving.
 		 */
 		void handleOscResponse(OSCMessage msg);
 	}
@@ -53,7 +55,8 @@ public class OSCConnection
 	private	Listener m_listener = null;
 	private Socket m_oscSocket = null;
 	private OutputStream m_oscOutputStream;
-	private InputStream m_oscInputStream;
+	private InputStream m_oscInputStream;	// Shared with Listener thread. Non-Listener methods
+											// only use this when Listener isn't active.
 
 	private MessageHandler m_messageHandler = null;
 
@@ -142,7 +145,7 @@ public class OSCConnection
 	}
 	
 	/**
-	 * Create a TP connection to the OSC server.
+	 * Create a TCP connection to the OSC server.
 	 * @throws IOException
 	 * 		If we cannot connect to OSC server,
 	 * 		or the connection was refused, etc.
@@ -269,22 +272,23 @@ public class OSCConnection
 	 */
 	public void logError(String err)
 	{
-		logError("OSCConnection: " + err);
+		System.err.println("OSCConnection: " + err);
 	}
 	
 	/**
 	 * A daemon thread that listens for messages from the OSC server.
+	 * There is only one Listener per instance.
+	 * Note that this thread uses m_oscInputStream in the main instance
+	 * without synchronization.
 	 */
 	private class Listener extends Thread
 	{
 		private boolean m_running = true;
-		private final InputStream m_listenerInputStream;
 		
 		private Listener()
 		{
 			setDaemon(true);
 			setName("OSCConnection.Listener-" + m_oscIpAddr);
-			m_listenerInputStream = m_oscInputStream;
 			start();
 		}
 	
@@ -296,30 +300,28 @@ public class OSCConnection
 		public void run()
 		{
 			while (m_running) {
-				OSCMessage msg = readOscMessage2();
-				if (msg == null) {
-					break;
-				}
+				OSCMessage msg = readOscMessage();
 				if (m_messageHandler != null) {
 					m_messageHandler.handleOscResponse(msg);
+				}
+				if (msg == null) {
+					break;
 				}
 			}
 		}
 		
-		private OSCMessage readOscMessage2()
+		private OSCMessage readOscMessage()
 		{
 			List<Byte> reply;
 			try {
-				synchronized (m_listenerInputStream) {
-					reply = OSCUtil.readSlipMsg(m_listenerInputStream);
-				}
+				reply = OSCUtil.readSlipMsg(m_oscInputStream);
 			} catch (IOException e) {
 				if (m_running) {
 					logError("Listener: read IOException: " + e);
 				}
 				return null;
 			}
-			if (reply == null) {
+			if (reply == null || reply.isEmpty()) {
 				return null;
 			}
 			Iterator<Byte> iter = reply.iterator();
