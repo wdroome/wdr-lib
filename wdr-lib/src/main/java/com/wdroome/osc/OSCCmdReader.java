@@ -19,6 +19,8 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 	private final OSCConnection m_conn;
 	private final List<OSCMessage> m_responses = new ArrayList<>();
 	
+	private boolean m_streamResponses = false;
+	
 	/**
 	 * Create a client. This c'tor starts the thread.
 	 * @param addrPort The address:port for the OSC server.
@@ -90,9 +92,11 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 				
 			if (cmd.equals("help") || cmd.equals("?")) {
 				m_out.println("send osc-method arg1 arg2 ...");
-				m_out.println("resp    ## Show responses.");
-				m_out.println("clear   ## Clear all responses.");
-				m_out.println("quit    ## Bye-bye.");
+				m_out.println("stream    ## Show responses when they arrive.");
+				m_out.println("nostream  ## Save responses instead of streaming them.");
+				m_out.println("resp      ## Show saved responses.");
+				m_out.println("clear     ## Clear saved responses.");
+				m_out.println("quit      ## Bye-bye.");
 			} else if (cmd.equals("send")) {
 				if (!(parsedCmd.length >= 2)) {
 					m_out.println("Usage: send osc-method [str-arg str-arg ...]");
@@ -111,11 +115,26 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 				synchronized (m_responses) {
 					m_responses.clear();
 				}
+			} else if (cmd.equals("stream")) {
+				setStreamResponses(true);
+			} else if (cmd.equals("nostream")) {
+				setStreamResponses(false);
 			} else if (cmd.equals("quit") || cmd.equals("q")) {
 				break;
 			} else {
 				m_out.println("Unknown command '" + cmd + "'");
 			}
+		}
+	}
+	
+	private void setStreamResponses(boolean streamResponses)
+	{
+		synchronized (m_responses) {
+			for (OSCMessage resp: m_responses) {
+				System.out.println("  " + resp);
+			}
+			m_responses.clear();
+			m_streamResponses = streamResponses;
 		}
 	}
 
@@ -181,9 +200,12 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 	@Override
 	public void handleOscResponse(OSCMessage msg)
 	{
-		// m_out.println("*** OSC response msg arrived: " + msg.toString());
 		synchronized (m_responses) {
-			m_responses.add(msg);
+			if (m_streamResponses) {
+				m_out.println(" *** resp: " + msg.toString());
+			} else {
+				m_responses.add(msg);
+			}
 		}
 	}
 

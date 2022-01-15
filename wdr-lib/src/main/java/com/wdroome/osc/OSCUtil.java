@@ -46,15 +46,36 @@ public class OSCUtil
 	public static final String OSC_TIME_TAG_ARG_FMT
 					= Character.valueOf(OSC_TIME_TAG_ARG_FMT_CHAR).toString();
 
+	public static final char OSC_TRUE_ARG_FMT_CHAR = 'T';
+	public static final String OSC_TRUE_ARG_FMT
+					= Character.valueOf(OSC_TRUE_ARG_FMT_CHAR).toString();
+
+	public static final char OSC_FALSE_ARG_FMT_CHAR = 'F';
+	public static final String OSC_FALSE_ARG_FMT
+					= Character.valueOf(OSC_FALSE_ARG_FMT_CHAR).toString();
+
+	public static final char OSC_IMPULSE_ARG_FMT_CHAR = 'I';
+	public static final String OSC_IMPULSE_ARG_FMT
+					= Character.valueOf(OSC_IMPULSE_ARG_FMT_CHAR).toString();
+
+	public static final char OSC_NULL_ARG_FMT_CHAR = 'N';
+	public static final String OSC_NULL_ARG_FMT
+					= Character.valueOf(OSC_NULL_ARG_FMT_CHAR).toString();
+	
+	private static final byte[] g_noByteArr = new byte[0];
+
 	/**
 	 * Return the format spec string (OSC_STR_ARG_FMT, etc) for an OSC argument.
+	 * Note this does NOT work for IMPULSE or TIME TAG arguments -- the client must handle those directly.
 	 * @param arg The argument.
 	 * @return The type string.
 	 * @throws IllegalArgumentException If arg isn't an acceptable type.
 	 */
 	public static String getArgFormatSpec(Object arg)
 	{
-		if (arg instanceof String) {
+		if (arg == null) {
+			return OSC_NULL_ARG_FMT;
+		} else if (arg instanceof String) {
 			return OSC_STR_ARG_FMT;
 		} else if (arg instanceof Integer) {
 			return OSC_INT32_ARG_FMT;
@@ -64,19 +85,21 @@ public class OSCUtil
 			return OSC_INT64_ARG_FMT;
 		} else if (arg instanceof byte[]) {
 			return OSC_BLOB_ARG_FMT;
+		} else if (arg instanceof Boolean) {
+			return ((Boolean)arg).booleanValue() ? OSC_TRUE_ARG_FMT : OSC_FALSE_ARG_FMT;
 		} else {
 			// Shouldn't happen: c'tor should ensure everything is valid.
 			throw new IllegalArgumentException(
 						"OSCUtil.getArgType(): Unknown argument class "
 						+ arg.getClass().getName());
-		}		
+		}
 	}
 	
 	/**
 	 * Convert an OSC argument value to an OSC byte array.
 	 * @param argFmt The argument format specifier -- OSC_STR_ARG_FMT_CHAR, etc.
 	 * @param arg An Object with the argument value.
-	 * @return A byte[] representing the argument.
+	 * @return A byte[] representing the argument. May be a 0-length array. 
 	 * @throws ClassCastException
 	 * 		If the arg type does not match argFmt. Normally the caller verifies
 	 * 		that the type is correct.
@@ -84,6 +107,12 @@ public class OSCUtil
 	public static byte[] getArgByteArray(char argFmt, Object arg)
 	{
 		switch (argFmt) {
+		case OSC_NULL_ARG_FMT_CHAR:
+		case OSC_TRUE_ARG_FMT_CHAR:
+		case OSC_FALSE_ARG_FMT_CHAR:
+		case OSC_IMPULSE_ARG_FMT_CHAR:
+			return g_noByteArr;
+			
 		case OSC_STR_ARG_FMT_CHAR:
 			return toOSCBytes((String)arg);
 		case OSC_INT32_ARG_FMT_CHAR:

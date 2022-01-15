@@ -349,6 +349,16 @@ public class OSCConnection
 				case OSCUtil.OSC_TIME_TAG_ARG_FMT_CHAR:
 					ret.addArg(OSCUtil.getOSCInt64(iter));
 					break;
+				case OSCUtil.OSC_TRUE_ARG_FMT_CHAR:
+					ret.addArg(Boolean.TRUE);
+					break;
+				case OSCUtil.OSC_FALSE_ARG_FMT_CHAR:
+					ret.addArg(Boolean.FALSE);
+					break;
+				case OSCUtil.OSC_NULL_ARG_FMT_CHAR:
+					break;
+				case OSCUtil.OSC_IMPULSE_ARG_FMT_CHAR:
+					break;
 				default:
 					if (!(c == OSCUtil.OSC_ARG_FMT_HEADER_CHAR && iArg == 0)) {
 						logError("Listener: unexpected OSC arg format '" + c

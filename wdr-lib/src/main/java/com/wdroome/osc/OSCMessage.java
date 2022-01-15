@@ -72,6 +72,18 @@ public class OSCMessage
 	}
 	
 	/**
+	 * Add a n IMPULSE argument.
+	 */
+	public void addImpulseArg()
+	{
+		if (m_argTypes == null) {
+			m_argTypes = OSCUtil.OSC_IMPULSE_ARG_FMT;
+		} else {
+			m_argTypes += OSCUtil.OSC_IMPULSE_ARG_FMT;
+		}
+	}
+	
+	/**
 	 * Add a TIME_TAG argument.
 	 * @param timeTag The time tah argument.
 	 */
