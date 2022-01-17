@@ -135,7 +135,7 @@ public class ArtNetChannel extends Thread
 		if (listenPorts == null || listenPorts.isEmpty()) {
 			listenPorts = ArrayToList.toList(new int[] {ArtNetConst.ARTNET_PORT});
 		} else if (!(listenPorts instanceof Set)) {
-			listenPorts = new HashSet(listenPorts);
+			listenPorts = new HashSet<>(listenPorts);
 		}
 		ArrayList<ChannelInfo> listenChans = new ArrayList<ChannelInfo>();
 		for (InetSocketAddress addr: getLocalInetAddrs(listenPorts)) {
@@ -396,9 +396,6 @@ public class ArtNetChannel extends Thread
 	
 	/**
 	 * Return all the socket addresses on which we should listen.
-	 * I tried explicitly enumerating the local addresses,
-	 * but that caused unexplained problems with send().
-	 * So for now, anyway, this returns wildcard addresses for all ports.
 	 * @param ports The ports on which to listen.
 	 * @return The socket addresses on which to listen.
 	 */
@@ -407,18 +404,26 @@ public class ArtNetChannel extends Thread
 		Set<InetSocketAddress> addrs = new HashSet<>();
 		for (int port: ports) {
 			if (true) {
-				// Use a wildcard address for each port.
-				addrs.add(new InetSocketAddress((InetAddress)null, port));
-			} else {
 				// Explicitly listen to each ipv4 address on that port.
 				for (InetInterface iface: InetInterface.getAllInterfaces()) {
 					if (iface.m_address instanceof Inet4Address) {
 						addrs.add(new InetSocketAddress(iface.m_address, port));
+						System.out.println("Listening on " + iface.m_address + ":" + port);
 					}
 					if (iface.m_broadcast != null && iface.m_broadcast instanceof Inet4Address) {
 						addrs.add(new InetSocketAddress(iface.m_broadcast, port));
+						System.out.println("Listening on " + iface.m_broadcast + ":" + port);
 					}
 				}
+			} else {
+				// In earlier versions of Java and MacOS, listening on every ipv4 address didn't work.
+				// I couldn't figure out why. Instead, I tried the workaround of
+				// using a wildcard address for each port.
+				// But as of Java 17 and MacOS 12, it worked.
+				// Dunno if the java or apple folks fixed it, or if I had some other error
+				// that I have since fixed. But I left the alternative in as dead code,
+				// just in case.
+				addrs.add(new InetSocketAddress((InetAddress)null, port));
 			}
 		}
 		return addrs;
