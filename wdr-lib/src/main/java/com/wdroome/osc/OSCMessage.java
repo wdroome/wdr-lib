@@ -2,9 +2,15 @@ package com.wdroome.osc;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.function.Consumer;
 
 import com.wdroome.util.ImmutableList;
 
+/**
+ * An OSC messages (version 1,1)
+ * @author wdr
+ */
 public class OSCMessage
 {
 	private final String m_method;
@@ -24,7 +30,7 @@ public class OSCMessage
 	/**
 	 * Create a new OSC message.
 	 * @param method The method.
-	 * @param args The argments for the message. See {@link addArg(Object)}.
+	 * @param args The arguments for the message. See {@link addArg(Object)}.
 	 */
 	public OSCMessage(String method, Object[] args)
 	{
@@ -33,6 +39,62 @@ public class OSCMessage
 		if (args != null) {
 			for (Object arg: args) {
 				addArg(arg);
+			}
+		}
+	}
+	
+	/**
+	 * Create an OSCMessage from raw bytes returned by a Byte iterator.
+	 * @param iter Returns the bytes of the raw message.
+	 * @param logError If not null, call logError.accept(message)
+	 * 		if there is an unknown argument format.
+	 * @throws NoSuchElementException If there aren't enough bytes in the iterator.
+	 */
+	public OSCMessage(Iterator<Byte> iter, Consumer<String> logError)
+	{
+		m_createTS = System.currentTimeMillis();
+		m_method = OSCUtil.getOSCString(iter);
+		m_argTypes = OSCUtil.getOSCString(iter);
+		int argCnt = m_argTypes.length();
+		if (argCnt > 0) {
+			m_args = new ArrayList<>(argCnt);
+		}
+		for (int iArg = 0; iArg < argCnt; iArg++) {
+			char c = m_argTypes.charAt(iArg);
+			switch (c) {
+			case OSCUtil.OSC_STR_ARG_FMT_CHAR:
+				addArg(OSCUtil.getOSCString(iter));
+				break;
+			case OSCUtil.OSC_INT32_ARG_FMT_CHAR:
+				addArg(OSCUtil.getOSCInt32(iter));
+				break;
+			case OSCUtil.OSC_FLOAT_ARG_FMT_CHAR:
+				addArg(OSCUtil.getOSCFloat32(iter));
+				break;
+			case OSCUtil.OSC_INT64_ARG_FMT_CHAR:
+				addArg(OSCUtil.getOSCInt64(iter));
+				break;
+			case OSCUtil.OSC_BLOB_ARG_FMT_CHAR:
+				addArg(OSCUtil.getOSCBlob(iter));
+				break;
+			case OSCUtil.OSC_TIME_TAG_ARG_FMT_CHAR:
+				addArg(OSCUtil.getOSCInt64(iter));
+				break;
+			case OSCUtil.OSC_TRUE_ARG_FMT_CHAR:
+				addArg(Boolean.TRUE);
+				break;
+			case OSCUtil.OSC_FALSE_ARG_FMT_CHAR:
+				addArg(Boolean.FALSE);
+				break;
+			case OSCUtil.OSC_NULL_ARG_FMT_CHAR:
+				break;
+			case OSCUtil.OSC_IMPULSE_ARG_FMT_CHAR:
+				break;
+			default:
+				if (logError != null && !(c == OSCUtil.OSC_ARG_FMT_HEADER_CHAR && iArg == 0)) {
+					logError.accept("Listener: unexpected OSC arg format '" + c
+							+ "' in '" + m_argTypes + "' " + iArg);						
+				}
 			}
 		}
 	}
@@ -72,7 +134,7 @@ public class OSCMessage
 	}
 	
 	/**
-	 * Add a n IMPULSE argument.
+	 * Add an IMPULSE argument.
 	 */
 	public void addImpulseArg()
 	{
@@ -123,7 +185,7 @@ public class OSCMessage
 	 */
 	public List<Object> getArgs()
 	{
-		return m_args != null ? new ImmutableList(m_args) : List.of();
+		return m_args != null ? new ImmutableList<Object>(m_args) : List.of();
 	}
 	
 	/**

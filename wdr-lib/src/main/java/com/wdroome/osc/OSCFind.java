@@ -2,26 +2,38 @@ package com.wdroome.osc;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 import java.net.InetAddress;
 import java.io.IOException;
 import java.net.Inet4Address;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.wdroome.util.MiscUtil;
 import com.wdroome.util.inet.CIDRAddress;
 import com.wdroome.util.inet.InetInterface;
 
-public class OSCFind implements OSCConnection.MessageHandler
+/**
+ * Find OSC servers on attached interfaces.
+ * @author wdr
+ */
+public class OSCFind
 {
-	private int m_connectTimeoutMS = 150;
+	private int m_connectTimeoutMS = 500;
 	private PreConnect m_preConn = null;
 	private PostConnect m_postConn = null;
 	private int m_respWaitMS = 3000;
 	
-	private InetAddress m_testAddr;
-	private List<OSCMessage> m_responses = new ArrayList<>();
-	private long m_connectTS;
+	private final int NUM_WORKERS = 32;
+	private final int MAX_TEST_ADDRS = 8192;	// To keep it from running too long ...
 	
+	private final AtomicBoolean m_finishedAddingAddrs = new AtomicBoolean(false);
+		
 	public interface PreConnect
 	{
 		public boolean preConnect(InetAddress addr);
@@ -35,7 +47,14 @@ public class OSCFind implements OSCConnection.MessageHandler
 	public List<InetAddress> find(int port)
 	{
 		boolean running = true;
-		List<InetAddress> addrs = new ArrayList<>();
+		ArrayBlockingQueue<InetAddress> pendingAddrs = new ArrayBlockingQueue<>(NUM_WORKERS);
+		ArrayList<InetAddress> foundAddrs = new ArrayList<>();
+		ArrayList<Worker> workers = new ArrayList<>();
+		
+		for (int i = 0; i < NUM_WORKERS; i++) {
+			workers.add(new Worker(i, port, pendingAddrs, foundAddrs));
+		}
+		int nTestAddrs = 0;
 		for (InetInterface iface: InetInterface.getAllInterfaces()) {
 			if (!running) {
 				break;
@@ -45,51 +64,114 @@ public class OSCFind implements OSCConnection.MessageHandler
 					if (!running) {
 						break;
 					}
-					m_testAddr = addr;
-					// System.out.println("XXX: test " + addr);
-					if (m_preConn != null) {
-						if (!m_preConn.preConnect(addr)) {
-							running = false;
-							break;
-						}
+					if (++nTestAddrs > MAX_TEST_ADDRS) {
+						running = false;
+						break;
 					}
-					OSCConnection conn = new OSCConnection(addr, port);
-					conn.setMessageHandler(this);
-					conn.setConnectTimeout(m_connectTimeoutMS);
-					m_responses.clear();
 					try {
-						long ts = System.currentTimeMillis();
-						conn.connect();
-						m_connectTS = System.currentTimeMillis();
-						System.out.println("XXX Connected to " + addr + " in "
-								+ (System.currentTimeMillis() - ts) + "ms");
-						if (m_respWaitMS > 0) {
-							MiscUtil.sleep(m_respWaitMS);
-						}
-						addrs.add(addr);
-						conn.disconnect();
-						MiscUtil.sleep(500);	// Drain any responses
-						if (m_postConn != null) {
-							m_postConn.postConnect(addr, m_responses);
-						}
-					} catch (IOException e) {
-						continue;
+						pendingAddrs.put(addr);
+					} catch (Exception e) {
+						running = false;
+						break;
 					}
 				}
 			}
 		}
-		return addrs;
+		m_finishedAddingAddrs.set(true);
+		// System.out.println("XXX: done adding addrs, waiting for workers to finish.");
+		for (Worker worker: workers) {
+			try {
+				worker.join();
+			} catch (InterruptedException e) {
+			}
+		}
+		return foundAddrs;
 	}
-
-	@Override
-	public void handleOscResponse(OSCMessage msg)
+	
+	private class Worker extends Thread implements OSCConnection.MessageHandler
 	{
-		System.out.println("   RESP "
-					+ m_testAddr.getHostAddress()
-					+ " in " + (System.currentTimeMillis() - m_connectTS)
-					+ "ms: " + msg);
-		if (m_responses != null) {
-			m_responses.add(msg);
+		private final BlockingQueue<InetAddress> m_pendingAddrs;
+		private final ArrayList<InetAddress> m_foundAddrs;
+		private final int m_port;
+		private boolean m_running = true;
+		private InetAddress m_testAddr;
+		private List<OSCMessage> m_responses = new ArrayList<>();
+		private long m_connectTS;
+		
+		public Worker(int workerNum, int port, BlockingQueue<InetAddress> pendingAddrs,
+					ArrayList<InetAddress> foundAddrs)
+		{
+			setName("OSCFind.Worker-" + workerNum);
+			setDaemon(true);
+			m_port = port;
+			m_pendingAddrs = pendingAddrs;
+			m_foundAddrs = foundAddrs;
+			start();
+		}
+
+		@Override
+		public void run()
+		{
+			while (m_running) {
+				try {
+					m_testAddr = m_pendingAddrs.poll(1000, TimeUnit.MILLISECONDS);
+					if (m_testAddr == null) {
+						if (m_finishedAddingAddrs.get()) {
+							m_running = false;
+							break;
+						} else {
+							continue;
+						}
+					}
+				} catch (InterruptedException e) {
+					m_running = false;
+					break;
+				}
+				if (m_preConn != null) {
+					if (!m_preConn.preConnect(m_testAddr)) {
+						m_running = false;
+						break;
+					}
+				}
+				m_responses.clear();
+				OSCConnection conn = new OSCConnection(m_testAddr, m_port);
+				conn.setMessageHandler(this);
+				conn.setConnectTimeout(m_connectTimeoutMS);
+				try {
+					long ts = System.currentTimeMillis();
+					conn.connect();
+					m_connectTS = System.currentTimeMillis();
+					if (false) {
+						System.out.println("XXX Connected to " + m_testAddr + " in " + (System.currentTimeMillis() - ts)
+								+ "ms");
+					}
+					if (m_respWaitMS > 0) {
+						MiscUtil.sleep(m_respWaitMS);
+					}
+					synchronized (m_foundAddrs) {
+						m_foundAddrs.add(m_testAddr);
+					}
+					conn.disconnect();
+					MiscUtil.sleep(500);	// Drain any responses
+					if (m_postConn != null) {
+						m_postConn.postConnect(m_testAddr, m_responses);
+					}
+				} catch (IOException e) {
+					continue;
+				}
+			}
+		}
+		
+		@Override
+		public void handleOscResponse(OSCMessage msg)
+		{
+			if (false) {
+				System.out.println("   RESP " + m_testAddr.getHostAddress() + " in "
+						+ (System.currentTimeMillis() - m_connectTS) + "ms: " + msg);
+			}
+			if (m_responses != null) {
+				m_responses.add(msg);
+			}
 		}
 	}
 
@@ -117,26 +199,50 @@ public class OSCFind implements OSCConnection.MessageHandler
 		this.m_postConn = postConn;
 	}
 
-	public int getM_respWaitMS() {
+	public int geRespWaitMS() {
 		return m_respWaitMS;
 	}
 
-	public void setM_respWaitMS(int m_respWaitMS) {
+	public void setRespWaitMS(int m_respWaitMS) {
 		this.m_respWaitMS = m_respWaitMS;
 	}
 
 	public static void main(String[] args)
 	{
+		int port;
+		try {
+			port = Integer.parseInt(args[0]);
+		} catch (Exception e) {
+			System.err.println("Usage: OSCFind port#");
+			return;
+		}
+		Map<InetAddress,List<OSCMessage>> serverResponses = new HashMap<>();
 		OSCFind finder = new OSCFind();
-		finder.setPreConn(addr ->  {System.out.print("."); return true;} );
+		if (true) {
+			finder.setPreConn(addr -> {
+				System.out.print(".");
+				return true;
+			});
+		}
 		finder.setPostConn((addr, responses) -> {
-									System.out.println();
-									System.out.println("OSC Server: " + addr.getHostAddress()
-											+ " " + responses.size() + " responses.");
-									return true;
-								});
-		List<InetAddress> oscServers = finder.find(8192);
-		System.out.println("XXX: " + oscServers);
+			synchronized(serverResponses) {
+				serverResponses.put(addr, new ArrayList<OSCMessage>(responses));
+			}
+			return true;
+		});
+
+		List<InetAddress> oscServers = finder.find(port);
+		System.out.println();
+		System.out.println(oscServers.size() + " OSC servers found on port " + port);
+		for (InetAddress addr: oscServers) {
+			System.out.println("   " + addr.getHostAddress());
+		}
+		for (Map.Entry<InetAddress, List<OSCMessage>> ent: serverResponses.entrySet()) {
+			System.out.println(ent.getKey().getHostAddress() + ":");
+			for (OSCMessage msg: ent.getValue()) {
+				System.out.println("  " + msg);
+			}
+		}
 	}
 
 }

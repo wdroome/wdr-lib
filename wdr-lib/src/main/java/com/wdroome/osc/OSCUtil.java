@@ -242,7 +242,7 @@ public class OSCUtil
 		int ret = 0;
 		for (int n = 0; n < 4; n++) {
 			if (iter.hasNext()) {
-				ret = ret << 8 | iter.next();
+				ret = ret << 8 | (0xff & iter.next().byteValue());
 			}
 		}
 		return ret;
@@ -264,7 +264,7 @@ public class OSCUtil
 		long ret = 0;
 		for (int n = 0; n < 8; n++) {
 			if (iter.hasNext()) {
-				ret = ret << 8 | iter.next();
+				ret = ret << 8 | (0xff & iter.next().byteValue());
 			}
 		}
 		return ret;

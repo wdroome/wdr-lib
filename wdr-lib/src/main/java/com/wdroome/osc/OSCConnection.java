@@ -27,7 +27,8 @@ import com.wdroome.json.JSONValue_String;
 import com.wdroome.util.MiscUtil;
 
 /**
- * Manage a connection to the QLab server.
+ * Manage a connection to an OSC server.
+ * This only supports version 1.1, via TCP and SLIP.
  * @author wdr
  */
 public class OSCConnection
@@ -300,12 +301,16 @@ public class OSCConnection
 		public void run()
 		{
 			while (m_running) {
-				OSCMessage msg = readOscMessage();
-				if (m_messageHandler != null) {
-					m_messageHandler.handleOscResponse(msg);
-				}
-				if (msg == null) {
-					break;
+				try {
+					OSCMessage msg = readOscMessage();
+					if (m_messageHandler != null) {
+						m_messageHandler.handleOscResponse(msg);
+					}
+					if (msg == null) {
+						break;
+					}
+				} catch (Exception e) {
+					logError("Error parsing OSC response message: " + e);
 				}
 			}
 		}
@@ -324,49 +329,7 @@ public class OSCConnection
 			if (reply == null || reply.isEmpty()) {
 				return null;
 			}
-			Iterator<Byte> iter = reply.iterator();
-			OSCMessage ret = new OSCMessage(OSCUtil.getOSCString(iter));
-			String argFmt = OSCUtil.getOSCString(iter);
-			int argCnt = argFmt.length();
-			for (int iArg = 0; iArg < argCnt; iArg++) {
-				char c = argFmt.charAt(iArg);
-				switch (c) {
-				case OSCUtil.OSC_STR_ARG_FMT_CHAR:
-					ret.addArg(OSCUtil.getOSCString(iter));
-					break;
-				case OSCUtil.OSC_INT32_ARG_FMT_CHAR:
-					ret.addArg(OSCUtil.getOSCInt32(iter));
-					break;
-				case OSCUtil.OSC_FLOAT_ARG_FMT_CHAR:
-					ret.addArg(OSCUtil.getOSCFloat32(iter));
-					break;
-				case OSCUtil.OSC_INT64_ARG_FMT_CHAR:
-					ret.addArg(OSCUtil.getOSCInt64(iter));
-					break;
-				case OSCUtil.OSC_BLOB_ARG_FMT_CHAR:
-					ret.addArg(OSCUtil.getOSCBlob(iter));
-					break;
-				case OSCUtil.OSC_TIME_TAG_ARG_FMT_CHAR:
-					ret.addArg(OSCUtil.getOSCInt64(iter));
-					break;
-				case OSCUtil.OSC_TRUE_ARG_FMT_CHAR:
-					ret.addArg(Boolean.TRUE);
-					break;
-				case OSCUtil.OSC_FALSE_ARG_FMT_CHAR:
-					ret.addArg(Boolean.FALSE);
-					break;
-				case OSCUtil.OSC_NULL_ARG_FMT_CHAR:
-					break;
-				case OSCUtil.OSC_IMPULSE_ARG_FMT_CHAR:
-					break;
-				default:
-					if (!(c == OSCUtil.OSC_ARG_FMT_HEADER_CHAR && iArg == 0)) {
-						logError("Listener: unexpected OSC arg format '" + c
-								+ "' in '" + argFmt + "' " + iArg);						
-					}
-				}
-			}
-			return ret;			
+			return new OSCMessage(reply.iterator(), (msg) -> logError(msg));
 		}
 	
 		private void shutdown()
