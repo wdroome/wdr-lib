@@ -26,13 +26,13 @@ public class OSCUtil
 	public static final String OSC_STR_ARG_FMT
 					= Character.valueOf(OSC_STR_ARG_FMT_CHAR).toString();
 
+	public static final char OSC_CHAR_ARG_FMT_CHAR = 'c';
+	public static final String OSC_CHAR_ARG_FMT
+					= Character.valueOf(OSC_STR_ARG_FMT_CHAR).toString();
+
 	public static final char OSC_INT32_ARG_FMT_CHAR = 'i';
 	public static final String OSC_INT32_ARG_FMT
 					= Character.valueOf(OSC_INT32_ARG_FMT_CHAR).toString();
-
-	public static final char OSC_FLOAT_ARG_FMT_CHAR = 'f';
-	public static final String OSC_FLOAT_ARG_FMT
-					= Character.valueOf(OSC_FLOAT_ARG_FMT_CHAR).toString();
 
 	public static final char OSC_INT64_ARG_FMT_CHAR = 'h';
 	public static final String OSC_INT64_ARG_FMT
@@ -41,6 +41,14 @@ public class OSCUtil
 	public static final char OSC_BLOB_ARG_FMT_CHAR = 'b';
 	public static final String OSC_BLOB_ARG_FMT
 					= Character.valueOf(OSC_BLOB_ARG_FMT_CHAR).toString();
+
+	public static final char OSC_FLOAT_ARG_FMT_CHAR = 'f';
+	public static final String OSC_FLOAT_ARG_FMT
+					= Character.valueOf(OSC_FLOAT_ARG_FMT_CHAR).toString();
+
+	public static final char OSC_DOUBLE_ARG_FMT_CHAR = 'd';
+	public static final String OSC_DOUBLE_ARG_FMT
+					= Character.valueOf(OSC_FLOAT_ARG_FMT_CHAR).toString();
 
 	public static final char OSC_TIME_TAG_ARG_FMT_CHAR = 't';
 	public static final String OSC_TIME_TAG_ARG_FMT
@@ -79,10 +87,14 @@ public class OSCUtil
 			return OSC_STR_ARG_FMT;
 		} else if (arg instanceof Integer) {
 			return OSC_INT32_ARG_FMT;
-		} else if (arg instanceof Float) {
-			return OSC_FLOAT_ARG_FMT;
 		} else if (arg instanceof Long) {
 			return OSC_INT64_ARG_FMT;
+		} else if (arg instanceof Float) {
+			return OSC_FLOAT_ARG_FMT;
+		} else if (arg instanceof Double) {
+			return OSC_DOUBLE_ARG_FMT;
+		} else if (arg instanceof Character) {
+			return OSC_CHAR_ARG_FMT;
 		} else if (arg instanceof byte[]) {
 			return OSC_BLOB_ARG_FMT;
 		} else if (arg instanceof Boolean) {
@@ -117,10 +129,14 @@ public class OSCUtil
 			return toOSCBytes((String)arg);
 		case OSC_INT32_ARG_FMT_CHAR:
 			return toOSCBytes(((Integer)arg));
-		case OSC_FLOAT_ARG_FMT_CHAR:
-			return toOSCBytes((Float)arg);
 		case OSC_INT64_ARG_FMT_CHAR:
 			return toOSCBytes((Long)arg);
+		case OSC_FLOAT_ARG_FMT_CHAR:
+			return toOSCBytes((Float)arg);
+		case OSC_DOUBLE_ARG_FMT_CHAR:
+			return toOSCBytes((Double)arg);
+		case OSC_CHAR_ARG_FMT_CHAR:
+			return toOSCBytes(((Character)arg).charValue());
 		case OSC_BLOB_ARG_FMT_CHAR:
 			return (byte[])arg;
 		case OSC_TIME_TAG_ARG_FMT_CHAR:
@@ -169,6 +185,19 @@ public class OSCUtil
 	}
 	
 	/**
+	 * Convert a java char into a byte array
+	 * for an OSC (Open Sound Control) char data item.
+	 * Specifically, a byte[4] array
+	 * with the ascii character in the first byte.
+	 * @param c The input char.
+	 * @return "c" as a byte[4].
+	 */
+	public static byte[] toOSCBytes(char c)
+	{
+		return new byte[] {(byte)(c&0xff), 0, 0, 0};
+	}
+	
+	/**
 	 * Convert a java long into a byte array
 	 * for an OSC (Open Sound Control) int64 or OSC Time Tag data item.
 	 * Specifically, a big-endian byte[8] array.
@@ -199,6 +228,18 @@ public class OSCUtil
 	public static byte[] toOSCBytes(float f)
 	{
 		return toOSCBytes(Float.floatToIntBits(f));
+	}
+
+	/**
+	 * Convert a java double into a byte array
+	 * for an OSC (Open Sound Control) double data item.
+	 * Specifically, a big-endian byte[8] array.
+	 * @param f The input double.
+	 * @return "d" as a byte array of length 8x.
+	 */
+	public static byte[] toOSCBytes(double d)
+	{
+		return toOSCBytes(Double.doubleToLongBits(d));
 	}
 	
 	/**
@@ -279,11 +320,51 @@ public class OSCUtil
 	 * 		Leave the iterator pointing to the next byte
 	 * 		after the OSC argument.
 	 * @return
-	 * 		An Float with the OSC float32 parameter.
+	 * 		A float with the OSC float32 parameter.
 	 */
 	public static float getOSCFloat32(Iterator<Byte> iter)
 	{
 		return Float.intBitsToFloat(getOSCInt32(iter));
+	}
+	
+	/**
+	 * Parse an double64-valued OSC argument.
+	 * @param iter
+	 * 		A iterator for the bytes in an OSC message.
+	 * 		The next byte should be the start of double64 argument.
+	 * 		Read the raw bytes and return them as a Double.
+	 * 		Leave the iterator pointing to the next byte
+	 * 		after the OSC argument.
+	 * @return
+	 * 		A double with the OSC double64 parameter.
+	 */
+	public static double getOSCDouble64(Iterator<Byte> iter)
+	{
+		return Double.longBitsToDouble(getOSCInt64(iter));
+	}
+	
+	/**
+	 * Parse an ascii char-valued OSC argument.
+	 * @param iter
+	 * 		A iterator for the bytes in an OSC message.
+	 * 		The next byte should be the start of the 32-bit char argument.
+	 * 		Read the raw bytes and return them as a char.
+	 * 		Leave the iterator pointing to the next byte
+	 * 		after the OSC argument.
+	 * Question: The 1.0 spec says the ascii character is encoded in a 32-bit integer.
+	 * 		But it doesn't say if it's the high byte or the low byte.
+	 * 		This code assumes the high byte (first byte), and the rest is padding.
+	 * @return
+	 * 		A Character with the OSC char parameter.
+	 */
+	public static Character getOSCChar(Iterator<Byte> iter)
+	{
+		// Use first byte, skip next 3.
+		char v = (char)(iter.next() & 0xff);
+		iter.next();
+		iter.next();
+		iter.next();
+		return Character.valueOf(v);
 	}
 	
 	/**

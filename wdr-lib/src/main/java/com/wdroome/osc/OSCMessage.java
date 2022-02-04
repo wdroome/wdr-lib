@@ -54,13 +54,13 @@ public class OSCMessage
 	{
 		m_createTS = System.currentTimeMillis();
 		m_method = OSCUtil.getOSCString(iter);
-		m_argTypes = OSCUtil.getOSCString(iter);
-		int argCnt = m_argTypes.length();
+		String argTypes = OSCUtil.getOSCString(iter);
+		int argCnt = argTypes.length();
 		if (argCnt > 0) {
 			m_args = new ArrayList<>(argCnt);
 		}
 		for (int iArg = 0; iArg < argCnt; iArg++) {
-			char c = m_argTypes.charAt(iArg);
+			char c = argTypes.charAt(iArg);
 			switch (c) {
 			case OSCUtil.OSC_STR_ARG_FMT_CHAR:
 				addArg(OSCUtil.getOSCString(iter));
@@ -68,11 +68,17 @@ public class OSCMessage
 			case OSCUtil.OSC_INT32_ARG_FMT_CHAR:
 				addArg(OSCUtil.getOSCInt32(iter));
 				break;
+			case OSCUtil.OSC_INT64_ARG_FMT_CHAR:
+				addArg(OSCUtil.getOSCInt64(iter));
+				break;
 			case OSCUtil.OSC_FLOAT_ARG_FMT_CHAR:
 				addArg(OSCUtil.getOSCFloat32(iter));
 				break;
-			case OSCUtil.OSC_INT64_ARG_FMT_CHAR:
-				addArg(OSCUtil.getOSCInt64(iter));
+			case OSCUtil.OSC_DOUBLE_ARG_FMT_CHAR:
+				addArg(OSCUtil.getOSCDouble64(iter));
+				break;
+			case OSCUtil.OSC_CHAR_ARG_FMT_CHAR:
+				addArg(OSCUtil.getOSCChar(iter));
 				break;
 			case OSCUtil.OSC_BLOB_ARG_FMT_CHAR:
 				addArg(OSCUtil.getOSCBlob(iter));
@@ -93,7 +99,7 @@ public class OSCMessage
 			default:
 				if (logError != null && !(c == OSCUtil.OSC_ARG_FMT_HEADER_CHAR && iArg == 0)) {
 					logError.accept("Listener: unexpected OSC arg format '" + c
-							+ "' in '" + m_argTypes + "' " + iArg);						
+							+ "' in '" + argTypes + "' " + iArg);						
 				}
 			}
 		}
@@ -147,7 +153,7 @@ public class OSCMessage
 	
 	/**
 	 * Add a TIME_TAG argument.
-	 * @param timeTag The time tah argument.
+	 * @param timeTag The time tag argument.
 	 */
 	public void addTimeTagArg(long timeTag)
 	{
