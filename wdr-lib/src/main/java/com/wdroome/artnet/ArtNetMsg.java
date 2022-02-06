@@ -10,6 +10,7 @@ import com.wdroome.util.inet.InetUtil;
 
 /**
  * Base class for Art-Net messages.
+ * Art-Net (TM) Designed by and Copyright Artistic Licence Holdings Ltd.
  * @author wdr
  */
 public abstract class ArtNetMsg

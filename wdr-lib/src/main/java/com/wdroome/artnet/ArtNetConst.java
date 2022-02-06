@@ -1,7 +1,8 @@
 package com.wdroome.artnet;
 
 /**
- * Common constants for the Art-Net Protocol (version 3).
+ * Common constants for the Art-Net Protocol (version 4).
+ * Art-Net (TM) Designed by and Copyright Artistic Licence Holdings Ltd.
  * @author wdr
  */
 public class ArtNetConst

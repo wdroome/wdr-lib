@@ -2,6 +2,7 @@ package com.wdroome.artnet;
 
 /**
  * The Art-Net opcodes.
+ * Art-Net (TM) Designed by and Copyright Artistic Licence Holdings Ltd.
  * @author wdr
  */
 public enum ArtNetOpcode
