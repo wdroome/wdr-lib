@@ -15,6 +15,10 @@ import com.wdroome.artnet.ArtNetPollReply;
 import com.wdroome.artnet.ArtNetChannel;
 
 /**
+ * A utility program that prints all Art-Net messages that it receives.
+ * The command line arguments are ports to listen for Art-Net messages.
+ * If no ports are specified, listen to the default Art-Net port.
+ * Art-Net (TM) Designed by and Copyright Artistic Licence Holdings Ltd.
  * @author wdr
  */
 public class ArtNetMonitor extends ArtNetChannel.MsgPrinter
@@ -46,7 +50,8 @@ public class ArtNetMonitor extends ArtNetChannel.MsgPrinter
 	public void shutdown() { m_chan.shutdown(); }
 
 	/**
-	 * @param args
+	 * Print all Art-Net messages on a set of ports.
+	 * @param args The ports. If no ports specified, listen on the defaults Art-Net port.
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws IOException
