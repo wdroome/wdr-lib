@@ -9,10 +9,15 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
+import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.function.Predicate;
+import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import com.wdroome.json.JSONLexan;
 import com.wdroome.json.JSONParseException;
@@ -35,6 +40,7 @@ public class OSCConnection
 {
 	/**
 	 * Callback for response messages.
+	 * This is a legacy; new code should implement a Consumer&lt;OSCMessage&gt;.
 	 * @author wdr
 	 */
 	public interface MessageHandler
@@ -46,6 +52,31 @@ public class OSCConnection
 		 * 			and no more messages will be arriving.
 		 */
 		void handleOscResponse(OSCMessage msg);
+	}
+	
+	/**
+	 * An opaque class representing a handler for reply messages
+	 * that match a pattern. When the client declares a reply handler,
+	 * the base class creates an instance and returns it to the client.
+	 * The client can use that instance to cancel the reply handler.
+	 * @author wdr
+	 */
+	public class ReplyHandler
+	{
+		private final Pattern m_methodPattern;
+		private final Predicate<OSCMessage> m_replyHandler;
+		
+		private ReplyHandler(String methodRegex, Predicate<OSCMessage> replyHandler)
+		{
+			m_methodPattern = Pattern.compile(methodRegex);
+			m_replyHandler = replyHandler;
+		}
+		
+		@Override
+		public String toString()
+		{
+			return "OSCConnection.ReplyHandler(" + m_methodPattern.toString() + ")";
+		}
 	}
 
 	public static final int DEF_CONNECT_TIMEOUT = 30 * 1000;
@@ -60,6 +91,11 @@ public class OSCConnection
 											// only use this when Listener isn't active.
 
 	private MessageHandler m_messageHandler = null;
+	private Consumer<OSCMessage> m_messageConsumer = null;
+	
+	// m_replyHandlers is shared by the Listener thread and the clients.
+	// Must synchronize for all access.
+	private final List<ReplyHandler> m_replyHandlers = new LinkedList<ReplyHandler>();
 
 	private int m_connectTimeout = DEF_CONNECT_TIMEOUT;
 	
@@ -212,10 +248,36 @@ public class OSCConnection
 	}
 	
 	/**
+	 * Send a message to the server and call a handler on the reply messages sent by the server,
+	 * @param msg The message to send.
+	 * @param replyMethodRegex A regular expression that matches the method
+	 * 			in the reply messages expected for "msg".
+	 * @param handler The handler. If it returns false, remove the handler for that regex
+	 * 		(e.g., the server will not send any more replies for this request.
+	 * @return A ReplyHandler object for the registered reply handler.
+	 * 		The caller can use this to drop the reply handler if needed.
+	 * @throws IOException
+	 * 		If an error occurs while sending the message.
+	 */
+	public ReplyHandler sendMessage(OSCMessage msg, String replyMethodRegex, Predicate<OSCMessage> handler)
+			throws IOException
+	{
+		ReplyHandler replyHandler = addReplyHandler(replyMethodRegex, handler);
+		try {
+			sendMessage(msg);
+			return replyHandler;
+		} catch (IOException e) {
+			dropReplyHandler(replyHandler);
+			throw e;
+		}
+	}
+	
+	/**
 	 * Set the callback for asynchronous response messages from the OSC server.
 	 * There can only be one handler;
 	 * setting a new one removes the previous one.
 	 * Furthermore, you must set the handler BEFORE calling {@link #connect()}.
+	 * This is deprecated; use (@link {@link #setMessageConsumer(Consumer) instead.
 	 * @param messageHandler The new update handler, or null.
 	 * @throws IllegalStateException
 	 * 		If we are currently connected to a server.
@@ -226,6 +288,63 @@ public class OSCConnection
 			throw new IllegalStateException("OSCConnection.setMessageHandler(): already connected");
 		}
 		m_messageHandler = messageHandler;
+		m_messageConsumer = null;
+	}
+	
+	/**
+	 * Set the callback for asynchronous response messages from the OSC server.
+	 * These are messages that do NOT match a registered reply handler.
+	 * There can only be one handler;
+	 * setting a new one removes the previous one.
+	 * Furthermore, you must set the handler BEFORE calling {@link #connect()}.
+	 * @param messageConsumer The new response handler, or null.
+	 * 		The argument is the incoming message. If null, a fatal error occurred
+	 * 		and the class disconnected from the OSC server.
+	 * 		No more messages will arrive.
+	 * @throws IllegalStateException
+	 * 		If we are currently connected to a server.
+	 */
+	public void setMessageConsumer(Consumer<OSCMessage> messageConsumer)
+	{
+		if (m_listener != null) {
+			throw new IllegalStateException("OSCConnection.setMessageCosumer(): already connected");
+		}
+		m_messageConsumer = messageConsumer;
+		m_messageHandler = null;
+	}
+	
+	/**
+	 * Register a new reply handler.
+	 * @param methodRegex A regular expression. The handler will be called for all incoming messages
+	 * 		whose method matches this regex.
+	 * @param replyHandler The reply handler code.
+	 * 		If it returns true, the reply handler will remain active and will be called
+	 * 		if another response matches the regex. If it returns false, the client does not
+	 * 		expect any more responses that match this regex, and the handler will be removed.
+	 * 		NOTE: If the client adds multiple handlers for the same regex, they will all
+	 * 		be called when a matching message arrives.
+	 * @return An opaque object which the client can use to remove this handler
+	 * 		(see {@link #dropReplyHandler(ReplyHandler)}).
+	 */
+	public ReplyHandler addReplyHandler(String methodRegex, Predicate<OSCMessage> replyHandler)
+	{
+		ReplyHandler rep = new ReplyHandler(methodRegex, replyHandler);
+		synchronized (m_replyHandlers) {
+			m_replyHandlers.add(rep);
+		}
+		return rep;
+	}
+	
+	/**
+	 * Remove a previously registered reply handler.
+	 * @param replyHandler The replay handler to remove.
+	 * @return True if the reply handler was removed. False means it had already been removed.
+	 */
+	public boolean dropReplyHandler(ReplyHandler replyHandler)
+	{
+		synchronized (m_replyHandlers) {
+			return m_replyHandlers.remove(replyHandler);
+		}
 	}
 	
 	/**
@@ -301,9 +420,36 @@ public class OSCConnection
 		public void run()
 		{
 			while (m_running) {
+				ArrayList<ReplyHandler> matchingHandlers = new ArrayList<>();
 				try {
+					matchingHandlers.clear();
 					OSCMessage msg = readOscMessage();
-					if (m_messageHandler != null) {
+					// Save matching reply handlers, but do NOT call the handler in the synch block.
+					synchronized (m_replyHandlers) {
+						for (ReplyHandler replyHandler: m_replyHandlers) {
+							if (replyHandler.m_methodPattern.matcher(msg.getMethod()).matches()) {
+								matchingHandlers.add(replyHandler);
+							}
+						}
+					}
+					// Now call the matching reply handlers. If none, call the backup handler.
+					if (!matchingHandlers.isEmpty()) {
+						for (ReplyHandler replyHandler: matchingHandlers) {
+							boolean keep;
+							try {
+								keep = replyHandler.m_replyHandler.test(msg);
+							} catch (Exception e) {
+								logError("Exception in ReplyHandler for \"" + replyHandler.m_methodPattern
+											+ "\": " + e);
+								keep = false;
+							}
+							if (!keep) {
+								dropReplyHandler(replyHandler);
+							}
+						}
+					} else if (m_messageConsumer != null) {
+						m_messageConsumer.accept(msg);
+					} else if (m_messageHandler != null) {
 						m_messageHandler.handleOscResponse(msg);
 					}
 					if (msg == null) {

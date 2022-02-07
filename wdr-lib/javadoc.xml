@@ -17,7 +17,7 @@
 			destdir="doc"
 			packagenames="com.wdroome.*"
 			sourcepath="src/main/java"
-			source="1.7" splitindex="true"
+			source="11" splitindex="true"
 			bottom="&lt;pre&gt;Page generated on ${myprops.date} at ${myprops.time}&lt;/pre&gt;"
 			nodeprecated="false" nodeprecatedlist="false" noindex="false"
 			nonavbar="false" notree="false"	use="true" version="true">
