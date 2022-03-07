@@ -15,4 +15,25 @@ public interface IErrorLogger
 	 * @param msg The error message.
 	 */
 	public void logError(String msg);
+	
+	/**
+	 * Print an error iff no error of the same category has occurred recently.
+	 * The default version always prints the message, and the prepends the category if not empty.
+	 * When printing, show the total number of errors of this category. 
+	 * @param category The category (or type).
+	 * @param intvlMS The time between printing errors of this type, in millisec.
+	 * 			If 0, always show the message.
+	 * @param msg The error message itself.
+	 */
+	default public void logError(String category, long intvlMS, String msg)
+	{
+		if (category == null || category.isBlank()) {
+			logError(msg);
+		} else {
+			if (!category.endsWith(":")) {
+				category += ":";
+			}
+			logError(category + " " + msg);
+		}
+	}
 }
