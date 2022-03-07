@@ -55,6 +55,13 @@ public class OSCFind
 			workers.add(new Worker(i, port, pendingAddrs, foundAddrs));
 		}
 		int nTestAddrs = 0;
+		System.out.print("Address ranges to check: ");
+		for (InetInterface iface: InetInterface.getAllInterfaces()) {
+			if (iface.m_address instanceof Inet4Address) {
+				System.out.print(" " + iface.m_cidr);
+			}	
+		}
+		System.out.println();
 		for (InetInterface iface: InetInterface.getAllInterfaces()) {
 			if (!running) {
 				break;
@@ -209,12 +216,22 @@ public class OSCFind
 
 	public static void main(String[] args)
 	{
-		int port;
-		try {
-			port = Integer.parseInt(args[0]);
-		} catch (Exception e) {
-			System.err.println("Usage: OSCFind port#");
-			return;
+		int port = -1;
+		boolean showResp = false;
+		for (String arg: args) {
+			if (arg.equals("-showresp")) {
+				showResp = true;
+			} else if (arg.equals("hideresp")) {
+				showResp = false;
+			} else if (arg.matches("[0-9]+")) {
+				port = Integer.valueOf(arg);
+			} else {
+				System.err.println("Unknown argument \"" + arg + "\"");
+			}
+		}
+		if (port <= 0) {
+			System.err.println("Usage: OSCFind [-showresp] [-hideresp] port");
+			System.exit(1);
 		}
 		Map<InetAddress,List<OSCMessage>> serverResponses = new HashMap<>();
 		OSCFind finder = new OSCFind();
@@ -237,11 +254,13 @@ public class OSCFind
 		for (InetAddress addr: oscServers) {
 			System.out.println("   " + addr.getHostAddress());
 		}
-		for (Map.Entry<InetAddress, List<OSCMessage>> ent: serverResponses.entrySet()) {
-			System.out.println(ent.getKey().getHostAddress() + ":");
-			for (OSCMessage msg: ent.getValue()) {
-				System.out.println("  " + msg);
-			}
+		if (showResp) {
+			for (Map.Entry<InetAddress, List<OSCMessage>> ent : serverResponses.entrySet()) {
+				System.out.println(ent.getKey().getHostAddress() + ":");
+				for (OSCMessage msg : ent.getValue()) {
+					System.out.println("  " + msg);
+				}
+			} 
 		}
 	}
 

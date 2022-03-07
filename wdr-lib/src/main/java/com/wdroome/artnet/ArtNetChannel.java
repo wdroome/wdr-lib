@@ -32,7 +32,7 @@ import com.wdroome.util.inet.InetInterface;
 
 /**
  * A channel for sending and receiving Art-Net messages.
- * Art-Net (TM) Designed by and Copyright Artistic Licence Holdings Ltd.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
 public class ArtNetChannel extends Thread
