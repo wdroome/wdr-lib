@@ -21,7 +21,7 @@ import com.wdroome.artnet.ArtNetDmx;
  * Send ArtNet messages (for testing).
  * Can simulate a lighting "chase" to generate a lot of DMX-level messages rapidly,
  * to stress-test an Art-Net receiver.
- * Art-Net (TM) Designed by and Copyright Artistic Licence Holdings Ltd.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
 public class ArtNetSender extends ArtNetChannel.MsgPrinter

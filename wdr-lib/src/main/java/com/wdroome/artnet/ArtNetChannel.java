@@ -15,11 +15,14 @@ import java.io.PrintStream;
 
 import java.net.StandardProtocolFamily;
 import java.net.SocketAddress;
+import java.net.SocketException;
 import java.net.InetSocketAddress;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.StandardSocketOptions;
-
+import java.net.UnknownHostException;
+import java.net.DatagramSocket;
+import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.nio.channels.Selector;
 import java.nio.channels.DatagramChannel;
@@ -29,6 +32,7 @@ import com.wdroome.util.ArrayToList;
 import com.wdroome.util.HexDump;
 import com.wdroome.util.inet.CIDRAddress;
 import com.wdroome.util.inet.InetInterface;
+import com.wdroome.util.inet.InetUtil;
 
 /**
  * A channel for sending and receiving Art-Net messages.
@@ -64,7 +68,8 @@ public class ArtNetChannel extends Thread
 		 * @param sender The remote address.
 		 * @param receiver The local address.
 		 */
-		public void msgArrived(ArtNetChannel chan, ArtNetOpcode opcode, byte[] buff, int len,
+		public void msgArrived(ArtNetChannel chan,
+							ArtNetOpcode opcode, byte[] buff, int len,
 							InetSocketAddress sender, InetSocketAddress receiver);
 		
 		/**
@@ -99,7 +104,7 @@ public class ArtNetChannel extends Thread
 		// Must synch on m_sendBuffs when accessing.
 		private ArrayDeque<SendBuffer> m_sendBuffs = new ArrayDeque<SendBuffer>();
 		
-		private ChannelInfo(DatagramChannel channel, int port)
+		private ChannelInfo(DatagramChannel channel, int port) throws IOException
 		{
 			m_channel = channel;
 			m_port = port;
@@ -139,7 +144,7 @@ public class ArtNetChannel extends Thread
 			listenPorts = new HashSet<>(listenPorts);
 		}
 		ArrayList<ChannelInfo> listenChans = new ArrayList<ChannelInfo>();
-		for (InetSocketAddress addr: getLocalInetAddrs(listenPorts)) {
+		for (InetSocketAddress addr: getLocalInetAddrMasks(listenPorts)) {
 			DatagramChannel chan = null;
 			try {
 				chan = DatagramChannel.open(StandardProtocolFamily.INET);
@@ -149,8 +154,7 @@ public class ArtNetChannel extends Thread
 				ChannelInfo chanInfo = new ChannelInfo(chan, addr.getPort());
 				listenChans.add(chanInfo);
 			} catch (IOException e) {
-				System.err.println("ArtNetChannel(); Could not bind to "
-						+ addr + " " + e);
+				System.err.println("ArtNetChannel(); Could not bind to " + addr + " " + e);
 				if (chan != null) {
 					try { chan.close(); } catch (Exception e2) {}
 				}
@@ -194,11 +198,11 @@ public class ArtNetChannel extends Thread
 				ArrayList<SelectionKey> removeKeys = new ArrayList<SelectionKey>();
 				for (ChannelInfo ci: m_listenChans) {
 					int key = SelectionKey.OP_READ;
-					synchronized (ci.m_sendBuffs) {
+					synchronized (ci.m_sendBuffs) { // XXXX
 						if (!ci.m_sendBuffs.isEmpty()) {
 							key |= SelectionKey.OP_WRITE;
 						}
-					}
+					} 
 					ci.m_channel.register(m_selector, key, ci);
 				}
 				int nsel = m_selector.select(1000);
@@ -232,6 +236,11 @@ public class ArtNetChannel extends Thread
 								if (msg != null) {
 									if (m_receiver != null) {
 										m_receiver.msgArrived(this, msg, sender, receiver);
+									}
+									if (false) {
+										System.out.println("ArtNetChannel RCV op:" + msg.m_opcode
+												+ " on:" + chanInfo.m_channel.getLocalAddress()
+												+ " src:" + sender + " dest:" + receiver);
 									}
 								} else {
 									ArtNetOpcode opcode = ArtNetMsg.getOpcode(msgBuff, 0, msgLen);
@@ -323,7 +332,23 @@ public class ArtNetChannel extends Thread
 	 */
 	public boolean send(ArtNetMsg msg, InetSocketAddress target) throws IOException
 	{
+		// TEST: Send via simple datagram.
+		if (false) {
+			try (DatagramSocket socket = new DatagramSocket()) {
+				byte[] msgBuff = new byte[ArtNetConst.MAX_MSG_LEN];
+				int msgLen = msg.putData(msgBuff, 0);
+				 
+				DatagramPacket request = new DatagramPacket(msgBuff, msgLen, target);
+				socket.send(request);
+				return true;
+			} catch (IOException e) {
+				System.out.println("ArtNetChannel.sendY " + "->" + target + " ERR:" + e);
+				throw e;
+			}			
+		}
+		
 		ChannelInfo chanInfo = getChannelInfo(target.getPort());
+		// ChannelInfo chanInfo = m_sendChan;
 		if (chanInfo == null) {
 			System.err.println("ArtNetChannel.send(): No channel for " + target);	// XXX
 			return false;
@@ -343,14 +368,15 @@ public class ArtNetChannel extends Thread
 			System.out.println("XXX: " + sendBuff.toString());
 			new HexDump().dump(msgBuff, 0, msgLen);
 		}
-		int nsent;
+		int nsent = 0;
 		try {
 			nsent = chanInfo.m_channel.send(sendBuff, target);
 		} catch (IOException e) {
 			releaseSendBuffer(sendBuff);
-			// System.out.println("ArtNetChannel.send: " + e);
+			System.out.println(
+					"ArtNetChannel.sendX " + chanInfo.m_channel.getLocalAddress() + "->" + target + " ERR:" + e);
 			throw e;
-		}
+		} 
 		if (nsent != 0) {
 			releaseSendBuffer(sendBuff);
 		} else {
@@ -385,49 +411,22 @@ public class ArtNetChannel extends Thread
 	private ChannelInfo getChannelInfo(int port)
 	{
 		for (ChannelInfo ci: m_listenChans) {
-			if (ci.m_port == port) {
+			if (port == ci.m_port) {
 				return ci;
 			}
 		}
-		if (!m_listenChans.isEmpty()) {
-			return m_listenChans.get(0);
-		}
-		return null;
+		return m_listenChans.get(0);		
 	}
-	
-	/**
-	 * Return all the socket addresses on which we should listen.
-	 * @param ports The ports on which to listen.
-	 * @return The socket addresses on which to listen.
-	 */
-	private Set<InetSocketAddress> getLocalInetAddrs(Collection<Integer> ports)
+		
+	private Set<InetSocketAddress> getLocalInetAddrMasks(Collection<Integer> ports) throws UnknownHostException
 	{
-		Set<InetSocketAddress> addrs = new HashSet<>();
-		for (int port: ports) {
-			if (true) {
-				// Explicitly listen to each ipv4 address on that port.
-				for (InetInterface iface: InetInterface.getAllInterfaces()) {
-					if (iface.m_address instanceof Inet4Address) {
-						addrs.add(new InetSocketAddress(iface.m_address, port));
-						System.out.println("Listening on " + iface.m_address + ":" + port);
-					}
-					if (iface.m_broadcast != null && iface.m_broadcast instanceof Inet4Address) {
-						addrs.add(new InetSocketAddress(iface.m_broadcast, port));
-						System.out.println("Listening on " + iface.m_broadcast + ":" + port);
-					}
-				}
-			} else {
-				// In earlier versions of Java and MacOS, listening on every ipv4 address didn't work.
-				// I couldn't figure out why. Instead, I tried the workaround of
-				// using a wildcard address for each port.
-				// But as of Java 17 and MacOS 12, it worked.
-				// Dunno if the java or apple folks fixed it, or if I had some other error
-				// that I have since fixed. But I left the alternative in as dead code,
-				// just in case.
-				addrs.add(new InetSocketAddress((InetAddress)null, port));
-			}
-		}
-		return addrs;
+		Set<InetSocketAddress> addrs = new HashSet<>();		
+		InetAddress addr = InetAddress.getByName("0.0.0.0");
+		for (int port : ports) {
+			addrs.add(new InetSocketAddress(addr, port));
+			// System.out.println("Listening on " + addr + ":" + port);
+		} 
+		return addrs;		
 	}
 	
 	/**

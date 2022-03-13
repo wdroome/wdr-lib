@@ -10,6 +10,26 @@ import java.net.UnknownHostException;
  */
 public class InetUtil
 {
+	/** Limited broadcast IPv4 address as dotted decimal string. */
+	public static final String LIMITED_BCAST_ADDR_STR = "0.0.0.0";
+	
+	/** Limited broadcast IPv4 address as InetAddress. */
+	public static final InetAddress LIMITED_BCAST_ADDR;
+	static {
+		InetAddress bcastAddr = null;
+		try {
+			bcastAddr = InetAddress.getByAddress(new byte[] {(byte)255,(byte)255,(byte)255,(byte)255});
+		} catch (UnknownHostException e) {
+			// OOPS!!!!
+		}
+		LIMITED_BCAST_ADDR = bcastAddr;
+	}
+	
+	
+	public byte[] x = new byte[] {(byte)255,(byte)255,(byte)255,(byte)255};
+	
+	
+
 	/**
 	 * Compare two internet addresses based on the raw address bytes.
 	 * Shorter addresses compare less than longer addresses.
