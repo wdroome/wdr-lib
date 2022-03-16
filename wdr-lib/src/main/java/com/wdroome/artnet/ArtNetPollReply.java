@@ -3,6 +3,8 @@ package com.wdroome.artnet;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 
 import com.wdroome.util.StringUtils;
 import com.wdroome.util.ByteAOL;
@@ -16,6 +18,28 @@ import com.wdroome.util.HexDump;
  */
 public class ArtNetPollReply extends ArtNetMsg
 {
+	public static final int PORT_TYPE_OUTPUT = 0x80;
+	public static final int PORT_TYPE_INPUT = 0x40;
+	public static final int PORT_TYPE_PROTO_MASK = 0x1f;
+	public static final int PORT_TYPE_PROTO_DMX512 = 0x00;
+	public static final int PORT_TYPE_PROTO_MIDI = 0x01;
+	public static final int PORT_TYPE_PROTO_AVAB = 0x02;
+	public static final int PORT_TYPE_PROTO_COLORTRAN_CMX = 0x03;
+	public static final int PORT_TYPE_PROTO_ADB_625 = 0x04;
+	public static final int PORT_TYPE_PROTO_ARTNET = 0x05;
+
+	public static final int STATUS1_RDM = 0x02;
+	public static final int STATUS2_SADN_SWITCH = 0x10;
+	public static final int STATUS2_ARTNET_3OR4 = 0x08;
+	public static final int STATUS2_DHCP_CAPABLE = 0x04;
+	public static final int STATUS2_SET_BY_DHCP = 0x02;
+	public static final int STATUS2_BROWSER_CONFIG = 0x01;
+
+	public static final int GOOD_INPUT_ACTIVE = 0x80;
+	public static final int GOOD_OUTPUT_ACTIVE = 0x80;
+	public static final int GOOD_OUTPUT_MERGE = 0x08;
+	public static final int GOOD_OUTPUT_LTP = 0x02;
+	public static final int GOOD_OUTPUT_SACN = 0x01;
 
 	public Inet4Address m_ipAddr = null;
 	public int m_ipPort = 0;
@@ -43,6 +67,10 @@ public class ArtNetPollReply extends ArtNetMsg
 	public Inet4Address m_bindIpAddr = null;
 	public int m_bindIndex = 0;
 	public int m_status2 = 0;
+	
+		/** Output and input ArtNet ports for this device's ports. */
+	public ArtNetPort[] m_inPorts = new ArtNetPort[4];
+	public ArtNetPort[] m_outPorts = new ArtNetPort[4];
 
 	/**
 	 * Create a message with the default field values.
@@ -114,6 +142,17 @@ public class ArtNetPollReply extends ArtNetMsg
 			m_bindIndex = buff[off++] & 0xff;		
 			m_status2 = buff[off++] & 0xff;
 			off += 26;	// filler
+		}
+		
+		ArtNetPort defPort = new ArtNetPort(0,0,0);
+		for (int i = 0; i < 4; i++) {
+			if (i < m_numPorts) {
+				m_inPorts[i] = new ArtNetPort(m_netAddr, m_subNetAddr, m_swIn[i]);
+				m_outPorts[i] = new ArtNetPort(m_netAddr, m_subNetAddr, m_swOut[i]);
+			} else {
+				m_inPorts[i] = defPort;
+				m_outPorts[i] = defPort;
+			}
 		}
 	}
 	
@@ -267,6 +306,9 @@ public class ArtNetPollReply extends ArtNetMsg
 		}
 	}
 	
+	/**
+	 * A string with all the fields in the message.
+	 */
 	@Override
 	public String toString()
 	{
@@ -299,5 +341,79 @@ public class ArtNetPollReply extends ArtNetMsg
 		appendHex(b, "status2", m_status2);
 		b.append('}');
 		return b.toString();
+	}
+	
+	/**
+	 * Return a nicely formatted string with the most important fields in the message.
+	 * @param linePrefix A prefix for each line. If null, assume "".
+	 * @param buff Append the formatted string to this buffer.
+	 * 			If null, create a new buffer.
+	 * @return The formatted string. Specifically, buff.toString().
+	 */
+	@Override
+	public String toFmtString(StringBuilder buff, String linePrefix)
+	{
+		if (linePrefix == null) {
+			linePrefix = "";
+		}
+		if (buff == null) {
+			buff = new StringBuilder();
+		}
+		String indent = "   ";
+		buff.append(linePrefix
+				+ "ipaddr: " + m_ipAddr.getHostAddress() + ":" + m_ipPort
+				+ " names: " + m_shortName
+				+ (m_longName.isBlank() ? "" : ("/" + m_longName)) + "\n");
+		buff.append(linePrefix
+				+ (((m_status2 & STATUS2_BROWSER_CONFIG) != 0) ? "web-configurable: yes " : "")
+				+ "ArtNet-version: " + (((m_status2 & STATUS2_ARTNET_3OR4) != 0) ? "3/4 " : "1/2 ")
+				);
+		buff.append("addr-config: ");
+		switch (m_status2 & (STATUS2_SET_BY_DHCP | STATUS2_DHCP_CAPABLE)) {
+		case 0:	buff.append("manual"); break;
+		case STATUS2_DHCP_CAPABLE: buff.append("manual/dhcp-capable"); break;
+		case STATUS2_SET_BY_DHCP | STATUS2_DHCP_CAPABLE: buff.append("dhcp"); break;
+		}
+		for (int i = 0; i < m_numPorts; i++) {
+			buff.append("\n");
+			buff.append(linePrefix + "Port " + i + ":");
+			switch (m_portTypes[i] & PORT_TYPE_PROTO_MASK) {
+			case PORT_TYPE_PROTO_DMX512: buff.append(" dmx"); break;
+			case PORT_TYPE_PROTO_MIDI: buff.append(" midi"); break;
+			case PORT_TYPE_PROTO_AVAB: buff.append(" avab"); break;
+			case PORT_TYPE_PROTO_COLORTRAN_CMX: buff.append(" colortran"); break;
+			case PORT_TYPE_PROTO_ADB_625: buff.append(" adb"); break;
+			case PORT_TYPE_PROTO_ARTNET: buff.append(" artnet"); break;
+			}
+			if ((m_portTypes[i] & PORT_TYPE_OUTPUT) != 0) {
+				buff.append("\n");
+				buff.append(linePrefix + indent + m_outPorts[i] + ": out");
+				if ((m_goodOutput[i] & GOOD_OUTPUT_ACTIVE) != 0) {
+					buff.append("/active");
+				}
+				if ((m_goodOutput[i] & GOOD_OUTPUT_SACN) != 0) {
+					buff.append("/sACN");
+				}
+				if ((m_goodOutput[i] & GOOD_OUTPUT_MERGE) != 0) {
+					buff.append("/merge");
+				}
+				if ((m_goodOutput[i] & GOOD_OUTPUT_LTP) != 0) {
+					buff.append("/ltp");
+				}
+			}
+			if ((m_portTypes[i] & PORT_TYPE_INPUT) != 0) {
+				buff.append("\n");
+				buff.append(linePrefix + indent + m_inPorts[i] + ": in");
+				if ((m_goodOutput[i] & GOOD_INPUT_ACTIVE) != 0) {
+					buff.append("/active");
+				}
+			}
+		}
+		return buff.toString();
+	}
+	
+	public void printCommon(PrintStream out, String linePrefix)
+	{
+		
 	}
 }

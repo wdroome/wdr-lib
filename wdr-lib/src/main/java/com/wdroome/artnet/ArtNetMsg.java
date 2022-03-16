@@ -32,9 +32,10 @@ public abstract class ArtNetMsg
 	public abstract int putData(byte[] buff, int off);
 	
 	/**
-	 * Pretty-print the message.
+	 * Print all fields in the message, one per line.
 	 * @param out The output stream.
 	 * @param linePrefix A prefix for each line.
+	 * @see #fmtPrint(PrintStream, String)
 	 */
 	public void print(PrintStream out, String linePrefix)
 	{
@@ -43,6 +44,39 @@ public abstract class ArtNetMsg
 		}
 		out.println(linePrefix
 				+ toString().replace(",}", "}").replace(",", "\n" + linePrefix + "  "));
+	}
+	
+	/**
+	 * Pretty-print the most import fields in the message.
+	 * @param out The output stream.
+	 * @param linePrefix A prefix for each line.
+	 * @see #toFmtString(StringBuilder, String)
+	 */
+	public void fmtPrint(PrintStream out, String linePrefix)
+	{
+		out.println(toFmtString(null, linePrefix));
+	}
+	
+	/**
+	 * Pretty-print the most import fields in the message.
+	 * The base class prints all fields, one per line.
+	 * Child classes can override to select the important fields.
+	 * @param linePrefix A prefix for each line. If null, assume "".
+	 * @param buff Append the formatted string to this buffer.
+	 * 			If null, create a new buffer.
+	 * @return The formatted string. Specifically, buff.toString().
+	 */
+	public String toFmtString(StringBuilder buff, String linePrefix)
+	{
+		if (linePrefix == null) {
+			linePrefix = "";
+		}
+		if (buff == null) {
+			buff = new StringBuilder();
+		}
+		buff.append(linePrefix
+				+ toString().replace(",}", "}").replace(",", "\n" + linePrefix + "  "));
+		return buff.toString();
 	}
 	
 	/**
