@@ -7,6 +7,9 @@ import java.io.PrintStream;
 import java.util.List;
 import java.util.ArrayList;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
 import com.wdroome.util.CommandReader;
 import com.wdroome.util.MiscUtil;
 
@@ -16,9 +19,10 @@ import com.wdroome.util.MiscUtil;
  */
 public class OSCCmdReader extends CommandReader implements OSCConnection.MessageHandler
 {
-	private final OSCConnection m_conn;
 	private final List<OSCMessage> m_responses = new ArrayList<>();
 	
+	private final AtomicReference<OSCConnection> m_conn = new AtomicReference<>(null);
+	private String m_addrPort;
 	private boolean m_streamResponses = false;
 	
 	/**
@@ -31,7 +35,7 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 	public OSCCmdReader(String addrPort, InputStream in, PrintStream out, boolean givePrompt)
 	{
 		super(in, out, givePrompt);
-		m_conn = makeConnection(addrPort);
+		m_addrPort = addrPort;
 		start();
 	}
 
@@ -43,20 +47,19 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 	public OSCCmdReader(String[] args)
 	{
 		super();
-		String addrPort = null;
+		m_addrPort = null;
 		if (args.length >= 1) {
-			addrPort = args[0];
+			m_addrPort = args[0];
 		}
-		m_conn = makeConnection(addrPort);
 		start();
 	}
 
 	/**
 	 * Create an OSCConnection to the OSC server.
 	 * @param addrPort The ipaddr:port for the server.
-	 * @return The connection.
+	 * @throws IOException 
 	 */
-	private OSCConnection makeConnection(String addrPort)
+	private void makeConnection(String addrPort) throws IOException
 	{
 		OSCConnection conn = new OSCConnection(addrPort) {
 			@Override public void logError(String msg) {
@@ -64,9 +67,10 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 			}
 		};
 		conn.setMessageHandler(this);
+		conn.connect();
 		// conn.setConnectTimeout(m_connTimeout);
 		// conn.setReadTimeout(m_readTimeout);
-		return conn;
+		m_conn.set(conn);
 	}
 
 	/* (non-Javadoc)
@@ -76,10 +80,9 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 	public void run()
 	{
 		try {
-			m_conn.connect();
+			makeConnection(m_addrPort);
 		} catch (IOException e) {
-			m_out.println("*** IO Error connecting to OSC: " + e);
-			return;
+			m_out.println("*** IO Error connecting to OSC " + m_addrPort + ": " + e);
 		}
 		
 		String[] parsedCmd;
@@ -96,13 +99,25 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 				m_out.println("nostream  ## Save responses instead of streaming them.");
 				m_out.println("resp      ## Show saved responses.");
 				m_out.println("clear     ## Clear saved responses.");
+				m_out.println("reconnect ## Reconnect after disconnection.");
 				m_out.println("quit      ## Bye-bye.");
 			} else if (cmd.equals("send")) {
 				if (!(parsedCmd.length >= 2)) {
 					m_out.println("Usage: send osc-method [str-arg str-arg ...]");
 					continue;
+				} else {
+					sendCmd(parsedCmd, 1);
 				}
-				sendCmd(parsedCmd, 1);
+			} else if (cmd.startsWith("recon")) {
+				if (m_conn.get() != null) {
+					m_out.println("Already connected to " + m_addrPort);
+				} else {
+					try {
+						makeConnection(m_addrPort);
+					} catch (IOException e) {
+						m_out.println("*** IO Error connecting to OSC " + m_addrPort + ": " + e);						
+					}
+				}
 			} else if (cmd.startsWith("/")) {
 				sendCmd(parsedCmd, 0);
 			} else if (cmd.startsWith("resp")) {
@@ -147,9 +162,16 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 		OSCMessage msg = new OSCMessage(parsedCmd[cmdIndex], args);
 		int preNumResp = getNumResponses();
 		try {
-			m_conn.sendMessage(msg);
+			OSCConnection conn = m_conn.get();
+			if (conn != null) {
+				conn.sendMessage(msg);
+			} else {
+				m_out.println("*** Not connected to OSC client");
+				return;
+			}
 		} catch (IOException e) {
 			m_out.println("*** IO Error: " + e);
+			return;
 		}
 		MiscUtil.sleep(250);
 		int postNumResp = getNumResponses();
@@ -202,9 +224,20 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 	{
 		synchronized (m_responses) {
 			if (m_streamResponses) {
-				m_out.println(" *** resp: " + msg.toString());
-			} else {
+				if (msg == null) {
+					m_out.println(" *** resp: OSC client disconnected.");
+				} else {
+					m_out.println(" *** resp: " + msg.toString());
+				}
+			} else if (msg != null) {
 				m_responses.add(msg);
+			}
+		}
+		if (msg == null) {
+			OSCConnection conn = m_conn.get();
+			if (conn != null) {
+				conn.disconnect();
+				m_conn.set(null);
 			}
 		}
 	}
