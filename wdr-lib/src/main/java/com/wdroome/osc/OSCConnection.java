@@ -1,6 +1,7 @@
 package com.wdroome.osc;
 
 import java.io.IOException;
+import java.io.Closeable;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -19,24 +20,12 @@ import java.util.function.Predicate;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-import com.wdroome.json.JSONLexan;
-import com.wdroome.json.JSONParseException;
-import com.wdroome.json.JSONParser;
-import com.wdroome.json.JSONUtil;
-import com.wdroome.json.JSONValue;
-import com.wdroome.json.JSONValueTypeException;
-import com.wdroome.json.JSONValue_Object;
-import com.wdroome.json.JSONValue_Array;
-import com.wdroome.json.JSONValue_String;
-
-import com.wdroome.util.MiscUtil;
-
 /**
  * Manage a connection to an OSC server.
- * This only supports version 1.1, via TCP and SLIP.
+ * This only supports OSC version 1.1, via TCP and SLIP.
  * @author wdr
  */
-public class OSCConnection
+public class OSCConnection implements Closeable
 {
 	/**
 	 * Callback for response messages.
@@ -182,7 +171,7 @@ public class OSCConnection
 	}
 	
 	/**
-	 * Create a TCP connection to the OSC server.
+	 * Open a TCP connection to the OSC server.
 	 * @throws IOException
 	 * 		If we cannot connect to OSC server,
 	 * 		or the connection was refused, etc.
@@ -211,7 +200,7 @@ public class OSCConnection
 	}
 
 	/**
-	 * Disconnect from the OSC server.
+	 * Disconnect from the OSC server. Same as {@link #close()}.
 	 */
 	public void disconnect()
 	{
@@ -227,6 +216,24 @@ public class OSCConnection
 			m_oscOutputStream = null;
 			m_oscInputStream = null;
 		}
+	}
+	
+	/**
+	 * Close the connection to the OSC server. Same as {@link #disconnect()}.
+	 */
+	@Override
+	public void close()
+	{
+		disconnect();
+	}
+	
+	/**
+	 * Test if we are connected.
+	 * @return True iff we are connected to the OSC server.
+	 */
+	public boolean isConnected()
+	{
+		return m_listener != null;
 	}
 	
 	/**
