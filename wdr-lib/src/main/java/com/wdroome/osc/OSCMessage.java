@@ -169,6 +169,7 @@ public class OSCMessage
 	 * Return the types of the arguments, or "" if no args.
 	 * @return A String with a letter for each argument giving the type:
 	 * 		{@link OSCUtil#OSC_STR_ARG_FMT}, etc.
+	 * 		If no argumnenbts, return "" rather than null.
 	 */
 	public String getArgTypes()
 	{
