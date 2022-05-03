@@ -177,6 +177,17 @@ public class OSCMessage
 	}
 	
 	/**
+	 * Return the type of an arugment.
+	 * @param index The argument index.
+	 * @return The argument type letter, or "?" if that argument doesn't exist.
+	 */
+	public char getArgType(int index)
+	{
+		String types = getArgTypes();
+		return index < types.length() ? types.charAt(index) : '?';
+	}
+	
+	/**
 	 * Return the number of arguments.
 	 * @return The number of arguments.
 	 */
@@ -193,6 +204,82 @@ public class OSCMessage
 	public List<Object> getArgs()
 	{
 		return m_args != null ? new ImmutableList<Object>(m_args) : List.of();
+	}
+	
+	/**
+	 * Return the string value of an argument.
+	 * @param index The argument index.
+	 * @param def The value to return of the argument doesn't exist.
+	 * @return The string value of the argument at index, or def.
+	 */
+	public String getString(int index, String def)
+	{
+		if (m_args == null && index >= m_args.size()) {
+			return def;
+		}
+		Object v = m_args.get(index);
+		if (v instanceof String) {
+			return (String)v;
+		} else {
+			return v.toString();
+		}
+	}
+	
+	/**
+	 * Return a numeric argument as a long.
+	 * @param index The argument index.
+	 * @param def The default value.
+	 * @return The long value of the argument, or def if it isn't numeric.
+	 */
+	public long getLong(int index, long def)
+	{
+		if (m_args == null && index >= m_args.size()) {
+			return def;
+		}
+		Object v = m_args.get(index);
+		if (v instanceof Number) {
+			return ((Number)v).longValue();
+		} else {
+			return def;
+		}
+	}
+	
+	/**
+	 * Return a numeric argument as a double.
+	 * @param index The argument index.
+	 * @param def The default value.
+	 * @return The double value of the argument, or def if it isn't numeric.
+	 */
+	public double getDouble(int index, double def)
+	{
+		if (m_args == null && index >= m_args.size()) {
+			return def;
+		}
+		Object v = m_args.get(index);
+		if (v instanceof Number) {
+			return ((Number)v).doubleValue();
+		} else {
+			return def;
+		}
+	}
+	
+	/**
+	 * Return a numeric argument as a double.
+	 * @param index The argument index.
+	 * @param def The default value.
+	 * @return The double value of the argument, or def if it isn't numeric.
+	 */
+	public boolean getBoolean(int index, boolean def)
+	{
+		if (m_args == null && index >= m_args.size()) {
+			return def;
+		}
+		Object v = m_args.get(index);
+		if (v instanceof Boolean) {
+			return (Boolean)v;
+		} else {
+			return def;
+		}
 	}
 	
 	/**

@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.function.Predicate;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Manage a connection to an OSC server.
@@ -277,6 +279,28 @@ public class OSCConnection implements Closeable
 			dropReplyHandler(replyHandler);
 			throw e;
 		}
+	}
+	
+	/**
+	 * Send a message to the server and append associated reply messages to a quque.
+	 * @param msg The message to send.
+	 * @param replyMethodRegex A regular expression that matches the method
+	 * 			in the reply messages expected for "msg".
+	 * @param replyQueue Add the reply messages to this queue. If the queue is full,
+	 * 		wait at most 500 milliseconds, and then discard the reply.
+	 * @return A ReplyHandler object for the registered reply handler.
+	 * 		The caller can use this to drop the reply handler if needed.
+	 * @throws IOException
+	 * 		If an error occurs while sending the message.
+	 */
+	public ReplyHandler sendMessage(OSCMessage msg, String replyMethodRegex, BlockingQueue<OSCMessage> replyQueue)
+			throws IOException
+	{
+		return sendMessage(msg, replyMethodRegex,
+				(resp) -> {
+					try { replyQueue.offer(resp, 500, TimeUnit.MILLISECONDS); } catch (Exception e) {}
+					return true;
+				});
 	}
 	
 	/**

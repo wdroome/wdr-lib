@@ -457,4 +457,37 @@ public class OSCUtil
 		out.write(SLIP_END_BYTE);
 		out.flush();
 	}
+	
+	/**
+	 * Parse an OSC command into /-separated tokens, and return a List with some of those tokens.
+	 * @param cmd An OSC command.
+	 * @param def The default value if cmd does not have a token at an index.
+	 * @param indexes The indexes, starting with 0, of the tokens to extract.
+	 * @return A List with the command tokens at the specified indexes.
+	 * 		If the command doesn't have a token at that position, use "def".
+	 */
+	public static List<String> parseCmd(String cmd, String def, int... indexes)
+	{
+		List<String> list = new ArrayList<>();
+		if (cmd.startsWith("/")) {
+			cmd = cmd.substring(1);
+		}
+		String[] cmdTokens = cmd.split("/");
+		for (int i: indexes) {
+			list.add(i < cmdTokens.length ? cmdTokens[i] : def);
+		}
+		return list;
+	}
+	
+	/**
+	 * Parse an OSC command into /-separated tokens, and return a List with some of those tokens.
+	 * @param cmd An OSC command.
+	 * @param indexes The indexes, starting with 0, of the tokens to extract.
+	 * @return A List with the command tokens at the specified indexes.
+	 * 		If the command doesn't have a token at that position, use "".
+	 */
+	public static List<String> parseCmd(String cmd, int... indexes)
+	{
+		return parseCmd(cmd, "", indexes);
+	}
 }
