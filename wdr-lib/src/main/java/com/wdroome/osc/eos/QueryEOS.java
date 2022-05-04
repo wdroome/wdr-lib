@@ -4,8 +4,11 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import java.util.List;
+import java.util.Map;
 import java.util.ArrayList;
+import java.util.TreeMap;
 
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -13,42 +16,52 @@ import com.wdroome.osc.OSCConnection;
 import com.wdroome.osc.OSCMessage;
 import com.wdroome.osc.OSCUtil;
 
-public class QueryEOS extends OSCConnection implements OSCConnection.MessageHandler
+/**
+ * An EOSConnection to get information from an EOS server.
+ * @author wdr
+ */
+public class QueryEOS extends OSCConnection
 {
+	public static final String DEFAULT_CUE_LIST = "1";
+	
 	public static final String GET_VERSION_METHOD = "/eos/get/version";
-	public static final String GET_VERSION_RESP = "/eos/out/get/version";
+	public static final String GET_VERSION_REPLY = "/eos/out/get/version";
 	
 	public static final String GET_CUELIST_COUNT_METHOD = "/eos/get/cuelist/count";
-	public static final String GET_CUELIST_COUNT_RESP = "/eos/out/get/cuelist/count";
+	public static final String GET_CUELIST_COUNT_REPLY = "/eos/out/get/cuelist/count";
+	
+		// Argument is the cuelist number, as a string.
+	public static final String GET_CUE_COUNT_METHOD = "/eos/get/cue/%s/count";
+	public static final String GET_CUE_COUNT_REPLY = "/eos/out/get/cue/%s/count";
 
-	private long m_timeoutMS = 5000;
+	private long m_timeoutMS = 2500;
 
+	/**
+	 * Create connection to query an EOS server.
+	 * @param addr The server's inet socket address.
+	 */
 	public QueryEOS(InetSocketAddress addr)
 	{
 		super(addr);
-		// TODO Auto-generated constructor stub
-	}
-
-	public QueryEOS(String addr, int port) throws IllegalArgumentException
-	{
-		super(addr, port);
-		// TODO Auto-generated constructor stub
-	}
-
-	public QueryEOS(String addrPort) throws IllegalArgumentException
-	{
-		super(addrPort);
-		// TODO Auto-generated constructor stub
 	}
 
 	/**
-	 * MessageHandler interface -- process message from EOS server.
+	 * Create connection to query an EOS server.
+	 * @param addr The server's inet address.
+	 * @param port The server's port.
 	 */
-	@Override
-	public void handleOscResponse(OSCMessage msg)
+	public QueryEOS(String addr, int port) throws IllegalArgumentException
 	{
-		// TODO Auto-generated method stub
-		// XXX -- do we need this??????
+		super(addr, port);
+	}
+
+	/**
+	 * Create connection to query an EOS server.
+	 * @param addr An ipaddr:port string with the server's inet socket address.
+	 */
+	public QueryEOS(String addrPort) throws IllegalArgumentException
+	{
+		super(addrPort);
 	}
 	
 	public long getTimeoutMS() {
@@ -59,80 +72,87 @@ public class QueryEOS extends OSCConnection implements OSCConnection.MessageHand
 		this.m_timeoutMS = timeoutMS;
 	}
 
+	/**
+	 * Get the EOS version.
+	 * @return The EOS version.
+	 * @throws IOException If an IO error occurs.
+	 */
 	public String getVersion() throws IOException
+	{
+		return getStringReply(GET_VERSION_METHOD, GET_VERSION_REPLY, m_timeoutMS);
+	}
+	
+	/**
+	 * Get all cue lists.
+	 * @return A TreeMap with all cue lists. The key is the cuelist number, as a string.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public TreeMap<String, EOSCuelistInfo> getCuelists() throws IOException
 	{
 		if (!isConnected()) {
 			connect();
 		}
-		final ArrayBlockingQueue<OSCMessage> replies = new ArrayBlockingQueue<>(10);
-		ReplyHandler replyHandler;
-		replyHandler = sendMessage(new OSCMessage(GET_VERSION_METHOD), GET_VERSION_RESP, replies);
-		String version = "(UNKNOWN)";
-		while (true) {
-			try {
-				OSCMessage msg = replies.poll(500, TimeUnit.MILLISECONDS);
-				if (msg.getArgType(0) == OSCUtil.OSC_STR_ARG_FMT_CHAR) {
-					version = msg.getString(0, version);
-					break;					
-				}
-			} catch (Exception e) {
-				// Usually this is timeout on the poll().
-				break;
-			}
-		}
-		dropReplyHandler(replyHandler);
-		return version;
-	}
-	
-	public List<EOSCuelistInfo> getCuelists() throws IOException
-	{
 		int nCuelists = getCuelistCount();
-		List<EOSCuelistInfo> cuelists = new ArrayList<>();
+		TreeMap<String, EOSCuelistInfo> cuelists = new TreeMap<>();
 		for (int iCuelist = 0; iCuelist < nCuelists; iCuelist++) {
-			String method = EOSCuelistInfo.getMethod(iCuelist);
-			String replyPat = EOSCuelistInfo.getReplyPat(iCuelist);
-			final ArrayBlockingQueue<OSCMessage> replies = new ArrayBlockingQueue<>(10);
-			ReplyHandler replyHandler;
-			replyHandler = sendMessage(new OSCMessage(method), replyPat, replies);
-			EOSCuelistInfo cuelist = new EOSCuelistInfo(iCuelist, replies, this,
-												replyHandler, m_timeoutMS);
+			EOSCuelistInfo cuelist = new EOSCuelistInfo(iCuelist, this, m_timeoutMS);
 			if (cuelist.isValid()) {
-				cuelists.add(cuelist);
+				cuelists.put(cuelist.getCuelistNumber(), cuelist);
 			}
 		}
 		return cuelists;
 	}
 	
-	public int getCuelistCount() throws IOException
+	/**
+	 * Get the number of cues in a cuelist.
+	 * @param cuelistNumber The cuelist number.
+	 * @return The number of cues in that list, or -1.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public int getCueCount(String cuelistNumber) throws IOException
 	{
-		if (!isConnected()) {
-			connect();
-		}
-		final ArrayBlockingQueue<OSCMessage> replies = new ArrayBlockingQueue<>(10);
-		ReplyHandler replyHandler;
-		replyHandler = sendMessage(new OSCMessage(GET_CUELIST_COUNT_METHOD), GET_CUELIST_COUNT_RESP, replies);
-		int count = -1;
-		while (true) {
-			try {
-				OSCMessage msg = replies.poll(m_timeoutMS, TimeUnit.MILLISECONDS);
-				if (msg.getArgType(0) == OSCUtil.OSC_INT32_ARG_FMT_CHAR) {
-					count = (int)msg.getLong(0, count);
-					break;					
-				}
-			} catch (Exception e) {
-				// Usually this is timeout on the poll().
-				break;
-			}
-		}
-		dropReplyHandler(replyHandler);
-		return count;		
+		String method = String.format(GET_CUE_COUNT_METHOD, cuelistNumber);
+		String replyPat = String.format(GET_CUE_COUNT_REPLY, cuelistNumber);
+		return getIntReply(method, replyPat, m_timeoutMS);
 	}
 	
+	/**
+	 * Get the number of cues in the default cue list.
+	 * @return The number of cues in the default cue list.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public int getCueCount() throws IOException
+	{
+		return getCueCount(DEFAULT_CUE_LIST);
+	}
+
+	/**
+	 * Get the number of cuelists.
+	 * @return The number of cuelists.
+	 * @throws IOException If an IO error occurs.
+	 */	
+	public int getCuelistCount() throws IOException
+	{
+		return getIntReply(GET_CUELIST_COUNT_METHOD, GET_CUELIST_COUNT_REPLY, m_timeoutMS);
+	}
+	
+	/**
+	 * For testing, get and print cuelists and other information.
+	 * @param args The EOS servers ipaddr:port.
+	 * @throws IOException If an IO error occurs.
+	 */
 	public static void main(String[] args) throws IOException
 	{
-		QueryEOS queryEOS = new QueryEOS(args[0]);
-		System.out.println("Version: " + queryEOS.getVersion());
-		System.out.println("Cuelist count: " + queryEOS.getCuelistCount());
-		System.out.println("Cuelists: " + queryEOS.getCuelists());
+		try (QueryEOS queryEOS = new QueryEOS(args[0])) {
+			queryEOS.connect();
+			long startTS = System.currentTimeMillis();
+			System.out.println("Version: " + queryEOS.getVersion());
+			System.out.println("Cuelist count: " + queryEOS.getCuelistCount());
+			System.out.println("Cuelists: " + queryEOS.getCuelists());
+			System.out.println(String.format("Elapsed time: %.3f sec.",
+						(System.currentTimeMillis() - startTS)/1000.0));
+		} catch (IllegalArgumentException e) {
+			System.err.println(e);
+		}
 	}
 }

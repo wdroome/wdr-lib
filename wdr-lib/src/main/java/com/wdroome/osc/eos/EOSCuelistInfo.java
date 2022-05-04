@@ -1,23 +1,29 @@
 package com.wdroome.osc.eos;
 
-import java.util.List;
+import java.io.IOException;
 
+import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import com.wdroome.osc.OSCConnection;
 import com.wdroome.osc.OSCMessage;
 import com.wdroome.osc.OSCUtil;
+import com.wdroome.osc.OSCConnection.ReplyHandler;
 
-public class EOSCuelistInfo
+/**
+ * Information for an EOS cuelist.
+ * @author wdr
+ */
+public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 {
-	public static final String GET_CUELIST_INFO_CMD = "/eos/get/cuelist/index/%d";	// arg is cuelist index, 0-N-1
+	public static final String GET_CUELIST_INFO_METHOD = "/eos/get/cuelist/index/%d";	// arg is cuelist index, 0-N-1
 	public static final String GET_CUELIST_INFO_REPLY_PAT
-			= "/eos/out/get/cuelist/[^/]+(/links)?/list/%d/[0-9]+";
+			= "/eos/out/get/cuelist/[^/]+(/links)?/list/[0-9]+/[0-9]+";
 	
 	public static final int GET_CUELIST_INFO_REPLY_LIST_NUMBER = 4;
 	public static final int GET_CUELIST_INFO_REPLY_TYPE = 5;
-	public static final int GET_CUELIST_INFO_REPLY_LIST_COUNT = 7;
 	public static final String GET_CUELIST_INFO_REPLY_TYPE_LIST = "list";
 	public static final String GET_CUELIST_INFO_REPLY_TYPE_LINKS = "links";
 	
@@ -35,20 +41,32 @@ public class EOSCuelistInfo
 	private String m_playbackMode = "";
 	private String m_faderMode = "";
 
-	public EOSCuelistInfo(int cuelistIndex, BlockingQueue<OSCMessage> replies,
-							OSCConnection oscConn,
-							OSCConnection.ReplyHandler replyHandler, long timeoutMS)
+	/**
+	 * Get the information for a cue list from the EOS server.
+	 * @param cuelistIndex The index of the cue list (0 to N-1).
+	 * @param oscConn A connection to the EOS server.
+	 * @param timeoutMS The timeout to wait for replies.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public EOSCuelistInfo(int cuelistIndex, OSCConnection oscConn, long timeoutMS) throws IOException
 	{
 		m_cuelistIndex = cuelistIndex;
+		String requestMethod = String.format(GET_CUELIST_INFO_METHOD, cuelistIndex);
+		String replyMethod = GET_CUELIST_INFO_REPLY_PAT;
+		final ArrayBlockingQueue<OSCMessage> replies = new ArrayBlockingQueue<>(10);
+		ReplyHandler replyHandler = oscConn.sendMessage(new OSCMessage(requestMethod), replyMethod, replies);
 		boolean gotListReply = false;
 		boolean gotLinksReply = false;
 		while (true) {
 			try {
 				OSCMessage msg = replies.poll(timeoutMS, TimeUnit.MILLISECONDS);
+				int indexArg = (int)msg.getLong(GET_CUELIST_INFO_REPLY_FLD_INDEX, -1);
+				if (indexArg != cuelistIndex) {
+					continue;
+				}
 				List<String> cmdTokens = OSCUtil.parseMethod(msg.getMethod(), "",
 							GET_CUELIST_INFO_REPLY_LIST_NUMBER,
-							GET_CUELIST_INFO_REPLY_TYPE,
-							GET_CUELIST_INFO_REPLY_LIST_COUNT);
+							GET_CUELIST_INFO_REPLY_TYPE);
 				if (cmdTokens.get(1).equals(GET_CUELIST_INFO_REPLY_TYPE_LIST)) {
 					m_cuelistNumber = cmdTokens.get(0);
 					try {
@@ -65,17 +83,23 @@ public class EOSCuelistInfo
 					gotLinksReply = true;
 				}
 				if (gotListReply && gotLinksReply) {
-					System.out.println("XXX: got Cuelist " + m_cuelistNumber);
+					// System.out.println("XXX: got Cuelist " + m_cuelistNumber);
 					oscConn.dropReplyHandler(replyHandler);
 					break;
 				}
 			} catch (Exception e) {
-				// Usually this is timeout on the poll().
-				break;
+			// Usually this is timeout on the poll().
+			break;
 			}
 		}
+		if (isValid()) {
+			m_cueCount = oscConn.getIntReply(
+								String.format(QueryEOS.GET_CUE_COUNT_METHOD, m_cuelistNumber),
+								String.format(QueryEOS.GET_CUE_COUNT_REPLY, m_cuelistNumber),
+								timeoutMS);
+		}
 	}
-	
+
 	public boolean isValid()
 	{
 		return !m_cuelistNumber.equals("");
@@ -83,12 +107,12 @@ public class EOSCuelistInfo
 	
 	public static String getMethod(int cuelistIndex)
 	{
-		return String.format(GET_CUELIST_INFO_CMD, cuelistIndex);
+		return String.format(GET_CUELIST_INFO_METHOD, cuelistIndex);
 	}
 	
 	public static String getReplyPat(int cuelistIndex)
 	{
-		return String.format(GET_CUELIST_INFO_REPLY_PAT, cuelistIndex);
+		return GET_CUELIST_INFO_REPLY_PAT;
 	}
 
 	public int getCuelistIndex() {
@@ -113,6 +137,15 @@ public class EOSCuelistInfo
 
 	public String getFaderMode() {
 		return m_faderMode;
+	}
+	
+	/**
+	 * Compare based on the cuelist number, as a String.
+	 */
+	@Override
+	public int compareTo(EOSCuelistInfo o)
+	{
+		return m_cuelistNumber.compareTo(o.m_cuelistNumber);
 	}
 
 	@Override

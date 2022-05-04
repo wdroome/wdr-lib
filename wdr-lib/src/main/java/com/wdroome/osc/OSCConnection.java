@@ -20,6 +20,7 @@ import java.util.function.Predicate;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -301,6 +302,70 @@ public class OSCConnection implements Closeable
 					try { replyQueue.offer(resp, 500, TimeUnit.MILLISECONDS); } catch (Exception e) {}
 					return true;
 				});
+	}
+
+	/**
+	 * Send a simple request which returns an int-valued reply, and return the int.
+	 * @param requestMethod The request method.
+	 * @param replyMethod The reply method.
+	 * @return The value of the first argument in the reply, if it's an int. If not, return -1.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public int getIntReply(String requestMethod, String replyMethod, long timeoutMS) throws IOException
+	{
+		if (!isConnected()) {
+			connect();
+		}
+		final ArrayBlockingQueue<OSCMessage> replyQueue = new ArrayBlockingQueue<>(10);
+		ReplyHandler replyHandler;
+		replyHandler = sendMessage(new OSCMessage(requestMethod), replyMethod, replyQueue);
+		int value = -1;
+		while (true) {
+			try {
+				OSCMessage msg = replyQueue.poll(timeoutMS, TimeUnit.MILLISECONDS);
+				if (msg.getArgType(0) == OSCUtil.OSC_INT32_ARG_FMT_CHAR) {
+					value = (int)msg.getLong(0, value);
+					break;					
+				}
+			} catch (Exception e) {
+				// Usually this is timeout on the poll().
+				break;
+			}
+		}
+		dropReplyHandler(replyHandler);
+		return value;
+	}
+
+	/**
+	 * Send a simple request which returns an String-valued reply, and return the String.
+	 * @param requestMethod The request method.
+	 * @param replyMethod The reply method.
+	 * @return The value of the first argument in the reply, as a String.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public String getStringReply(String requestMethod, String replyMethod, long timeoutMS) throws IOException
+	{
+		if (!isConnected()) {
+			connect();
+		}
+		final ArrayBlockingQueue<OSCMessage> replyQueue = new ArrayBlockingQueue<>(10);
+		ReplyHandler replyHandler;
+		replyHandler = sendMessage(new OSCMessage(requestMethod), replyMethod, replyQueue);
+		String value = "";
+		while (true) {
+			try {
+				OSCMessage msg = replyQueue.poll(timeoutMS, TimeUnit.MILLISECONDS);
+				if (msg.getArgType(0) == OSCUtil.OSC_STR_ARG_FMT_CHAR) {
+					value = msg.getString(0, value);
+					break;					
+				}
+			} catch (Exception e) {
+				// Usually this is timeout on the poll().
+				break;
+			}
+		}
+		dropReplyHandler(replyHandler);
+		return value;
 	}
 	
 	/**
