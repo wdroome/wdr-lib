@@ -45,8 +45,7 @@ public class EOSCuelistInfo
 		while (true) {
 			try {
 				OSCMessage msg = replies.poll(timeoutMS, TimeUnit.MILLISECONDS);
-				System.out.println("XXX reply: " + msg);
-				List<String> cmdTokens = OSCUtil.parseCmd(msg.getMethod(), "",
+				List<String> cmdTokens = OSCUtil.parseMethod(msg.getMethod(), "",
 							GET_CUELIST_INFO_REPLY_LIST_NUMBER,
 							GET_CUELIST_INFO_REPLY_TYPE,
 							GET_CUELIST_INFO_REPLY_LIST_COUNT);
@@ -61,10 +60,6 @@ public class EOSCuelistInfo
 					m_label = msg.getString(GET_CUELIST_INFO_REPLY_FLD_LABEL, m_label);
 					m_playbackMode = msg.getString(GET_CUELIST_INFO_REPLY_FLD_PLAYBACK_MODE, m_playbackMode);
 					m_faderMode = msg.getString(GET_CUELIST_INFO_REPLY_FLD_FADER_MODE, m_faderMode);
-					System.out.println("XXX: cuelist index arg: "
-							+ msg.getLong(GET_CUELIST_INFO_REPLY_FLD_INDEX, -2));
-					System.out.println("XXX: cuelist HTP arg: "
-							+ msg.getBoolean(6, true));
 					gotListReply = true;
 				} else if (cmdTokens.get(1).equals(GET_CUELIST_INFO_REPLY_TYPE_LINKS)) {
 					gotLinksReply = true;

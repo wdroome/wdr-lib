@@ -459,20 +459,20 @@ public class OSCUtil
 	}
 	
 	/**
-	 * Parse an OSC command into /-separated tokens, and return a List with some of those tokens.
-	 * @param cmd An OSC command.
-	 * @param def The default value if cmd does not have a token at an index.
+	 * Parse an OSC method into /-separated tokens, and return a List with some of those tokens.
+	 * @param method An OSC method.
+	 * @param def The default value if method does not have a token at an index.
 	 * @param indexes The indexes, starting with 0, of the tokens to extract.
-	 * @return A List with the command tokens at the specified indexes.
-	 * 		If the command doesn't have a token at that position, use "def".
+	 * @return A List with the tokens at the specified indexes.
+	 * 		If method doesn't have a token at that position, use "def".
 	 */
-	public static List<String> parseCmd(String cmd, String def, int... indexes)
+	public static List<String> parseMethod(String method, String def, int... indexes)
 	{
 		List<String> list = new ArrayList<>();
-		if (cmd.startsWith("/")) {
-			cmd = cmd.substring(1);
+		if (method.startsWith("/")) {
+			method = method.substring(1);
 		}
-		String[] cmdTokens = cmd.split("/");
+		String[] cmdTokens = method.split("/");
 		for (int i: indexes) {
 			list.add(i < cmdTokens.length ? cmdTokens[i] : def);
 		}
@@ -480,14 +480,14 @@ public class OSCUtil
 	}
 	
 	/**
-	 * Parse an OSC command into /-separated tokens, and return a List with some of those tokens.
-	 * @param cmd An OSC command.
+	 * Parse an OSC method into /-separated tokens, and return a List with some of those tokens.
+	 * @param method An OSC method.
 	 * @param indexes The indexes, starting with 0, of the tokens to extract.
-	 * @return A List with the command tokens at the specified indexes.
-	 * 		If the command doesn't have a token at that position, use "".
+	 * @return A List with the tokens at the specified indexes.
+	 * 		If the method doesn't have a token at that position, use "".
 	 */
-	public static List<String> parseCmd(String cmd, int... indexes)
+	public static List<String> parseMethod(String method, int... indexes)
 	{
-		return parseCmd(cmd, "", indexes);
+		return parseMethod(method, "", indexes);
 	}
 }

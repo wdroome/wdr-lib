@@ -11,9 +11,16 @@ import java.util.concurrent.TimeUnit;
 
 import com.wdroome.osc.OSCConnection;
 import com.wdroome.osc.OSCMessage;
+import com.wdroome.osc.OSCUtil;
 
 public class QueryEOS extends OSCConnection implements OSCConnection.MessageHandler
 {
+	public static final String GET_VERSION_METHOD = "/eos/get/version";
+	public static final String GET_VERSION_RESP = "/eos/out/get/version";
+	
+	public static final String GET_CUELIST_COUNT_METHOD = "/eos/get/cuelist/count";
+	public static final String GET_CUELIST_COUNT_RESP = "/eos/out/get/cuelist/count";
+
 	private long m_timeoutMS = 5000;
 
 	public QueryEOS(InetSocketAddress addr)
@@ -59,18 +66,14 @@ public class QueryEOS extends OSCConnection implements OSCConnection.MessageHand
 		}
 		final ArrayBlockingQueue<OSCMessage> replies = new ArrayBlockingQueue<>(10);
 		ReplyHandler replyHandler;
-		replyHandler = sendMessage(new OSCMessage(EOSCmds.GET_VERSION_CMD),
-									EOSCmds.GET_VERSION_RESP, replies);
+		replyHandler = sendMessage(new OSCMessage(GET_VERSION_METHOD), GET_VERSION_RESP, replies);
 		String version = "(UNKNOWN)";
 		while (true) {
 			try {
 				OSCMessage msg = replies.poll(500, TimeUnit.MILLISECONDS);
-				if (msg.getArgTypes().startsWith("s")) {
-					Object arg = msg.getArgs().get(0);
-					if (arg instanceof String) {
-						version = (String)arg;
-						break;
-					}
+				if (msg.getArgType(0) == OSCUtil.OSC_STR_ARG_FMT_CHAR) {
+					version = msg.getString(0, version);
+					break;					
 				}
 			} catch (Exception e) {
 				// Usually this is timeout on the poll().
@@ -107,18 +110,14 @@ public class QueryEOS extends OSCConnection implements OSCConnection.MessageHand
 		}
 		final ArrayBlockingQueue<OSCMessage> replies = new ArrayBlockingQueue<>(10);
 		ReplyHandler replyHandler;
-		replyHandler = sendMessage(new OSCMessage(EOSCmds.GET_CUELIST_COUNT_CMD),
-									EOSCmds.GET_CUELIST_COUNT_RESP, replies);
+		replyHandler = sendMessage(new OSCMessage(GET_CUELIST_COUNT_METHOD), GET_CUELIST_COUNT_RESP, replies);
 		int count = -1;
 		while (true) {
 			try {
 				OSCMessage msg = replies.poll(m_timeoutMS, TimeUnit.MILLISECONDS);
-				if (msg.getArgTypes().startsWith("i")) {
-					Object arg = msg.getArgs().get(0);
-					if (arg instanceof Integer) {
-						count = (Integer)arg;
-						break;
-					}
+				if (msg.getArgType(0) == OSCUtil.OSC_INT32_ARG_FMT_CHAR) {
+					count = (int)msg.getLong(0, count);
+					break;					
 				}
 			} catch (Exception e) {
 				// Usually this is timeout on the poll().
