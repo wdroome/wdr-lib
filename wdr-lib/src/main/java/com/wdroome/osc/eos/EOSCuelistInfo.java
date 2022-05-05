@@ -34,7 +34,7 @@ public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 	public static final int GET_CUELIST_INFO_REPLY_FLD_FADER_MODE = 4;
 	
 	private int m_cuelistIndex = -1;
-	private String m_cuelistNumber = "";
+	private int m_cuelistNumber = -1;
 	private int m_cueCount = -1;
 	private String m_uuid = "";
 	private String m_label = "";
@@ -43,6 +43,8 @@ public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 
 	/**
 	 * Get the information for a cue list from the EOS server.
+	 * Note that the code assumes cuelist numbers are always simple positive integers
+	 * -- no decimal points, no "number 0".
 	 * @param cuelistIndex The index of the cue list (0 to N-1).
 	 * @param oscConn A connection to the EOS server.
 	 * @param timeoutMS The timeout to wait for replies.
@@ -68,11 +70,10 @@ public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 							GET_CUELIST_INFO_REPLY_LIST_NUMBER,
 							GET_CUELIST_INFO_REPLY_TYPE);
 				if (cmdTokens.get(1).equals(GET_CUELIST_INFO_REPLY_TYPE_LIST)) {
-					m_cuelistNumber = cmdTokens.get(0);
 					try {
-						m_cueCount = Integer.parseInt(cmdTokens.get(2));
+						m_cuelistNumber = Integer.parseInt(cmdTokens.get(0));
 					} catch (Exception e) {
-						// ignore
+						continue;
 					}
 					m_uuid = msg.getString(GET_CUELIST_INFO_REPLY_FLD_UUID, m_label);
 					m_label = msg.getString(GET_CUELIST_INFO_REPLY_FLD_LABEL, m_label);
@@ -94,32 +95,22 @@ public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 		}
 		if (isValid()) {
 			m_cueCount = oscConn.getIntReply(
-								String.format(QueryEOS.GET_CUE_COUNT_METHOD, m_cuelistNumber),
-								String.format(QueryEOS.GET_CUE_COUNT_REPLY, m_cuelistNumber),
+								String.format(EOSUtil.GET_CUE_COUNT_METHOD, m_cuelistNumber),
+								String.format(EOSUtil.GET_CUE_COUNT_REPLY, m_cuelistNumber),
 								timeoutMS);
 		}
 	}
 
 	public boolean isValid()
 	{
-		return !m_cuelistNumber.equals("");
-	}
-	
-	public static String getMethod(int cuelistIndex)
-	{
-		return String.format(GET_CUELIST_INFO_METHOD, cuelistIndex);
-	}
-	
-	public static String getReplyPat(int cuelistIndex)
-	{
-		return GET_CUELIST_INFO_REPLY_PAT;
+		return m_cuelistNumber >= 1;
 	}
 
 	public int getCuelistIndex() {
 		return m_cuelistIndex;
 	}
 
-	public String getCuelistNumber() {
+	public int getCuelistNumber() {
 		return m_cuelistNumber;
 	}
 
@@ -145,7 +136,7 @@ public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 	@Override
 	public int compareTo(EOSCuelistInfo o)
 	{
-		return m_cuelistNumber.compareTo(o.m_cuelistNumber);
+		return Integer.compare(m_cuelistNumber, o.m_cuelistNumber);
 	}
 
 	@Override
@@ -159,7 +150,7 @@ public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + m_cuelistIndex;
-		result = prime * result + ((m_cuelistNumber == null) ? 0 : m_cuelistNumber.hashCode());
+		result = prime * result + m_cuelistNumber;
 		result = prime * result + ((m_uuid == null) ? 0 : m_uuid.hashCode());
 		return result;
 	}
@@ -175,10 +166,7 @@ public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 		EOSCuelistInfo other = (EOSCuelistInfo) obj;
 		if (m_cuelistIndex != other.m_cuelistIndex)
 			return false;
-		if (m_cuelistNumber == null) {
-			if (other.m_cuelistNumber != null)
-				return false;
-		} else if (!m_cuelistNumber.equals(other.m_cuelistNumber))
+		if (m_cuelistNumber != other.m_cuelistNumber)
 			return false;
 		if (m_uuid == null) {
 			if (other.m_uuid != null)

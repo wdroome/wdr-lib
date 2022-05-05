@@ -22,18 +22,6 @@ import com.wdroome.osc.OSCUtil;
  */
 public class QueryEOS extends OSCConnection
 {
-	public static final String DEFAULT_CUE_LIST = "1";
-	
-	public static final String GET_VERSION_METHOD = "/eos/get/version";
-	public static final String GET_VERSION_REPLY = "/eos/out/get/version";
-	
-	public static final String GET_CUELIST_COUNT_METHOD = "/eos/get/cuelist/count";
-	public static final String GET_CUELIST_COUNT_REPLY = "/eos/out/get/cuelist/count";
-	
-		// Argument is the cuelist number, as a string.
-	public static final String GET_CUE_COUNT_METHOD = "/eos/get/cue/%s/count";
-	public static final String GET_CUE_COUNT_REPLY = "/eos/out/get/cue/%s/count";
-
 	private long m_timeoutMS = 2500;
 
 	/**
@@ -79,7 +67,7 @@ public class QueryEOS extends OSCConnection
 	 */
 	public String getVersion() throws IOException
 	{
-		return getStringReply(GET_VERSION_METHOD, GET_VERSION_REPLY, m_timeoutMS);
+		return getStringReply(EOSUtil.GET_VERSION_METHOD, EOSUtil.GET_VERSION_REPLY, m_timeoutMS);
 	}
 	
 	/**
@@ -87,13 +75,13 @@ public class QueryEOS extends OSCConnection
 	 * @return A TreeMap with all cue lists. The key is the cuelist number, as a string.
 	 * @throws IOException If an IO error occurs.
 	 */
-	public TreeMap<String, EOSCuelistInfo> getCuelists() throws IOException
+	public TreeMap<Integer, EOSCuelistInfo> getCuelists() throws IOException
 	{
 		if (!isConnected()) {
 			connect();
 		}
 		int nCuelists = getCuelistCount();
-		TreeMap<String, EOSCuelistInfo> cuelists = new TreeMap<>();
+		TreeMap<Integer, EOSCuelistInfo> cuelists = new TreeMap<>();
 		for (int iCuelist = 0; iCuelist < nCuelists; iCuelist++) {
 			EOSCuelistInfo cuelist = new EOSCuelistInfo(iCuelist, this, m_timeoutMS);
 			if (cuelist.isValid()) {
@@ -109,10 +97,10 @@ public class QueryEOS extends OSCConnection
 	 * @return The number of cues in that list, or -1.
 	 * @throws IOException If an IO error occurs.
 	 */
-	public int getCueCount(String cuelistNumber) throws IOException
+	public int getCueCount(int cuelistNumber) throws IOException
 	{
-		String method = String.format(GET_CUE_COUNT_METHOD, cuelistNumber);
-		String replyPat = String.format(GET_CUE_COUNT_REPLY, cuelistNumber);
+		String method = String.format(EOSUtil.GET_CUE_COUNT_METHOD, cuelistNumber);
+		String replyPat = String.format(EOSUtil.GET_CUE_COUNT_REPLY, cuelistNumber);
 		return getIntReply(method, replyPat, m_timeoutMS);
 	}
 	
@@ -123,7 +111,7 @@ public class QueryEOS extends OSCConnection
 	 */
 	public int getCueCount() throws IOException
 	{
-		return getCueCount(DEFAULT_CUE_LIST);
+		return getCueCount(EOSUtil.DEFAULT_CUE_LIST);
 	}
 
 	/**
@@ -133,7 +121,7 @@ public class QueryEOS extends OSCConnection
 	 */	
 	public int getCuelistCount() throws IOException
 	{
-		return getIntReply(GET_CUELIST_COUNT_METHOD, GET_CUELIST_COUNT_REPLY, m_timeoutMS);
+		return getIntReply(EOSUtil.GET_CUELIST_COUNT_METHOD, EOSUtil.GET_CUELIST_COUNT_REPLY, m_timeoutMS);
 	}
 	
 	/**

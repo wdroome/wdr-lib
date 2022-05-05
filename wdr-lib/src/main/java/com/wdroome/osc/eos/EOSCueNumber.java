@@ -9,7 +9,9 @@ import java.util.Collections;
  */
 public class EOSCueNumber implements Comparable<EOSCueNumber>
 {
+	private final int m_cuelist;
 	private final int m_scaledNumber;	// Cue number multiplied by 10 ** SCALE_EXPONENT
+	private final int m_part;
 	private final String m_stringFmt;
 	
 	private static final int SCALE_EXPONENT = 3;
@@ -25,6 +27,41 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 	 */
 	public EOSCueNumber(String cueNumber)
 	{
+		this(EOSUtil.DEFAULT_CUE_LIST, cueNumber, 0);
+	}
+	
+	/**
+	 * Create a Cue Number from a string.
+	 * This is more permissive than EOS. For example, it accepts .123.
+	 * But the c'tor converts the number into the proper EOS format.
+	 * @param cueNumber The string.
+	 * @throws NumberFormatException If cueNumber isn't parsable as a cue number.
+	 */
+	public EOSCueNumber(int cuelist, String cueNumber, int part)
+	{
+		try {
+			int iSlash = cueNumber.indexOf('/');
+			if (iSlash > 0) {
+				cuelist = Integer.parseInt(cueNumber.substring(0, iSlash));
+			}
+			cueNumber = cueNumber.substring(iSlash+1);
+		} catch (Exception e) {
+			//???
+		}
+		try {
+			int iPart = cueNumber.indexOf('p');
+			if (iPart < 0) {
+				iPart = cueNumber.indexOf('P');
+			}
+			if (iPart > 0) {
+				part = Integer.parseInt(cueNumber.substring(iPart+1));
+				cueNumber = cueNumber.substring(0, iPart);
+			}
+		} catch (Exception e) {
+			//???
+		}
+		m_cuelist = cuelist;
+		m_part = part;
 		cueNumber = cueNumber.trim();
 		int iDot = cueNumber.indexOf('.');
 		if (iDot < 0) {
@@ -45,6 +82,15 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 			m_stringFmt = intPart + "." + buff.toString();
 		}
 	}
+	
+	/**
+	 * Test if this is a part in a multipart cue.
+	 * @return True iff this is a part in a multipart cue.
+	 */
+	public boolean isPart()
+	{
+		return m_part > 0;
+	}
 
 	/**
 	 * Compare two cue numbers.
@@ -52,16 +98,33 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 	@Override
 	public int compareTo(EOSCueNumber o)
 	{
-		return Integer.compare(m_scaledNumber, o.m_scaledNumber);
+		int cmp = Integer.compare(m_cuelist, o.m_cuelist);
+		if (cmp != 0) {
+			return cmp;
+		}
+		cmp = Integer.compare(m_scaledNumber, o.m_scaledNumber);
+		if (cmp != 0) {
+			return cmp;
+		}
+		return Integer.compare(m_part,  o.m_part);
 	}
 
 	/**
-	 * Return the cue number in proper EOS format.
+	 * Return the cue number portion, without cuelist or part number.
 	 */
 	@Override
 	public String toString()
 	{
 		return m_stringFmt;
+	}
+	
+	/**
+	 * Return the full cue number, with "cuelist/" prefix and "p#" suffix if not part 0.
+	 * @return The full cue number.
+	 */
+	public String toFullString()
+	{
+		return m_cuelist + "/" + m_stringFmt + (m_part > 0 ? ("p" + m_part) : "");
 	}
 
 	@Override
@@ -94,7 +157,7 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 		for (String arg: args) {
 			try {
 				EOSCueNumber cueNum = new EOSCueNumber(arg);
-				System.out.println(arg + " => " + cueNum);
+				System.out.println(arg + " => " + cueNum.toFullString());
 				cueNums.add(cueNum);
 			} catch (Exception e) {
 				System.out.println(arg + " => " + e);
@@ -104,7 +167,7 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 		for (EOSCueNumber a: cueNums) {
 			System.out.println();
 			for (EOSCueNumber b: cueNums) {
-				System.out.println(a + "<>" + b + ": " + a.compareTo(b));
+				System.out.println(a.toFullString() + "<>" + b.toFullString() + ": " + a.compareTo(b));
 			}
 		}
 	}
