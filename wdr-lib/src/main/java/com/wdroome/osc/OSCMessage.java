@@ -214,7 +214,7 @@ public class OSCMessage
 	 */
 	public String getString(int index, String def)
 	{
-		if (m_args == null && index >= m_args.size()) {
+		if (m_args == null || index >= m_args.size()) {
 			return def;
 		}
 		Object v = m_args.get(index);
@@ -233,7 +233,7 @@ public class OSCMessage
 	 */
 	public long getLong(int index, long def)
 	{
-		if (m_args == null && index >= m_args.size()) {
+		if (m_args == null || index >= m_args.size()) {
 			return def;
 		}
 		Object v = m_args.get(index);
@@ -252,7 +252,7 @@ public class OSCMessage
 	 */
 	public double getDouble(int index, double def)
 	{
-		if (m_args == null && index >= m_args.size()) {
+		if (m_args == null || index >= m_args.size()) {
 			return def;
 		}
 		Object v = m_args.get(index);
@@ -271,7 +271,7 @@ public class OSCMessage
 	 */
 	public boolean getBoolean(int index, boolean def)
 	{
-		if (m_args == null && index >= m_args.size()) {
+		if (m_args == null || index >= m_args.size()) {
 			return def;
 		}
 		Object v = m_args.get(index);

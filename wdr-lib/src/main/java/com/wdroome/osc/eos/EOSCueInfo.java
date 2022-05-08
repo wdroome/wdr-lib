@@ -3,6 +3,8 @@ package com.wdroome.osc.eos;
 import java.io.IOException;
 
 import java.util.List;
+import java.util.ArrayList;
+
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -21,7 +23,7 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 		// args are cuelist number & cue index, 0-N-1
 	public static final String GET_CUE_INFO_METHOD = "/eos/get/cue/%d/index/%d";
 	public static final String GET_CUE_INFO_REPLY_PAT
-			= "/eos/out/get/cue/%d/[^/]+(/fx|/links/actions)?/list/[0-9]+/[0-9]+";
+			= "/eos/out/get/cue/%d/[.0-9]+/[0-9]+(/fx|/links|/actions)?/list/[0-9]+/[0-9]+";
 	
 	public static final int GET_CUE_INFO_REPLY_CUE_NUMBER = 5;
 	public static final int GET_CUE_INFO_REPLY_PART_NUMBER = 6;
@@ -29,7 +31,7 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 	public static final String GET_CUE_INFO_REPLY_TYPE_LIST = "list";
 	public static final String GET_CUE_INFO_REPLY_TYPE_FX = "fx";
 	public static final String GET_CUE_INFO_REPLY_TYPE_LINKS = "links";
-	public static final String GET_CUE_INFO_REPLY_TYPE_ACTIONS = "action";
+	public static final String GET_CUE_INFO_REPLY_TYPE_ACTIONS = "actions";
 	
 	public static final int GET_CUE_INFO_REPLY_FLD_INDEX = 0;
 	public static final int GET_CUE_INFO_REPLY_FLD_UUID = 1;
@@ -58,7 +60,10 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 	public static final int GET_CUE_INFO_REPLY_FLD_SCENE = 28;
 	public static final int GET_CUE_INFO_REPLY_FLD_SCENE_END = 29;
 	public static final int GET_CUE_INFO_REPLY_FLD_PART_INDEX = 30;
-
+	
+	public static final int GET_CUE_INFO_REPLY_FLD_FX_LIST = 2;
+	public static final int GET_CUE_INFO_REPLY_FLD_LINKS_CUELIST = 2;
+	public static final int GET_CUE_INFO_REPLY_FLD_ACTIONS_EXTCMD = 2;
 	
 	private int m_cuelist;
 	private int m_cueIndex = -1;
@@ -89,6 +94,12 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 	private String m_scene = "";
 	private boolean m_sceneEnd = false;
 	private int m_partIndex = -1;
+	
+	private ArrayList<String> m_fxList = null;
+	private ArrayList<String> m_linkedCuelists = null;
+	private String m_extActions = "";
+	
+	private boolean m_isAutoCue = false;
 
 	/**
 	 * Get the information for a cue list from the EOS server.
@@ -99,12 +110,15 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 	 * @param timeoutMS The timeout to wait for replies.
 	 * @throws IOException If an IO error occurs.
 	 */
-	public EOSCueInfo(int cuelist, int cueIndex, OSCConnection oscConn, long timeoutMS) throws IOException
+	public EOSCueInfo(int cuelist, int cueIndex, boolean isAutoCue, OSCConnection oscConn, long timeoutMS) throws IOException
 	{
 		m_cuelist = cuelist;
 		m_cueIndex = cueIndex;
+		m_isAutoCue = isAutoCue;
 		String requestMethod = String.format(GET_CUE_INFO_METHOD, cuelist, cueIndex);
 		String replyMethod = String.format(GET_CUE_INFO_REPLY_PAT, cuelist);
+		// System.err.println("\nXXX GetCue req: " + requestMethod);
+		// System.err.println("XXX GetCue resp: " + replyMethod);
 		final ArrayBlockingQueue<OSCMessage> replies = new ArrayBlockingQueue<>(10);
 		ReplyHandler replyHandler = oscConn.sendMessage(new OSCMessage(requestMethod), replyMethod, replies);
 		boolean gotListReply = false;
@@ -114,8 +128,13 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 		while (true) {
 			try {
 				OSCMessage msg = replies.poll(timeoutMS, TimeUnit.MILLISECONDS);
+				if (msg == null) {
+					break;
+				}
+				// System.out.println("XXX CueInfo Resp: " + msg);
 				int indexArg = (int)msg.getLong(GET_CUE_INFO_REPLY_FLD_INDEX, -1);
 				if (indexArg != cueIndex) {
+					// System.err.println("---Bad index " + indexArg + "!=" + cueIndex);
 					continue;
 				}
 				List<String> cmdTokens = OSCUtil.parseMethod(msg.getMethod(), "",
@@ -163,34 +182,30 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 					m_partIndex = (int)msg.getLong(GET_CUE_INFO_REPLY_FLD_PART_INDEX, m_partIndex);
 					gotListReply = true;
 				} else if (respType.equals(GET_CUE_INFO_REPLY_TYPE_LINKS)) {
-					// XXX ???
+					m_linkedCuelists = getRemainingStrArgs(msg, GET_CUE_INFO_REPLY_FLD_LINKS_CUELIST);
 					gotLinksReply = true;
 				} else if (respType.equals(GET_CUE_INFO_REPLY_TYPE_FX)) {
-					// XXX ???
+					m_fxList = getRemainingStrArgs(msg, GET_CUE_INFO_REPLY_FLD_FX_LIST);
 					gotFxReply = true;
 				} else if (respType.equals(GET_CUE_INFO_REPLY_TYPE_ACTIONS)) {
-					// XXX ???
+					m_extActions = msg.getString(GET_CUE_INFO_REPLY_FLD_ACTIONS_EXTCMD, m_extActions);
 					gotActionsReply = true;
 				}
 				if (gotListReply && gotLinksReply && gotFxReply && gotActionsReply) {
-					// System.out.println("XXX: got Cue " + m_cuetNumber.toFullString());
-					oscConn.dropReplyHandler(replyHandler);
+					// System.out.println("===: got Cue " + m_cueNumber.toFullString());
 					break;
 				}
 			} catch (Exception e) {
-			// Usually this is timeout on the poll().
-			break;
+				e.printStackTrace();
+				break;
 			}
 		}
+		oscConn.dropReplyHandler(replyHandler);
 	}
 
 	public boolean isValid()
 	{
 		return m_cueNumber != null;
-	}
-	
-	public int getCuelist() {
-		return m_cuelist;
 	}
 
 	public int getCueIndex() {
@@ -209,6 +224,155 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 		return m_label;
 	}
 
+	public int getUpTimeMS() {
+		return m_upTimeMS;
+	}
+
+	public int getUpDelayMS() {
+		return m_upDelayMS;
+	}
+
+	public int getDownTimeMS() {
+		return m_downTimeMS;
+	}
+
+	public int getDownDelayMS() {
+		return m_downDelayMS;
+	}
+
+	public int getFocusTimeMS() {
+		return m_focusTimeMS;
+	}
+
+	public int getFocusDelayMS() {
+		return m_focusDelayMS;
+	}
+
+	public int getColorTimeMS() {
+		return m_colorTimeMS;
+	}
+
+	public int getColorDelayMS() {
+		return m_colorDelayMS;
+	}
+
+	public int getBeamTimeMS() {
+		return m_beamTimeMS;
+	}
+
+	public int getBeamDelayMS() {
+		return m_beamDelayMS;
+	}
+
+	public int getRate() {
+		return m_rate;
+	}
+
+	public String getMark() {
+		return m_mark;
+	}
+
+	public String getBlock() {
+		return m_block;
+	}
+
+	public String getAssert() {
+		return m_assert;
+	}
+
+	public String getLink() {
+		return m_link;
+	}
+
+	public int getFollowTimeMS() {
+		return m_followTimeMS;
+	}
+
+	public int getHangTimeMS() {
+		return m_hangTimeMS;
+	}
+
+	public boolean isAllFade() {
+		return m_allFade;
+	}
+
+	public int getLoop() {
+		return m_loop;
+	}
+
+	public int getPartCount() {
+		return m_partCount;
+	}
+
+	public String getNotes() {
+		return m_notes;
+	}
+
+	public String getScene() {
+		return m_scene;
+	}
+
+	public boolean isSceneEnd() {
+		return m_sceneEnd;
+	}
+
+	public int getPartIndex() {
+		return m_partIndex;
+	}
+
+	public List<String> getFxList() {
+		return m_fxList;
+	}
+
+	public List<String> getLinkedCuelists() {
+		return m_linkedCuelists;
+	}
+
+	public String getExtActions() {
+		return m_extActions;
+	}
+
+	public boolean isAutoCue() {
+		return m_isAutoCue;
+	}
+	
+	public double getDuration()
+	{
+		int time = 0;
+		time = Math.max(m_upTimeMS, time);
+		time = Math.max(m_downTimeMS, time);
+		time = Math.max(m_focusTimeMS, time);
+		time = Math.max(m_colorTimeMS, time);
+		time = Math.max(m_beamTimeMS, time);
+		
+		int delay = 0;
+		delay = Math.max(m_upDelayMS, delay);
+		delay = Math.max(m_downDelayMS, delay);
+		delay = Math.max(m_focusDelayMS, delay);
+		delay = Math.max(m_colorDelayMS, delay);
+		delay = Math.max(m_beamDelayMS, delay);
+		
+		return (time + delay)/1000.0;
+	}
+	
+	/**
+	 * Return a List with the remaining String args in a message.
+	 * @param msg
+	 * @param iStart The index of the starting string arg.
+	 * @return A list with arguments iArg to end, or null if none.
+	 */
+	private ArrayList<String> getRemainingStrArgs(OSCMessage msg, int iStart)
+	{
+		if (msg.getArgType(iStart) != OSCUtil.OSC_STR_ARG_FMT_CHAR) {
+			return null;
+		}
+		ArrayList<String> list = new ArrayList<>();
+		for (int iArg = iStart; iArg < msg.size(); iArg++) {
+			list.add(msg.getString(iArg, GET_CUE_INFO_METHOD));
+		}
+		return list;
+	}
+
 	/**
 	 * Compare based on the cue number.
 	 */
@@ -218,10 +382,32 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 		return m_cueNumber.compareTo(o.m_cueNumber);
 	}
 
+	public String toShortString() {
+		String prefix = "";
+		if (m_cueNumber.isPart()) {
+			prefix = "--";
+		} else if (m_isAutoCue) {
+			prefix = ">";
+		}
+		return prefix + m_cueNumber.toFullString()
+				+ "," + getDuration() + "sec"
+				+ (!m_label.isBlank() ? (",\"" + m_label + "\"") : "");
+	}
+
 	@Override
 	public String toString() {
-		return "EOSCuelistInfo[index=" + m_cueIndex + ",number=" + m_cueNumber.toFullString()
-				+ ",label=" + m_label + "]";
+		return "EOSCueInfo[cueIndex=" + m_cueIndex + ",cueNumber=" + m_cueNumber.toFullString()
+				+ ",isAuto=" + m_isAutoCue + ",uuid=" + m_uuid
+				+ ",label=" + m_label + ",upTimeMS=" + m_upTimeMS + ",upDelayMS=" + m_upDelayMS
+				+ ",downTimeMS=" + m_downTimeMS + ",downDelayMS=" + m_downDelayMS + ",focusTimeMS="
+				+ m_focusTimeMS + ",focusDelayMS=" + m_focusDelayMS + ",colorTimeMS=" + m_colorTimeMS
+				+ ",colorDelayMS=" + m_colorDelayMS + ",beamTimeMS=" + m_beamTimeMS + ",beamDelayMS="
+				+ m_beamDelayMS + ",rate=" + m_rate + ",mark=" + m_mark + ",block=" + m_block + ",assert="
+				+ m_assert + ",link=" + m_link + ",followTimeMS=" + m_followTimeMS + ",hangTimeMS="
+				+ m_hangTimeMS + ",allFade=" + m_allFade + ",loop=" + m_loop + ",partCount=" + m_partCount
+				+ ",notes=" + m_notes + ",scene=" + m_scene + ",sceneEnd=" + m_sceneEnd + ",partIndex="
+				+ m_partIndex + ",fxList=" + m_fxList + ",linkedCuelists=" + m_linkedCuelists + ",extActions="
+				+ m_extActions + "]";
 	}
 
 	@Override

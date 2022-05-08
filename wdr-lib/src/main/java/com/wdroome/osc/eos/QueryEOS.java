@@ -72,7 +72,7 @@ public class QueryEOS extends OSCConnection
 	
 	/**
 	 * Get all cue lists.
-	 * @return A TreeMap with all cue lists. The key is the cuelist number, as a string.
+	 * @return A TreeMap with all cue lists. The key is the cuelist number.
 	 * @throws IOException If an IO error occurs.
 	 */
 	public TreeMap<Integer, EOSCuelistInfo> getCuelists() throws IOException
@@ -89,6 +89,31 @@ public class QueryEOS extends OSCConnection
 			}
 		}
 		return cuelists;
+	}
+	
+	/**
+	 * Get all cues in a cuelist.
+	 * @return A TreeMap with all cues. The key is the cue number.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public TreeMap<EOSCueNumber,EOSCueInfo> getCues(int cuelist) throws IOException
+	{
+		if (!isConnected()) {
+			connect();
+		}
+		int nCues = getCueCount(cuelist);
+		TreeMap<EOSCueNumber,EOSCueInfo> cues = new TreeMap<>();
+		boolean nextIsAutoCue = false;
+		for (int iCue = 0; iCue < nCues; iCue++) {
+			EOSCueInfo cue = new EOSCueInfo(cuelist, iCue, nextIsAutoCue, this, m_timeoutMS);
+			if (cue.isValid()) {
+				cues.put(cue.getCueNumber(), cue);
+				nextIsAutoCue = cue.getHangTimeMS() >= 0 || cue.getFollowTimeMS() >= 0;
+			}
+			// XXX try {Thread.sleep(2000); } catch (Exception e) {}
+			// XXX if (iCue >= 2) { break; } // XXXX
+		}
+		return cues;
 	}
 	
 	/**
@@ -136,9 +161,35 @@ public class QueryEOS extends OSCConnection
 			long startTS = System.currentTimeMillis();
 			System.out.println("Version: " + queryEOS.getVersion());
 			System.out.println("Cuelist count: " + queryEOS.getCuelistCount());
-			System.out.println("Cuelists: " + queryEOS.getCuelists());
+			TreeMap<Integer,EOSCuelistInfo> cuelists = queryEOS.getCuelists();
+			System.out.println("Cuelists: " + cuelists);
+			TreeMap<Integer, TreeMap<EOSCueNumber, EOSCueInfo>> allcues = new TreeMap<>();
+			for (EOSCuelistInfo cuelist: cuelists.values()) {
+				int cuelistNumber = cuelist.getCuelistNumber();
+				System.out.println("Getting cues for cuelist " + cuelistNumber);
+				allcues.put(cuelistNumber, queryEOS.getCues(cuelistNumber));
+			}
+			long endTS = System.currentTimeMillis();
+		
+			for (EOSCuelistInfo cuelist: cuelists.values()) {
+				int cuelistNumber = cuelist.getCuelistNumber();
+				TreeMap<EOSCueNumber, EOSCueInfo> cues = allcues.get(cuelistNumber);
+				if (cues == null) {
+					System.out.println("OOPS! no cues for cuelist " + cuelistNumber);
+				}
+				System.out.println();
+				System.out.println("Cuelist " + cuelistNumber + ": ncues=" + cues.size());
+				for (EOSCueInfo cue: cues.values()) {
+					if (true) {
+						System.out.println();
+						System.out.println(" " + cue.toString());
+					} else {
+						System.out.println(" " + cue.toShortString());
+					}
+				}
+			}
 			System.out.println(String.format("Elapsed time: %.3f sec.",
-						(System.currentTimeMillis() - startTS)/1000.0));
+						(endTS - startTS)/1000.0));
 		} catch (IllegalArgumentException e) {
 			System.err.println(e);
 		}

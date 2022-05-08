@@ -299,7 +299,9 @@ public class OSCConnection implements Closeable
 	{
 		return sendMessage(msg, replyMethodRegex,
 				(resp) -> {
-					try { replyQueue.offer(resp, 500, TimeUnit.MILLISECONDS); } catch (Exception e) {}
+					// System.err.println("XXX Conn.replyHandler " + resp);
+					try { replyQueue.offer(resp, 1000, TimeUnit.MILLISECONDS); }
+					catch (Exception e) { logError("OSCConnection.sendMessage handler: " + e); }
 					return true;
 				});
 	}
@@ -438,6 +440,7 @@ public class OSCConnection implements Closeable
 	 */
 	public boolean dropReplyHandler(ReplyHandler replyHandler)
 	{
+		// System.err.println("XXX OSCConn.dropReplyHandler " + replyHandler);
 		synchronized (m_replyHandlers) {
 			return m_replyHandlers.remove(replyHandler);
 		}
@@ -520,6 +523,7 @@ public class OSCConnection implements Closeable
 				try {
 					matchingHandlers.clear();
 					OSCMessage msg = readOscMessage();
+					// System.err.println("XXX OSCConnnection.Listener: " + msg);
 					// Save matching reply handlers, but do NOT call the handler in the synch block.
 					synchronized (m_replyHandlers) {
 						for (ReplyHandler replyHandler: m_replyHandlers) {

@@ -62,6 +62,9 @@ public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 		while (true) {
 			try {
 				OSCMessage msg = replies.poll(timeoutMS, TimeUnit.MILLISECONDS);
+				if (msg == null) {
+					break;
+				}
 				int indexArg = (int)msg.getLong(GET_CUELIST_INFO_REPLY_FLD_INDEX, -1);
 				if (indexArg != cuelistIndex) {
 					continue;
@@ -85,7 +88,6 @@ public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 				}
 				if (gotListReply && gotLinksReply) {
 					// System.out.println("XXX: got Cuelist " + m_cuelistNumber);
-					oscConn.dropReplyHandler(replyHandler);
 					break;
 				}
 			} catch (Exception e) {
@@ -93,6 +95,7 @@ public class EOSCuelistInfo implements Comparable<EOSCuelistInfo>
 			break;
 			}
 		}
+		oscConn.dropReplyHandler(replyHandler);
 		if (isValid()) {
 			m_cueCount = oscConn.getIntReply(
 								String.format(EOSUtil.GET_CUE_COUNT_METHOD, m_cuelistNumber),
