@@ -95,6 +95,7 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 				
 			if (cmd.equals("help") || cmd.equals("?")) {
 				m_out.println("send osc-method arg1 arg2 ...");
+				m_out.println("   If arg ends in /i32, /i64, /f or /d, send as a number.");
 				m_out.println("stream    ## Show responses when they arrive.");
 				m_out.println("nostream  ## Save responses instead of streaming them.");
 				m_out.println("resp      ## Show saved responses.");
@@ -103,7 +104,7 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 				m_out.println("quit      ## Bye-bye.");
 			} else if (cmd.equals("send")) {
 				if (!(parsedCmd.length >= 2)) {
-					m_out.println("Usage: send osc-method [str-arg str-arg ...]");
+					m_out.println("Usage: send osc-method [arg arg ...]");
 					continue;
 				} else {
 					sendCmd(parsedCmd, 1);
@@ -157,7 +158,36 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 	{
 		Object[] args = new Object[parsedCmd.length - cmdIndex - 1];
 		for (int i = cmdIndex + 1; i < parsedCmd.length; i++) {
-			args[i-cmdIndex-1] = parsedCmd[i];
+			String[] argParts = parsedCmd[i].split("/");
+			Object arg = parsedCmd[i];
+			if (argParts.length == 2) {
+				if (argParts[1].equals("i") || argParts[1].equals("i32")) {
+					try {
+						arg = Integer.valueOf(argParts[0]);
+					} catch (Exception e) {
+						// fall thru, treat as string arg.
+					}
+				} else if (argParts[1].equals("i32")) {
+					try {
+						arg = Long.valueOf(argParts[0]);
+					} catch (Exception e) {
+						// fall thru, treat as string arg.
+					}
+				} else if (argParts[1].equals("f")) {
+					try {
+						arg = Float.valueOf(argParts[0]);
+					} catch (Exception e) {
+						// fall thru, treat as string arg.
+					}
+				} else if (argParts[1].equals("d")) {
+					try {
+						arg = Double.valueOf(argParts[0]);
+					} catch (Exception e) {
+						// fall thru, treat as string arg.
+					}
+				}
+			}
+			args[i-cmdIndex-1] = arg;
 		}
 		OSCMessage msg = new OSCMessage(parsedCmd[cmdIndex], args);
 		int preNumResp = getNumResponses();
