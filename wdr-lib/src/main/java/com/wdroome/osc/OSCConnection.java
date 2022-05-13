@@ -244,14 +244,17 @@ public class OSCConnection implements Closeable
 	 * @param msg The message.
 	 * @throws IOException
 	 * 		If an error occurs while sending the message.
+	 * 		All errors close the connection.
 	 */
 	public void sendMessage(OSCMessage msg) throws IOException
 	{
+		logMsgSent(msg);
 		List<byte[]> byteArrays = msg.getOSCBytes(null);
 		synchronized (m_oscOutputStream) {
 			try {
 				OSCUtil.writeSlipMsg(m_oscOutputStream, byteArrays);
 			} catch (IOException e) {
+				disconnect();
 				throw e;
 			}
 		}
@@ -495,6 +498,23 @@ public class OSCConnection implements Closeable
 	}
 	
 	/**
+	 * Called before sending an OSCMessage. The base class does nothing.
+	 * Child classes may override as needed, say to print the message for debugging.
+	 * @param msg
+	 */
+	protected void logMsgSent(OSCMessage msg) {}
+	
+	/**
+	 * Called after receiving an OSCMessage. The base class does nothing.
+	 * Child classes may override as needed, say to print the message for debugging.
+	 * NOTE: This is called from the Listener thread, so clients need to be careful
+	 * when accessing shared data. If the child wants to process the message,
+	 * set a reply handler.
+	 * @param msg
+	 */
+	protected void logMsgReceived(OSCMessage msg) {}
+	
+	/**
 	 * A daemon thread that listens for messages from the OSC server.
 	 * There is only one Listener per instance.
 	 * Note that this thread uses m_oscInputStream in the main instance
@@ -523,6 +543,7 @@ public class OSCConnection implements Closeable
 				try {
 					matchingHandlers.clear();
 					OSCMessage msg = readOscMessage();
+					logMsgReceived(msg);
 					// System.err.println("XXX OSCConnnection.Listener: " + msg);
 					// Save matching reply handlers, but do NOT call the handler in the synch block.
 					synchronized (m_replyHandlers) {

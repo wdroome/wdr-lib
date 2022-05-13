@@ -336,23 +336,24 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 		return m_isAutoCue;
 	}
 	
+	/**
+	 * Get the cue duration, in seconds.
+	 * @return The cue duration, in seconds.
+	 */
 	public double getDuration()
 	{
-		int time = 0;
-		time = Math.max(m_upTimeMS, time);
-		time = Math.max(m_downTimeMS, time);
-		time = Math.max(m_focusTimeMS, time);
-		time = Math.max(m_colorTimeMS, time);
-		time = Math.max(m_beamTimeMS, time);
-		
-		int delay = 0;
-		delay = Math.max(m_upDelayMS, delay);
-		delay = Math.max(m_downDelayMS, delay);
-		delay = Math.max(m_focusDelayMS, delay);
-		delay = Math.max(m_colorDelayMS, delay);
-		delay = Math.max(m_beamDelayMS, delay);
-		
-		return (time + delay)/1000.0;
+		int dur = 0;
+		dur = maxTimeDelay(dur, m_upTimeMS, m_upDelayMS);
+		dur = maxTimeDelay(dur, m_downTimeMS, m_downDelayMS);
+		dur = maxTimeDelay(dur, m_focusTimeMS, m_focusDelayMS);
+		dur = maxTimeDelay(dur, m_colorTimeMS, m_colorDelayMS);
+		dur = maxTimeDelay(dur, m_beamTimeMS, m_beamDelayMS);
+		return dur/1000.0;
+	}
+	
+	private int maxTimeDelay(int a, int bTime, int bDelay)
+	{
+		return Math.max(a, Math.max(bTime,0) + Math.max(bDelay,0));
 	}
 	
 	/**

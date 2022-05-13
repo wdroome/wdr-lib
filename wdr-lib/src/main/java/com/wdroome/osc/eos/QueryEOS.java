@@ -59,6 +59,20 @@ public class QueryEOS extends OSCConnection
 	public void setTimeoutMS(long timeoutMS) {
 		this.m_timeoutMS = timeoutMS;
 	}
+	
+	/**
+	 * Test if the server is really an EOS controller.
+	 * @return True iff the server is an EOS controller.
+	 */
+	public boolean isEos()
+	{
+		try {
+			String version = getVersion();
+			return version != null && !version.equals("");
+		} catch (IOException e) {
+			return false;
+		}
+	}
 
 	/**
 	 * Get the EOS version.
