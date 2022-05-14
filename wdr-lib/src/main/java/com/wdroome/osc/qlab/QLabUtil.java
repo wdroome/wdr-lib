@@ -43,6 +43,9 @@ public class QLabUtil
 	public static final String SELECTED_CUES_REQ = "/selectedCues";
 	public static final String RUNNING_CUES_REQ = "/runningCues";
 	public static final String RUNNING_OR_PAUSED_CUES_REQ = "/runningOrPausedCues";
+	
+	public static final String SELECT_CUE_NUMBER = "/select/%s";
+	public static final String SELECT_CUE_ID = "/select_id/%s";
 
 	public static final String FLD_NUMBER = "number";
 	public static final String FLD_LIST_NAME = "listName";
@@ -53,7 +56,129 @@ public class QLabUtil
 	public static final String FLD_ARMED = "armed";
 	public static final String FLD_CUES = "cues";
 	
-	public static final String VALUE_COLOR_NAME_NONE = "none";
+	public static final String CUE_NUMBER_REQ_PREFIX = "/cue/";
+	public static final String CUE_ID_REQ_PREFIX = "/cue_id/";
+
+	public static final String CONTINUE_MODE_CUE_REQ = "/continueMode";	// number
+	public static enum ContinueMode {
+					NO_CONTINUE(0), AUTO_CONTINUE(1), AUTO_FOLLOW(2);
+		
+					private final int m_qlab;
+					private ContinueMode(int qlab) { m_qlab = qlab; }
+					
+					public int toQLab() { return m_qlab; }
+					
+					public static ContinueMode fromQLab(int v)
+					{
+						for (ContinueMode mode: ContinueMode.values()) {
+							if (mode.ordinal() == v) {
+								return mode;
+							}
+						}
+						return NO_CONTINUE;
+					}
+				}
+	
+	public static final String COLOR_NAME_CUE_REQ = "/colorName";		// string
+	public static enum ColorName {
+					NONE, RED, ORANGE, GREEN, BLUE, PURPLE;
+				
+					public String toQLab() { return toString().toLowerCase(); }
+				
+					public static ColorName fromQLab(String v)
+					{
+						for (ColorName color: ColorName.values()) {
+							if (color.toString().equalsIgnoreCase(v)) {
+								return color;
+							}
+						}
+						return NONE;
+					}
+				}
+	
+	public static final String DISPLAY_NAME_CUE_REQ = "/displayName";	// get only
+	public static final String LIST_NAME_CUE_REQ = "/listName";			// get only
+	public static final String FLAGGED_CUE_REQ = "/flagged";			// number: 0 false, !0 true
+	public static final String IS_BROKEN_CUE_REQ = "/isBroken";			// get only
+	public static final String NAME_CUE_REQ = "/name";					// string
+	public static final String NOTES_CUE_REQ = "/notes";				// string
+	public static final String NUMBER_CUE_REQ = "/number";				// string
+	
+	public static final String MODE_CUE_REQ = "mode";					// number (group mode)
+	public static enum GroupMode {
+					UNKNOWN(0),	START_AND_ENTER(1), START_AND_NEXT(2), TIMELINE(3), RANDOM(4);
+		
+					private final int m_qlab;
+					private GroupMode(int qlab) { m_qlab = qlab; }
+					
+					public int toQLab() { return m_qlab; }
+					
+					public GroupMode fromQLab(int v)
+					{
+						for (GroupMode mode: GroupMode.values()) {
+							if (mode.m_qlab == v) {
+								return mode;
+							}
+						}
+						return UNKNOWN;
+					}
+				}
+	
+	public static final String PATCH_CUE_REQ = "/patch";				// number (network patch, 1-16)
+	public static final String CUSTOM_STRING_CUE_REQ = "/customString";	// OSC command string
+	
+	public static final String MESSAGE_TYPE_CUE_REQ = "/messageType";	// number 
+	public static enum NetworkMessageType {
+					UNKNOWN(0), QLab(1), OSC(2), UDP(3);
+			
+					private final int m_qlab;
+					private NetworkMessageType(int qlab) { m_qlab = qlab; }
+					
+					public int toQLab() { return m_qlab; }
+					
+					public NetworkMessageType fromQLab(int v)
+					{
+						for (NetworkMessageType mode: NetworkMessageType.values()) {
+							if (mode.m_qlab == v) {
+								return mode;
+							}
+						}
+						return UNKNOWN;
+					}
+				}
+	
+	private static final String HEX_DIGIT_PAT = "[A-Fa-z0-9]";
+	private static final String UNIQUE_ID_PAT =
+											HEX_DIGIT_PAT + "{8}"
+									+ "-" + HEX_DIGIT_PAT + "{4}"
+									+ "-" + HEX_DIGIT_PAT + "{4}"
+									+ "-" + HEX_DIGIT_PAT + "{4}"
+									+ "-" + HEX_DIGIT_PAT + "{12}"
+									;
+	
+	/**
+	 * Test if a string is a cue unique id or a cue number.
+	 * @param id The possible id.
+	 * @return True if id looks like a unique identifier.
+	 */
+	public static boolean isCueId(String id)
+	{
+		return id.matches(UNIQUE_ID_PAT);
+	}
+	
+	/**
+	 * Return the method for a request for a specific cue.
+	 * @param numOrId The cue number or cue id. Note that if it's a cue number,
+	 * 		it must be acceptable in an OSC method: no blanks or illegal characters.
+	 * @param request The request part.
+	 * @return The full request, with the appropriate prefix
+	 * 			with the cue number or id.
+	 */
+	public static String getCueReq(String numOrId, String request)
+	{
+		return (isCueId(numOrId) ? CUE_ID_REQ_PREFIX : CUE_NUMBER_REQ_PREFIX)
+									+ numOrId + request;
+	}
 	
 	/**
 	 * Return a QLab "boolean" field in a JSON object as a real boolean.

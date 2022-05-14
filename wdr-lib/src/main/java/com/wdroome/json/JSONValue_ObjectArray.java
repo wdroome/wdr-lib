@@ -21,7 +21,7 @@ public class JSONValue_ObjectArray implements JSONValue, Iterable<JSONValue_Obje
 	}
 
 	/**
-	 * Create a new String array from an existing JSON array.
+	 * Create a new Object array from an existing JSON array.
 	 * Ignore all non-object elements from the array.
 	 * This class creates a shallow clone of the existing array;
 	 * it does not change that array.

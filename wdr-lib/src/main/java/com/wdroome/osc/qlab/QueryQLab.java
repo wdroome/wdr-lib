@@ -9,8 +9,10 @@ import java.util.concurrent.TimeUnit;
 import com.wdroome.osc.OSCConnection;
 import com.wdroome.osc.OSCMessage;
 import com.wdroome.osc.OSCUtil;
+import com.wdroome.osc.qlab.QLabUtil.ContinueMode;
 import com.wdroome.json.JSONParseException;
 import com.wdroome.json.JSONValue_String;
+import com.wdroome.json.JSONValue_Array;
 import com.wdroome.json.JSONValueTypeException;
 
 public class QueryQLab extends OSCConnection
@@ -134,20 +136,71 @@ public class QueryQLab extends OSCConnection
 	public String getVersion() throws IOException
 	{
 		QLabReply reply = sendQLabReq(QLabUtil.VERSION_REQ);
-		if (reply != null && reply.isOk() && reply.m_rawData instanceof JSONValue_String) {
-			return ((JSONValue_String)reply.m_rawData).m_value;
-		}
-		return "";
+		return reply != null ? reply.getString("") : "";
 	}
 	
+	/**
+	 * Select a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public void selectCue(String idOrNumber) throws IOException
+	{
+		sendQLabReq(String.format(
+				QLabUtil.isCueId(idOrNumber) ? QLabUtil.SELECT_CUE_ID : QLabUtil.SELECT_CUE_NUMBER,
+				idOrNumber));
+	}
+	
+	/**
+	 * Test if a cue is broken.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return True if the cue is broken.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean getIsBroken(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.IS_BROKEN_CUE_REQ));
+		return reply != null ? reply.getBool(false) : false;
+	}
+	
+	/**
+	 * Get the notes field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The notes field for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public String getNotes(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NOTES_CUE_REQ));
+		return reply != null ? reply.getString("") : "";
+	}
+	
+	/**
+	 * Get the continue mode for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The continue mode for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public QLabUtil.ContinueMode getContinueMode(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.CONTINUE_MODE_CUE_REQ));
+		return reply != null
+				? QLabUtil.ContinueMode.fromQLab((int)reply.getLong(0))
+				: QLabUtil.ContinueMode.NO_CONTINUE;
+	}
+	
+	/**
+	 * Get all cue lists and all all contained cues.
+	 * @return A list of cue lists.
+	 * @throws IOException If an IO error occurs.
+	 */
 	public List<QLabCue> getAllCueLists() throws IOException
 	{
 		QLabReply reply = sendQLabReq(QLabUtil.CUELISTS_REQ);
-		if (reply.isOk() && reply.m_dataArr != null) {
-			return QLabCue.getCueArray(reply.m_dataArr, null);
-		} else {
+		if (reply == null) {
 			return null;
 		}
+		return QLabCue.getCueArray(reply.getJSONArray(null), null, this);
 	}
 	
 	private boolean m_printAllMsgs = false;	// XXX

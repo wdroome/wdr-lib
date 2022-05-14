@@ -38,7 +38,6 @@ public enum QLabCueType
 	private final String m_toQLab;
 	private final String m_fromQLab;
 	
-	
 	private QLabCueType(String fromQLab)
 	{
 		m_toQLab = fromQLab;

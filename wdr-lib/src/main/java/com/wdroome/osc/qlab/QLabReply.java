@@ -3,7 +3,11 @@ package com.wdroome.osc.qlab;
 import com.wdroome.json.JSONValue;
 import com.wdroome.json.JSONValueTypeException;
 import com.wdroome.json.JSONValue_Object;
+import com.wdroome.json.JSONValue_String;
 import com.wdroome.json.JSONValue_Array;
+import com.wdroome.json.JSONValue_ObjectArray;
+import com.wdroome.json.JSONValue_Boolean;
+import com.wdroome.json.JSONValue_Number;
 import com.wdroome.json.JSONParser;
 
 import com.wdroome.json.JSONLexan;
@@ -43,13 +47,7 @@ public class QLabReply
 	public final Status m_status;
 	
 	/** Generic JSON data from QLab. May be null, but only if error. */
-	public final JSONValue m_rawData;
-	
-	/** m_rawData cast as a JSON dictionary, or null if m_rawData isn't a dictionary. */
-	public final JSONValue_Object m_dataObj;
-	
-	/** m_rawData cast as a JSON array, or null if m_rawData isn't an array. */
-	public final JSONValue_Array m_dataArr;
+	private final JSONValue m_data;
 	
 	/**
 	 * Create a reply object from a QLab reply message.
@@ -64,9 +62,7 @@ public class QLabReply
 		m_workspaceId = reply.getString(QLabUtil.FLD_WORKSPACE_ID, "");
 		m_address = reply.getString(QLabUtil.FLD_ADDRESS, "");
 		m_status = Status.fromQLab(reply.getString(QLabUtil.FLD_STATUS, Status.ERROR.toString()));
-		m_rawData = reply.get(QLabUtil.FLD_DATA, null);
-		m_dataObj = (m_rawData instanceof JSONValue_Object) ? (JSONValue_Object)m_rawData : null;
-		m_dataArr = (m_rawData instanceof JSONValue_Array) ? (JSONValue_Array)m_rawData : null;
+		m_data = reply.get(QLabUtil.FLD_DATA, null);
 	}
 	
 	/**
@@ -81,6 +77,131 @@ public class QLabReply
 	@Override
 	public String toString() {
 		return "QLabReply[workspace=" + m_workspaceId + ", addr=" + m_address + ", status=" + m_status
-				+ ", data=" + m_rawData + "]";
+				+ ", data=" + m_data + "]";
+	}
+	
+	/**
+	 * Get the data field in the reply as a generic JSONValue.
+	 * @param def The default value.
+	 * @return The data field as a generic JSONValue, or def if null.
+	 */
+	public JSONValue getData(JSONValue def)
+	{
+		return m_data != null ? m_data : def;
+	}
+	
+	public JSONValue_Object getJSONObject(JSONValue_Object def)
+	{
+		if (m_data == null) {
+			return def;
+		} else if (m_data instanceof JSONValue_Object) {
+			return (JSONValue_Object)m_data;
+		} else {
+			return def;
+		}
+	}
+	
+	public JSONValue_Array getJSONArray(JSONValue_Array def)
+	{
+		if (m_data == null) {
+			return def;
+		} else if (m_data instanceof JSONValue_Array) {
+			return (JSONValue_Array)m_data;
+		} else {
+			return def;
+		}
+	}
+	
+	public JSONValue_ObjectArray getObjectArray(JSONValue_ObjectArray def)
+	{
+		if (m_data == null) {
+			return def;
+		} else if (m_data instanceof JSONValue_Array) {
+			return new JSONValue_ObjectArray((JSONValue_Array)m_data);
+		} else {
+			return def;
+		}
+	}
+	
+	/**
+	 * Return the reply data as a single boolean value.
+	 * @param def The default value.
+	 * @return The boolean value of the m_data field, or def.
+	 */
+	public boolean getBool(boolean def)
+	{
+		if (m_data == null) {
+			return def;
+		} else if (m_data instanceof JSONValue_String) {
+			return !((JSONValue_String)m_data).m_value.equals("0");
+		} else if (m_data instanceof JSONValue_Number) {
+			return ((JSONValue_Number)m_data).m_value != 0;
+		} else if (m_data instanceof JSONValue_Boolean) {
+			return ((JSONValue_Boolean)m_data).m_value;
+		} else {
+			return def;
+		}
+	}
+	
+	/**
+	 * Return the reply data as a single boolean value.
+	 * @param def The default value.
+	 * @return The boolean value of the m_data field, or def.
+	 */
+	public String getString(String def)
+	{
+		if (m_data == null) {
+			return def;
+		} else if (m_data instanceof JSONValue_String) {
+			return ((JSONValue_String)m_data).m_value;
+		} else if (m_data instanceof JSONValue_Number) {
+			return ((JSONValue_Number)m_data).m_value + "";
+		} else if (m_data instanceof JSONValue_Boolean) {
+			return ((JSONValue_Boolean)m_data).m_value ? "true" : "false";
+		} else {
+			return def;
+		}
+	}
+	
+	/**
+	 * Return the reply data as a long value.
+	 * @param def The default value.
+	 * @return The long value of the m_data field, or def.
+	 */
+	public long getLong(long def)
+	{
+		if (m_data == null) {
+			return def;
+		} else if (m_data instanceof JSONValue_Number) {
+			return (long)(((JSONValue_Number)m_data).m_value);
+		} else if (m_data instanceof JSONValue_String) {
+			try { return (long)Double.parseDouble(((JSONValue_String)m_data).m_value); }
+			catch (Exception e) { return def; }
+		} else if (m_data instanceof JSONValue_Boolean) {
+			return ((JSONValue_Boolean)m_data).m_value ? 1 : 0;
+		} else {
+			return def;
+		}
+	}
+	
+	/**
+	 * Return the reply data as a long value.
+	 * @param def The default value.
+	 * @return The long value of the m_data field, or def.
+	 */
+	public double getDouble(double def)
+	{
+		if (m_data == null) {
+			return def;
+		} else if (m_data instanceof JSONValue_Number) {
+			return ((JSONValue_Number)m_data).m_value;
+		} else if (m_data instanceof JSONValue_String) {
+			try { return Double.parseDouble(((JSONValue_String)m_data).m_value); }
+			catch (Exception e) { return def; }
+		} else if (m_data instanceof JSONValue_Boolean) {
+			return ((JSONValue_Boolean)m_data).m_value ? 1 : 0;
+		} else {
+			return def;
+		}
 	}
 }
