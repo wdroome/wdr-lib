@@ -164,6 +164,46 @@ public class QueryQLab extends OSCConnection
 	}
 	
 	/**
+	 * Set the cue number for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param number The new number.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setNumber(String idOrNumber, String number) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NUMBER_CUE_REQ),
+									new Object[] {number});
+		return reply != null && reply.isOk();
+	}
+	
+	/**
+	 * Get the name field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The name field for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public String getName(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NAME_CUE_REQ));
+		return reply != null ? reply.getString("") : "";
+	}
+	
+	/**
+	 * Set the name field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param name The new name.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setName(String idOrNumber, String name) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NAME_CUE_REQ),
+									new Object[] {name});
+		return reply != null && reply.isOk();
+	}
+	
+	/**
 	 * Get the notes field for a cue.
 	 * @param idOrNumber The cue unique id or number.
 	 * @return The notes field for the cue.
@@ -173,6 +213,20 @@ public class QueryQLab extends OSCConnection
 	{
 		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NOTES_CUE_REQ));
 		return reply != null ? reply.getString("") : "";
+	}
+	
+	/**
+	 * Set the notes field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param notes The new notes.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setNotes(String idOrNumber, String notes) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NOTES_CUE_REQ),
+									new Object[] {notes});
+		return reply != null && reply.isOk();
 	}
 	
 	/**
@@ -187,6 +241,74 @@ public class QueryQLab extends OSCConnection
 		return reply != null
 				? QLabUtil.ContinueMode.fromQLab((int)reply.getLong(0))
 				: QLabUtil.ContinueMode.NO_CONTINUE;
+	}
+	
+	/**
+	 * Set the continue mode field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param mode The new mode.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setContinueMode(String idOrNumber, QLabUtil.ContinueMode mode) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.CONTINUE_MODE_CUE_REQ),
+									new Object[] {Integer.valueOf(mode.toQLab())});
+		return reply != null && reply.isOk();
+	}
+	
+	/**
+	 * Get the color name for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The color name for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public QLabUtil.ColorName getColorName(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.COLOR_NAME_CUE_REQ));
+		return reply != null
+				? QLabUtil.ColorName.fromQLab(reply.getString(""))
+				: QLabUtil.ColorName.NONE;
+	}
+	
+	/**
+	 * Set the color name field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param colorName The new color name.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setColorName(String idOrNumber, QLabUtil.ColorName colorName) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.COLOR_NAME_CUE_REQ),
+									new Object[] {colorName.toQLab()});
+		return reply != null && reply.isOk();
+	}
+	
+	/**
+	 * Get the flagged attribute for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return True if the cue is flagged.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean getIsFlagged(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.FLAGGED_CUE_REQ));
+		return reply != null ? reply.getBool(false) : false;
+	}
+	
+	/**
+	 * Set the flagged attribute for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param flagged The new flagged attribute.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setFlagged(String idOrNumber, boolean flagged) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.FLAGGED_CUE_REQ),
+									new Object[] {Integer.valueOf(flagged ? 1 : 0)});
+		return reply != null && reply.isOk();
 	}
 	
 	/**
