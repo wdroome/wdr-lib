@@ -1,5 +1,12 @@
 package com.wdroome.osc.qlab;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.wdroome.json.JSONValue_Array;
+import com.wdroome.json.JSONValue_Object;
+import com.wdroome.json.JSONValue_ObjectArray;
+
 /**
  * The cue types QLab supports.
  * @author wdr
@@ -80,6 +87,31 @@ public enum QLabCueType
 	public String toQLab()
 	{
 		return m_toQLab.toLowerCase();
+	}
+	
+	public static QLabCue makeCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex, QueryQLab queryQLab)
+	{
+		QLabCueType type = QLabCueType.fromQLab(jsonCue.getString(QLabUtil.FLD_TYPE,
+											QLabCueType.UNKNOWN.toString()));
+		switch (type) {
+		case GROUP: return new QLabGroupCue(jsonCue, parent, parentIndex, queryQLab);
+		case CUELIST: return new QLabCuelistCue(jsonCue, parent, parentIndex, queryQLab);
+		case NETWORK: return new QLabNetworkCue(jsonCue, parent, parentIndex, queryQLab);
+			
+		default: return new QLabCue(jsonCue, parent, parentIndex, queryQLab);
+		}
+	}
+
+	public static List<QLabCue> getCueArray(JSONValue_Array arr, QLabCue parent, QueryQLab queryQLab)
+	{
+		List<QLabCue> cues = null;
+		if (arr != null) {
+			cues = new ArrayList<>();
+			for (JSONValue_Object v: new JSONValue_ObjectArray(arr)) {
+				cues.add(makeCue(v, parent, cues.size(), queryQLab));
+			}
+		}
+		return cues;
 	}
 
 	/**

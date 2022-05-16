@@ -12,7 +12,7 @@ import com.wdroome.json.JSONValue_ObjectArray;
 import com.wdroome.osc.qlab.QLabUtil.ColorName;
 
 /**
- * A cue retrieved from QLab.
+ * The base class for cues retrieved from QLab.
  * @author wdr
  */
 public class QLabCue
@@ -36,9 +36,6 @@ public class QLabCue
 	public final QLabUtil.ContinueMode m_continueMode;
 	public final String m_notes;
 	
-	// Contained cues for Group & CueList cues. May be null.
-	public final List<QLabCue> m_cues;
-	
 	/**
 	 * Create a QlabCue from a QLab reply message.
 	 * This includes all child cues.
@@ -58,7 +55,6 @@ public class QLabCue
 		m_colorName = ColorName.fromQLab(jsonCue.getString(QLabUtil.FLD_COLOR_NAME, ""));
 		m_armed = QLabUtil.getBool(jsonCue, QLabUtil.FLD_ARMED, true);
 		m_flagged = QLabUtil.getBool(jsonCue, QLabUtil.FLD_FLAGGED, true);
-		m_cues = getCueArray(jsonCue.getArray(QLabUtil.FLD_CUES, null), this, queryQLab);
 		
 		boolean isBroken = false;
 		QLabUtil.ContinueMode continueMode = QLabUtil.ContinueMode.NO_CONTINUE;
@@ -81,20 +77,7 @@ public class QLabCue
 	public String toString() {
 		return "QLabCue[type=" + m_type + ",parent=" + m_parent + "[" + m_parentIndex
 				+ "],listName=" + m_listName + ",name=" + m_name + ",number=" + m_number + ",uniqueId="
-				+ m_uniqueId + ",armed=" + m_armed + ",flagged=" + m_flagged + ",colorName=" + m_colorName
-				+ ",cues=" + m_cues + "]";
-	}
-
-	public static List<QLabCue> getCueArray(JSONValue_Array arr, QLabCue parent, QueryQLab queryQLab)
-	{
-		List<QLabCue> cues = null;
-		if (arr != null) {
-			cues = new ArrayList<>();
-			for (JSONValue_Object v: new JSONValue_ObjectArray(arr)) {
-				cues.add(new QLabCue(v, parent, cues.size(), queryQLab));
-			}
-		}
-		return cues;
+				+ m_uniqueId + ",armed=" + m_armed + ",flagged=" + m_flagged + ",colorName=" + m_colorName;
 	}
 	
 	public void printCue(PrintStream out, String indent, String indentIncr)
@@ -107,7 +90,7 @@ public class QLabCue
 				+ m_type
 				+ " num=" + m_number
 				+ nameValue(" name=", m_name)
-				+ nameValue(" listName=", m_listName)
+				+ (!m_listName.equals(m_name) ? nameValue(" listName=", m_listName) : "")
 				+ (m_armed ? " armed" : "") + (m_flagged ? " flag" : "")
 				+ (m_colorName != QLabUtil.ColorName.NONE ? (" " + m_colorName) : "")
 				+ (m_continueMode != QLabUtil.ContinueMode.NO_CONTINUE ? (" " + m_continueMode) : "")
@@ -116,11 +99,6 @@ public class QLabCue
 		if (m_parent != null) {
 			out.println(indent + indentIncr + indentIncr + "parent[" + m_parentIndex + "]: "
 					+ m_parent.m_type + "/" + m_parent.m_number + "/" + m_parent.m_name);
-		}
-		if (m_cues != null) {
-			for (QLabCue child: m_cues) {
-				child.printCue(out, indent + indentIncr, indentIncr);
-			}
 		}
 	}
 	

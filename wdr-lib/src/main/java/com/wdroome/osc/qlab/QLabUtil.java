@@ -114,7 +114,7 @@ public class QLabUtil
 					
 					public int toQLab() { return m_qlab; }
 					
-					public GroupMode fromQLab(int v)
+					public static GroupMode fromQLab(int v)
 					{
 						for (GroupMode mode: GroupMode.values()) {
 							if (mode.m_qlab == v) {
@@ -137,7 +137,7 @@ public class QLabUtil
 					
 					public int toQLab() { return m_qlab; }
 					
-					public NetworkMessageType fromQLab(int v)
+					public static NetworkMessageType fromQLab(int v)
 					{
 						for (NetworkMessageType mode: NetworkMessageType.values()) {
 							if (mode.m_qlab == v) {

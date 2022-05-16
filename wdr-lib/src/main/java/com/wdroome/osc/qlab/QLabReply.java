@@ -112,7 +112,7 @@ public class QLabReply
 		}
 	}
 	
-	public JSONValue_ObjectArray getObjectArray(JSONValue_ObjectArray def)
+	public JSONValue_ObjectArray getJSONObjectArray(JSONValue_ObjectArray def)
 	{
 		if (m_data == null) {
 			return def;
