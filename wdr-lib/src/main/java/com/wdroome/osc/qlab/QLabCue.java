@@ -35,6 +35,11 @@ public class QLabCue
 	public final boolean m_isBroken;
 	public final QLabUtil.ContinueMode m_continueMode;
 	public final String m_notes;
+	public final double m_duration;
+	public final double m_prewait;
+	public final double m_postwait;
+	public final String m_cueTargetId;
+	public final String m_fileTarget;
 	
 	/**
 	 * Create a QlabCue from a QLab reply message.
@@ -57,6 +62,11 @@ public class QLabCue
 		m_flagged = QLabUtil.getBool(jsonCue, QLabUtil.FLD_FLAGGED, true);
 		
 		boolean isBroken = false;
+		double duration = 0;
+		double prewait = 0;
+		double postwait = 0;
+		String cueTargetId = "";
+		String fileTarget = "";
 		QLabUtil.ContinueMode continueMode = QLabUtil.ContinueMode.NO_CONTINUE;
 		String notes = "";
 		if (queryQLab != null) {
@@ -64,6 +74,11 @@ public class QLabCue
 				isBroken = queryQLab.getIsBroken(m_uniqueId);
 				continueMode = queryQLab.getContinueMode(m_uniqueId);
 				notes = queryQLab.getNotes(m_uniqueId);
+				duration = queryQLab.getDuration(m_uniqueId);
+				prewait = queryQLab.getPrewait(m_uniqueId);
+				postwait = queryQLab.getPostwait(m_uniqueId);
+				cueTargetId = queryQLab.getCueTargetId(m_uniqueId);
+				fileTarget = queryQLab.getFileTarget(m_uniqueId);
 			} catch (IOException e) {
 				// Skip ??
 			}
@@ -71,13 +86,23 @@ public class QLabCue
 		m_isBroken = isBroken;
 		m_continueMode = continueMode;
 		m_notes = notes;
+		m_duration = duration;
+		m_prewait = prewait;
+		m_postwait = postwait;
+		m_cueTargetId = cueTargetId;
+		m_fileTarget = fileTarget;
 	}
 
 	@Override
 	public String toString() {
 		return "QLabCue[type=" + m_type + ",parent=" + m_parent + "[" + m_parentIndex
-				+ "],listName=" + m_listName + ",name=" + m_name + ",number=" + m_number + ",uniqueId="
-				+ m_uniqueId + ",armed=" + m_armed + ",flagged=" + m_flagged + ",colorName=" + m_colorName;
+				+ "],listName=" + m_listName + ",name=" + m_name + ",number=" + m_number
+				+ ",uniqueId=" + m_uniqueId + ",armed=" + m_armed + ",flagged=" + m_flagged
+				+ ",colorName=" + m_colorName
+				+ ",pre/dur/post=" + QLabUtil.fmt3Times(m_prewait, m_duration, m_postwait)
+				+ (!m_cueTargetId.isBlank() ? (",target=" + m_cueTargetId) : "")
+				+ (!m_fileTarget.isBlank() ? (",file=" + m_fileTarget) : "")			
+				;
 	}
 	
 	public void printCue(PrintStream out, String indent, String indentIncr)
@@ -91,8 +116,10 @@ public class QLabCue
 				+ " num=" + m_number
 				+ nameValue(" name=", m_name)
 				+ (!m_listName.equals(m_name) ? nameValue(" listName=", m_listName) : "")
+				+ " pre/dur/post=" + QLabUtil.fmt3Times(m_prewait, m_duration, m_postwait)
 				+ (m_armed ? " armed" : "") + (m_flagged ? " flag" : "")
 				+ (m_colorName != QLabUtil.ColorName.NONE ? (" " + m_colorName) : "")
+				+ (!m_cueTargetId.isBlank() ? (",target=" + m_cueTargetId) : "")
 				+ (m_continueMode != QLabUtil.ContinueMode.NO_CONTINUE ? (" " + m_continueMode) : "")
 				+ " id=" + m_uniqueId
 				);

@@ -104,9 +104,8 @@ public enum QLabCueType
 
 	public static List<QLabCue> getCueArray(JSONValue_Array arr, QLabCue parent, QueryQLab queryQLab)
 	{
-		List<QLabCue> cues = null;
+		List<QLabCue> cues = new ArrayList<>();
 		if (arr != null) {
-			cues = new ArrayList<>();
 			for (JSONValue_Object v: new JSONValue_ObjectArray(arr)) {
 				cues.add(makeCue(v, parent, cues.size(), queryQLab));
 			}

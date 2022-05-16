@@ -59,6 +59,30 @@ public class QLabUtil
 	public static final String CUE_NUMBER_REQ_PREFIX = "/cue/";
 	public static final String CUE_ID_REQ_PREFIX = "/cue_id/";
 
+	/*
+	 * Requests whose names end in "_CUE_REQ" apply to a specific cue.
+	 * The request method must be prefixed by either "/cue/cue-number"
+	 * or "/cue_id/cue-unique-id".
+	 */
+	
+	/*
+	 * Requests for all cue types.
+	 */
+	public static final String DEFAULT_NAME_CUE_REQ = "/defaultName";	// get only
+	public static final String DISPLAY_NAME_CUE_REQ = "/displayName";	// get only
+	public static final String LIST_NAME_CUE_REQ = "/listName";			// get only
+	public static final String NAME_CUE_REQ = "/name";					// string
+	public static final String NOTES_CUE_REQ = "/notes";				// string
+	public static final String NUMBER_CUE_REQ = "/number";				// string
+	public static final String FLAGGED_CUE_REQ = "/flagged";			// number: 0 false, !0 true
+	public static final String IS_BROKEN_CUE_REQ = "/isBroken";			// get only
+	public static final String CUE_TARGET_ID_CUE_REQ = "/cueTargetId";	// string
+	public static final String CUE_TARGET_NUMBER_CUE_REQ = "/cueTargetNumber";	// string
+	public static final String DURATION_CUE_REQ = "/duration";			// number
+	public static final String FILE_TARGET_CUE_REQ = "/fileTarget";		// string
+	public static final String PREWAIT_CUE_REQ = "/preWait";			// number
+	public static final String POSTWAIT_CUE_REQ = "/postWait";			// number
+	
 	public static final String CONTINUE_MODE_CUE_REQ = "/continueMode";	// number
 	public static enum ContinueMode {
 					NO_CONTINUE(0), AUTO_CONTINUE(1), AUTO_FOLLOW(2);
@@ -96,15 +120,9 @@ public class QLabUtil
 					}
 				}
 	
-	public static final String DEFAULT_NAME_CUE_REQ = "/defaultName";	// get only
-	public static final String DISPLAY_NAME_CUE_REQ = "/displayName";	// get only
-	public static final String LIST_NAME_CUE_REQ = "/listName";			// get only
-	public static final String NAME_CUE_REQ = "/name";					// string
-	public static final String NOTES_CUE_REQ = "/notes";				// string
-	public static final String NUMBER_CUE_REQ = "/number";				// string
-	public static final String FLAGGED_CUE_REQ = "/flagged";			// number: 0 false, !0 true
-	public static final String IS_BROKEN_CUE_REQ = "/isBroken";			// get only
-	
+	/*
+	 * Requests for Group cues.
+	 */
 	public static final String MODE_CUE_REQ = "mode";					// number (group mode)
 	public static enum GroupMode {
 					UNKNOWN(0),	START_AND_ENTER(1), START_AND_NEXT(2), TIMELINE(3), RANDOM(4);
@@ -125,6 +143,9 @@ public class QLabUtil
 					}
 				}
 	
+	/*
+	 * Requests for Network cues.
+	 */
 	public static final String PATCH_CUE_REQ = "/patch";				// number (network patch, 1-16)
 	public static final String CUSTOM_STRING_CUE_REQ = "/customString";	// OSC command string
 	
@@ -202,5 +223,15 @@ public class QLabUtil
 		} else {
 			return def;
 		}
+	}
+	
+	public static String fmtTime(double time)
+	{
+		return String.format("%.2f", time);
+	}
+	
+	public static String fmt3Times(double time1, double time2, double time3)
+	{
+		return String.format("%.2f/%.2f/%.2f", time1, time2, time3);
 	}
 }

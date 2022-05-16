@@ -148,7 +148,7 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 	}
 	
 	/**
-	 * FOr testing, create a CueNumber for each argument. Then sort the numbers and compare each pair.
+	 * For testing, create a CueNumber for each argument. Then sort the numbers and compare each pair.
 	 * @param args
 	 */
 	public static void main(String[] args)

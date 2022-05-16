@@ -274,6 +274,108 @@ public class QueryQLab extends OSCConnection
 	}
 	
 	/**
+	 * Get the file target field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The file target field for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public String getFileTarget(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.FILE_TARGET_CUE_REQ));
+		return reply != null ? reply.getString("") : "";
+	}
+	
+	/**
+	 * Get the cue target ID field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The cue target ID field for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public String getCueTargetId(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.CUE_TARGET_ID_CUE_REQ));
+		return reply != null ? reply.getString("") : "";
+	}
+
+	/**
+	 * Get the duration field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The duration field for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public double getDuration(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.DURATION_CUE_REQ));
+		return reply != null ? reply.getDouble(0) : 0;
+	}
+	
+	/**
+	 * Set the duration field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param duration The new duration.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setDuration(String idOrNumber, double duration) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.DURATION_CUE_REQ),
+									new Object[] {Double.valueOf(duration)});
+		return reply != null && reply.isOk();
+	}
+
+	/**
+	 * Get the prewait field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The prewait field for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public double getPrewait(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.PREWAIT_CUE_REQ));
+		return reply != null ? reply.getDouble(-1) : -1;
+	}
+	
+	/**
+	 * Set the prewait field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param prewait The new prewait.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setPrewait(String idOrNumber, double prewait) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.PREWAIT_CUE_REQ),
+									new Object[] {Double.valueOf(prewait)});
+		return reply != null && reply.isOk();
+	}
+
+	/**
+	 * Get the postwait field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The postwait field for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public double getPostwait(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.POSTWAIT_CUE_REQ));
+		return reply != null ? reply.getDouble(0) : 0;
+	}
+	
+	/**
+	 * Set the postwait field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param postwait The new postwait.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setPostwait(String idOrNumber, double postwait) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.POSTWAIT_CUE_REQ),
+									new Object[] {Double.valueOf(postwait)});
+		return reply != null && reply.isOk();
+	}
+	
+	/**
 	 * Get the continue mode for a cue.
 	 * @param idOrNumber The cue unique id or number.
 	 * @return The continue mode for the cue.

@@ -6,9 +6,11 @@ import java.util.List;
 import java.util.ArrayList;
 
 import com.wdroome.json.JSONValue_Object;
+import com.wdroome.osc.eos.EOSUtil;
+import com.wdroome.osc.eos.EOSCueNumber;
 
 /**
- * A QLab Netowrk cue.
+ * A QLab Network cue.
  * @author wdr
  */
 public class QLabNetworkCue extends QLabCue
@@ -16,6 +18,10 @@ public class QLabNetworkCue extends QLabCue
 	public final int m_patchNumber;
 	public final QLabUtil.NetworkMessageType m_msgType;
 	public final String m_customString;
+	
+		// The target cue of the fire-cue command in m_customString,
+		// or null if m_customString isn't a fire-cue command.
+	public final EOSCueNumber m_eosCueNumber;
 	
 	public QLabNetworkCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex, QueryQLab queryQLab)
 	{
@@ -35,13 +41,15 @@ public class QLabNetworkCue extends QLabCue
 		m_patchNumber = patchNumber;
 		m_msgType = msgType;
 		m_customString = customString;
+		m_eosCueNumber = EOSUtil.getCueInFireRequest(m_customString);
 	}
 	
 	@Override
 	public String toString()
 	{
 		return super.toString() + " msgtype=" + m_msgType + " patch=" + m_patchNumber
-					+ " customString=" + m_customString;
+					+ " customString=" + m_customString
+					+ (m_eosCueNumber != null ? (" eosCue=" + m_eosCueNumber.toFullString()) : "");
 	}
 	
 	@Override
@@ -52,6 +60,7 @@ public class QLabNetworkCue extends QLabCue
 		}
 		super.printCue(out, indent, indentIncr);
 		out.println(indent + indentIncr + indentIncr + m_msgType + " patch=" + m_patchNumber
+				+ (m_eosCueNumber != null ? (" eosCue=" + m_eosCueNumber.toFullString()) : "")
 				+ (!m_customString.isBlank() ? (" cmd=\"" + m_customString + "\"") : ""));
 	}
 }
