@@ -11,8 +11,8 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 {
 	private final int m_cuelist;
 	private final int m_scaledNumber;	// Cue number multiplied by 10 ** SCALE_EXPONENT
+	private final String m_stringNumber;	// Cue number as string
 	private final int m_part;
-	private final String m_stringFmt;
 	
 	private static final int SCALE_EXPONENT = 3;
 	private static final int SCALE_FACTOR = (int)Math.pow(10, SCALE_EXPONENT);
@@ -73,23 +73,51 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 		int intPart = m_scaledNumber / SCALE_FACTOR;
 		int fracPart = m_scaledNumber % SCALE_FACTOR;
 		if (fracPart == 0) {
-			m_stringFmt = "" + intPart;
+			m_stringNumber = "" + intPart;
 		} else {
 			StringBuilder buff = new StringBuilder(String.format(FRAC_FMT, fracPart));
 			for (int len = SCALE_EXPONENT; len > 0 && buff.charAt(len-1) == '0'; --len) {
 				buff.setLength(len-1);
 			}
-			m_stringFmt = intPart + "." + buff.toString();
+			m_stringNumber = intPart + "." + buff.toString();
 		}
 	}
 	
 	/**
+	 * Get the cue list number for this cue.
+	 * @return The cue list number for this cue.
+	 */
+	public int getCuelist()
+	{
+		return m_cuelist;
+	}
+	
+	/**
+	 * Get the cue-number part of the cue, as a string.
+	 * @return The cue-number part of the cue, as a string.
+	 */
+	public String getCueNumber()
+	{
+		return m_stringNumber;
+	}
+	
+	/**
 	 * Test if this is a part in a multipart cue.
+	 * That is, the part number is greater than 0.
 	 * @return True iff this is a part in a multipart cue.
 	 */
 	public boolean isPart()
 	{
 		return m_part > 0;
+	}
+	
+	/**
+	 * Get the part number of this cue. The "base part" is number 0.
+	 * @return This cue's part number, or 0 is this is the base part.
+	 */
+	public int getPartNumber()
+	{
+		return m_part;
 	}
 
 	/**
@@ -115,7 +143,7 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 	@Override
 	public String toString()
 	{
-		return m_stringFmt;
+		return m_stringNumber;
 	}
 	
 	/**
@@ -124,7 +152,7 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 	 */
 	public String toFullString()
 	{
-		return m_cuelist + "/" + m_stringFmt + (m_part > 0 ? ("p" + m_part) : "");
+		return m_cuelist + "/" + m_stringNumber + (m_part > 0 ? ("p" + m_part) : "");
 	}
 
 	@Override

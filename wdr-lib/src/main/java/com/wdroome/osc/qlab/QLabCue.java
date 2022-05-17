@@ -40,6 +40,7 @@ public class QLabCue
 	public final double m_postwait;
 	public final String m_cueTargetId;
 	public final String m_fileTarget;
+	public final boolean m_isAuto;
 	
 	/**
 	 * Create a QlabCue from a QLab reply message.
@@ -48,10 +49,11 @@ public class QLabCue
 	 * @param parent The parent cue, if not null.
 	 * @param parentIndex The index in the parent cue, if there is one.
 	 */
-	public QLabCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex, QueryQLab queryQLab)
+	public QLabCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex, boolean isAuto, QueryQLab queryQLab)
 	{
 		m_parent = parent;
 		m_parentIndex = parentIndex;
+		m_isAuto = isAuto || autoFromParent(parent);
 		m_type = QLabCueType.fromQLab(jsonCue.getString(QLabUtil.FLD_TYPE, QLabCueType.UNKNOWN.toString()));
 		m_listName = jsonCue.getString(QLabUtil.FLD_LIST_NAME, "");
 		m_uniqueId = jsonCue.getString(QLabUtil.FLD_UNIQUE_ID, "");
@@ -92,6 +94,15 @@ public class QLabCue
 		m_cueTargetId = cueTargetId;
 		m_fileTarget = fileTarget;
 	}
+	
+	private boolean autoFromParent(QLabCue parent)
+	{
+		if (parent != null && parent instanceof QLabGroupCue) {
+			return ((QLabGroupCue)parent).m_groupMode != QLabUtil.GroupMode.START_AND_ENTER;
+		} else {
+			return false;
+		}
+	}
 
 	@Override
 	public String toString() {
@@ -99,6 +110,7 @@ public class QLabCue
 				+ "],listName=" + m_listName + ",name=" + m_name + ",number=" + m_number
 				+ ",uniqueId=" + m_uniqueId + ",armed=" + m_armed + ",flagged=" + m_flagged
 				+ ",colorName=" + m_colorName
+				+ (m_isAuto ? ",auto" : "")
 				+ ",pre/dur/post=" + QLabUtil.fmt3Times(m_prewait, m_duration, m_postwait)
 				+ (!m_cueTargetId.isBlank() ? (",target=" + m_cueTargetId) : "")
 				+ (!m_fileTarget.isBlank() ? (",file=" + m_fileTarget) : "")			
@@ -112,6 +124,7 @@ public class QLabCue
 		}
 		out.println(indent
 				+ (m_isBroken ? "*** " : "")
+				+ (m_isAuto ? ">" : "")
 				+ m_type
 				+ " num=" + m_number
 				+ nameValue(" name=", m_name)
@@ -119,7 +132,7 @@ public class QLabCue
 				+ " pre/dur/post=" + QLabUtil.fmt3Times(m_prewait, m_duration, m_postwait)
 				+ (m_armed ? " armed" : "") + (m_flagged ? " flag" : "")
 				+ (m_colorName != QLabUtil.ColorName.NONE ? (" " + m_colorName) : "")
-				+ (!m_cueTargetId.isBlank() ? (",target=" + m_cueTargetId) : "")
+				+ (!m_cueTargetId.isBlank() ? (" target=" + m_cueTargetId) : "")
 				+ (m_continueMode != QLabUtil.ContinueMode.NO_CONTINUE ? (" " + m_continueMode) : "")
 				+ " id=" + m_uniqueId
 				);

@@ -123,7 +123,7 @@ public class QLabUtil
 	/*
 	 * Requests for Group cues.
 	 */
-	public static final String MODE_CUE_REQ = "mode";					// number (group mode)
+	public static final String MODE_CUE_REQ = "/mode";					// number (group mode)
 	public static enum GroupMode {
 					UNKNOWN(0),	START_AND_ENTER(1), START_AND_NEXT(2), TIMELINE(3), RANDOM(4);
 		

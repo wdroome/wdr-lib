@@ -23,9 +23,10 @@ public class QLabNetworkCue extends QLabCue
 		// or null if m_customString isn't a fire-cue command.
 	public final EOSCueNumber m_eosCueNumber;
 	
-	public QLabNetworkCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex, QueryQLab queryQLab)
+	public QLabNetworkCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex,
+							boolean isAuto, QueryQLab queryQLab)
 	{
-		super(jsonCue, parent, parentIndex, queryQLab);
+		super(jsonCue, parent, parentIndex, isAuto, queryQLab);
 		QLabUtil.NetworkMessageType msgType = QLabUtil.NetworkMessageType.OSC;
 		String customString = "";
 		int patchNumber = 1;

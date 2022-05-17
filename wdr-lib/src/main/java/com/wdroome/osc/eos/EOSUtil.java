@@ -31,6 +31,22 @@ public class EOSUtil
 	public static final String FIRE_CUELIST_CUE_PART_METHOD = "/eos/cue/%d/%s/%d/fire";
 	
 	/**
+	 * Return the method for a "fire-cue" command.
+	 * @param cue The cue to fire.
+	 * @return An OSC method to fire that cue.
+	 */
+	public static String makeCueFireRequest(EOSCueNumber cue)
+	{
+		if (cue.isPart()) {
+			return String.format(FIRE_CUELIST_CUE_PART_METHOD,
+							cue.getCuelist(), cue.getCueNumber(), cue.getPartNumber());
+		} else {
+			return String.format(FIRE_CUELIST_CUE_METHOD,
+							cue.getCuelist(), cue.getCueNumber());			
+		}
+	}
+	
+	/**
 	 * Extract the cue number from an OSC command to fire an EOS cue.
 	 * @param request The OSC request, as a string. A blank separates the method from the arguments, if any.
 	 * @return The EOS cue number of the cue that request will fire,
@@ -76,7 +92,7 @@ public class EOSUtil
 			}
 		} else if (methodParts.length == 6 && arg == null) {
 			try {
-				return new EOSCueNumber(Integer.parseInt(methodParts[23]), methodParts[3],
+				return new EOSCueNumber(Integer.parseInt(methodParts[2]), methodParts[3],
 						Integer.parseInt(methodParts[4]));
 			} catch (NumberFormatException e) {
 				return null;

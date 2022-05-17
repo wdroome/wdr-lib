@@ -14,11 +14,12 @@ public class QLabCuelistCue extends QLabCue
 {
 	public final List<QLabCue> m_cues;
 	
-	public QLabCuelistCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex, QueryQLab queryQLab)
+	public QLabCuelistCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex,
+							boolean isAuto, QueryQLab queryQLab)
 	{
-		super(jsonCue, parent, parentIndex, queryQLab);
+		super(jsonCue, parent, parentIndex, isAuto, queryQLab);
 		if (queryQLab != null) {
-			m_cues = QLabCueType.getCueArray(jsonCue.getArray(QLabUtil.FLD_CUES, null), this, queryQLab);
+			m_cues = QLabCueType.getCueArray(jsonCue.getArray(QLabUtil.FLD_CUES, null), this, false, queryQLab);
 		} else {
 			m_cues = new ArrayList<>();
 		}

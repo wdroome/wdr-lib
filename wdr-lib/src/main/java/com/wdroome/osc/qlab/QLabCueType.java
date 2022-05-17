@@ -19,7 +19,7 @@ public enum QLabCueType
 	CAMERA("Camera"),
 	TEXT("Text"),
 	LIGHT("Light"),
-	FADE("Fade)"),
+	FADE("Fade"),
 	NETWORK("Network"),
 	MIDI("MIDI"),
 	MIDIFILE("MIDI File"),
@@ -89,25 +89,30 @@ public enum QLabCueType
 		return m_toQLab.toLowerCase();
 	}
 	
-	public static QLabCue makeCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex, QueryQLab queryQLab)
+	public static QLabCue makeCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex,
+									boolean isAuto, QueryQLab queryQLab)
 	{
 		QLabCueType type = QLabCueType.fromQLab(jsonCue.getString(QLabUtil.FLD_TYPE,
 											QLabCueType.UNKNOWN.toString()));
 		switch (type) {
-		case GROUP: return new QLabGroupCue(jsonCue, parent, parentIndex, queryQLab);
-		case CUELIST: return new QLabCuelistCue(jsonCue, parent, parentIndex, queryQLab);
-		case NETWORK: return new QLabNetworkCue(jsonCue, parent, parentIndex, queryQLab);
+		case GROUP: return new QLabGroupCue(jsonCue, parent, parentIndex, isAuto, queryQLab);
+		case CUELIST: return new QLabCuelistCue(jsonCue, parent, parentIndex, isAuto, queryQLab);
+		case NETWORK: return new QLabNetworkCue(jsonCue, parent, parentIndex, isAuto, queryQLab);
 			
-		default: return new QLabCue(jsonCue, parent, parentIndex, queryQLab);
+		default: return new QLabCue(jsonCue, parent, parentIndex, isAuto, queryQLab);
 		}
 	}
 
-	public static List<QLabCue> getCueArray(JSONValue_Array arr, QLabCue parent, QueryQLab queryQLab)
+	public static List<QLabCue> getCueArray(JSONValue_Array jsonCues, QLabCue parent,
+							boolean isAuto, QueryQLab queryQLab)
 	{
 		List<QLabCue> cues = new ArrayList<>();
-		if (arr != null) {
-			for (JSONValue_Object v: new JSONValue_ObjectArray(arr)) {
-				cues.add(makeCue(v, parent, cues.size(), queryQLab));
+		if (jsonCues != null) {
+			for (JSONValue_Object v: new JSONValue_ObjectArray(jsonCues)) {
+				QLabCue cue = makeCue(v, parent, cues.size(), isAuto, queryQLab);
+				cues.add(cue);
+				isAuto = cue.m_continueMode == QLabUtil.ContinueMode.AUTO_CONTINUE
+							|| cue.m_continueMode == QLabUtil.ContinueMode.AUTO_FOLLOW;
 			}
 		}
 		return cues;

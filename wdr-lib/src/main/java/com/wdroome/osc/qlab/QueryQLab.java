@@ -563,7 +563,7 @@ public class QueryQLab extends OSCConnection
 		if (reply == null) {
 			return null;
 		}
-		return QLabCueType.getCueArray(reply.getJSONArray(null), null, this);
+		return QLabCueType.getCueArray(reply.getJSONArray(null), null, false, this);
 	}
 	
 	private boolean m_printAllMsgs = false;	// XXX

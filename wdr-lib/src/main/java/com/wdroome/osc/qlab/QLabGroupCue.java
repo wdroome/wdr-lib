@@ -16,9 +16,10 @@ public class QLabGroupCue extends QLabCue
 	public final QLabUtil.GroupMode m_groupMode;
 	public final List<QLabCue> m_cues;
 	
-	public QLabGroupCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex, QueryQLab queryQLab)
+	public QLabGroupCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex,
+							boolean isAuto, QueryQLab queryQLab)
 	{
-		super(jsonCue, parent, parentIndex, queryQLab);
+		super(jsonCue, parent, parentIndex, isAuto, queryQLab);
 		QLabUtil.GroupMode groupMode = QLabUtil.GroupMode.START_AND_ENTER;
 		if (queryQLab != null) {
 			try {
@@ -29,7 +30,9 @@ public class QLabGroupCue extends QLabCue
 		}
 		m_groupMode = groupMode;
 		if (queryQLab != null) {
-			m_cues = QLabCueType.getCueArray(jsonCue.getArray(QLabUtil.FLD_CUES, null), this, queryQLab);
+			boolean childIsAuto = m_groupMode != QLabUtil.GroupMode.START_AND_ENTER;
+			m_cues = QLabCueType.getCueArray(jsonCue.getArray(QLabUtil.FLD_CUES, null), this,
+										childIsAuto, queryQLab);
 		} else {
 			m_cues = new ArrayList<>();
 		}
