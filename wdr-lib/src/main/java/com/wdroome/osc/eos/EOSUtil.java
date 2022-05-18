@@ -11,6 +11,9 @@ public class EOSUtil
 	public static final String GET_VERSION_METHOD = "/eos/get/version";
 	public static final String GET_VERSION_REPLY = "/eos/out/get/version";
 	
+	// Send automatically when first connecting.
+	public static final String SHOW_NAME_REPLY = "/eos/out/show/name";
+	
 	public static final String GET_CUELIST_COUNT_METHOD = "/eos/get/cuelist/count";
 	public static final String GET_CUELIST_COUNT_REPLY = "/eos/out/get/cuelist/count";
 	

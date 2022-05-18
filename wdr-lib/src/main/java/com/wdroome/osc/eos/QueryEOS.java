@@ -15,14 +15,16 @@ import java.util.concurrent.TimeUnit;
 import com.wdroome.osc.OSCConnection;
 import com.wdroome.osc.OSCMessage;
 import com.wdroome.osc.OSCUtil;
+import com.wdroome.osc.qlab.QLabUtil;
 
 /**
  * An EOSConnection to get information from an EOS server.
  * @author wdr
  */
-public class QueryEOS extends OSCConnection
+public class QueryEOS extends OSCConnection implements OSCConnection.MessageHandler
 {
 	private long m_timeoutMS = 2500;
+	private String m_showName = "";
 
 	/**
 	 * Create connection to query an EOS server.
@@ -60,6 +62,42 @@ public class QueryEOS extends OSCConnection
 		this.m_timeoutMS = timeoutMS;
 	}
 	
+	@Override
+	public void connect() throws IOException
+	{
+		if (!isConnected()) {
+			setMessageHandler(this);
+			super.connect();
+		}
+	}
+	
+	@Override
+	public void handleOscResponse(OSCMessage msg)
+	{
+		if (msg != null && msg.getMethod().equals(EOSUtil.SHOW_NAME_REPLY)
+				&& msg.getArgType(0) == OSCUtil.OSC_STR_ARG_FMT_CHAR) {
+			m_showName = msg.getString(0, m_showName);
+		}
+	}
+
+	/**
+	 * Get the EOS show name.
+	 * @return The name of the show.
+	 * @throws IOException  If an IO error occurs.
+	 */
+	public String getShowName() throws IOException
+	{
+		// The show name is one of the many messages
+		// that EOS sends when the client connects.
+		// When it arrives, the message handler saves it in m_showName.
+		// So if it's not set, we first get the version, to force EOS
+		// to send the initial messages.
+		if (m_showName == null || m_showName.isBlank()) {
+			getVersion();
+		}
+		return m_showName;
+	}
+
 	/**
 	 * Test if the server is really an EOS controller.
 	 * @return True iff the server is an EOS controller.
@@ -173,6 +211,7 @@ public class QueryEOS extends OSCConnection
 		try (QueryEOS queryEOS = new QueryEOS(args[0])) {
 			queryEOS.connect();
 			long startTS = System.currentTimeMillis();
+			System.out.println("Show Name: " + queryEOS.getShowName());
 			System.out.println("Version: " + queryEOS.getVersion());
 			System.out.println("Cuelist count: " + queryEOS.getCuelistCount());
 			TreeMap<Integer,EOSCuelistInfo> cuelists = queryEOS.getCuelists();
