@@ -25,6 +25,11 @@ public class QLabCuelistCue extends QLabCue
 		}
 	}
 	
+	public List<QLabCue> getCues()
+	{
+		return m_cues;
+	}
+	
 	@Override
 	public String toString()
 	{

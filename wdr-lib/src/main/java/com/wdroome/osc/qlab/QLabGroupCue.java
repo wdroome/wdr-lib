@@ -38,6 +38,11 @@ public class QLabGroupCue extends QLabCue
 		}
 	}
 	
+	public List<QLabCue> getCues()
+	{
+		return m_cues;
+	}
+	
 	@Override
 	public String toString()
 	{

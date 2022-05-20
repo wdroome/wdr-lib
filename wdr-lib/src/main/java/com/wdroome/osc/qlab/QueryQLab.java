@@ -21,6 +21,7 @@ public class QueryQLab extends OSCConnection
 {
 	private long m_timeoutMS = 2500;
 	private String m_passcode = "";
+	private String m_lastReplyWorkspaceId = "";
 
 	/**
 	 * Create connection to query an EOS server.
@@ -70,6 +71,15 @@ public class QueryQLab extends OSCConnection
 		m_passcode = passcode != null ? passcode : "";
 	}
 	
+	/**
+	 * Get the workspace id for the most recent request.
+	 * @return The unique id of the workspace of the most recent request.
+	 */
+	public String getLastReplyWorkspaceId()
+	{
+		return m_lastReplyWorkspaceId;
+	}
+	
 	public long getTimeoutMS() {
 		return m_timeoutMS;
 	}
@@ -117,7 +127,11 @@ public class QueryQLab extends OSCConnection
 			return null;
 		}
 		try {
-			return new QLabReply(replyMsg);
+			QLabReply reply = new QLabReply(replyMsg);
+			if (!reply.m_workspaceId.isBlank()) {
+				m_lastReplyWorkspaceId = reply.m_workspaceId;
+			}
+			return reply;
 		} catch (JSONParseException e) {
 			logError("QueryQLab.send(" + requestMethod + "): Invalid JSON response "
 						+ e + " " + replyMsg);
@@ -557,13 +571,22 @@ public class QueryQLab extends OSCConnection
 	 * @return A list of cue lists.
 	 * @throws IOException If an IO error occurs.
 	 */
-	public List<QLabCue> getAllCueLists() throws IOException
+	public List<QLabCuelistCue> getAllCueLists() throws IOException
 	{
 		QLabReply reply = sendQLabReq(QLabUtil.CUELISTS_REQ);
 		if (reply == null) {
 			return null;
 		}
-		return QLabCueType.getCueArray(reply.getJSONArray(null), null, false, this);
+		List<QLabCuelistCue> cuelists = new ArrayList<>();
+		for (QLabCue cue: QLabCueType.getCueArray(reply.getJSONArray(null), null, false, this)) {
+			if (cue instanceof QLabCuelistCue) {
+				cuelists.add((QLabCuelistCue)cue);
+			} else {
+				System.err.println("QueryEOS.getAllCuelists(): non-cuelist at top level: " + cue);
+			}
+		}
+		return cuelists;
+		// return QLabCueType.getCueArray(reply.getJSONArray(null), null, false, this);
 	}
 	
 	private boolean m_printAllMsgs = false;	// XXX
@@ -592,7 +615,7 @@ public class QueryQLab extends OSCConnection
 			for (QLabWorkspaceInfo ws: queryQLab.getWorkspaces()) {
 				System.out.println("  " + ws);
 			}
-			List<QLabCue> allCues = queryQLab.getAllCueLists();
+			List<QLabCuelistCue> allCues = queryQLab.getAllCueLists();
 			for (QLabCue cue: allCues) {
 				System.out.println();
 				cue.printCue(System.out, "", "   ");
