@@ -3,6 +3,8 @@ package com.wdroome.osc.qlab;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.function.Predicate;
+
 import com.wdroome.json.JSONValue_Array;
 import com.wdroome.json.JSONValue_Object;
 import com.wdroome.json.JSONValue_ObjectArray;
@@ -116,6 +118,35 @@ public enum QLabCueType
 			}
 		}
 		return cues;
+	}
+	
+	public static int walkCues(QLabCue cue, Predicate<QLabCue> handleCue)
+	{
+		if (cue == null) {
+			return 0;
+		}
+		if (!handleCue.test(cue)) {
+			return 1;
+		}
+		if (cue instanceof QLabCuelistCue) {
+			return walkCues(((QLabCuelistCue) cue).getCues(), handleCue);
+		} else if (cue instanceof QLabGroupCue) {
+			return walkCues(((QLabGroupCue) cue).getCues(), handleCue);
+		} else {
+			return 1;
+		}
+	}
+	
+	public static int walkCues(List<? extends QLabCue> cues, Predicate<QLabCue> handleCue)
+	{
+		if (cues == null) {
+			return 0;
+		}
+		int nCues = 0;
+		for (QLabCue cue: cues) {
+			nCues += walkCues(cue, handleCue);
+		}
+		return nCues;
 	}
 
 	/**
