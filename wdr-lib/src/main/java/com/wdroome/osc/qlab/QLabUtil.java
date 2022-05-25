@@ -13,6 +13,8 @@ import com.wdroome.json.JSONValue_String;
 
 public class QLabUtil
 {
+	public static final String DEFAULT_CUELIST_NAME = "Main Cue List";
+	
 	public static final String REPLY_PREFIX = "/reply";
 	
 	public static final String WORKSPACE_REQ_PREFIX = "/workspace/%s";	// Arg is workspace id
@@ -82,6 +84,7 @@ public class QLabUtil
 	public static final String FILE_TARGET_CUE_REQ = "/fileTarget";		// string
 	public static final String PREWAIT_CUE_REQ = "/preWait";			// number
 	public static final String POSTWAIT_CUE_REQ = "/postWait";			// number
+	public static final String NEW_CUE_REQ = "/new";					// cue-type [cue-id]
 	
 	public static final String CONTINUE_MODE_CUE_REQ = "/continueMode";	// number
 	public static enum ContinueMode {

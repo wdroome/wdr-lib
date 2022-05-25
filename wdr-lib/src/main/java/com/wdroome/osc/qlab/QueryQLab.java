@@ -566,6 +566,31 @@ public class QueryQLab extends OSCConnection
 		return reply != null && reply.isOk();
 	}
 	
+	public String newCue(QLabCueType type, String afterCueId, String number, String name) throws IOException
+	{
+		ArrayList<Object> args = new ArrayList<>();
+		args.add(type.toQLab());
+		if (afterCueId != null && !afterCueId.isBlank()) {
+			args.add(afterCueId);
+		}
+		QLabReply reply = sendQLabReq(QLabUtil.NEW_CUE_REQ, args.toArray());
+		if (reply == null || !reply.isOk()) {
+			return null;
+		}
+		String newCueId = reply.getString("");
+		if (newCueId == null) {
+			System.err.println("QueryQLab: no id in new-cue reply.");
+			return null;
+		}
+		if (number != null && !number.isBlank()) {
+			setNumber(newCueId, number);
+		}
+		if (name != null && !name.isBlank()) {
+			setName(newCueId, name);
+		}
+		return newCueId;
+	}
+	
 	/**
 	 * Get all cue lists and all all contained cues.
 	 * @return A list of cue lists.

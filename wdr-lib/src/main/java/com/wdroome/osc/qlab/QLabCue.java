@@ -103,6 +103,21 @@ public class QLabCue
 			return false;
 		}
 	}
+	
+	/**
+	 * Return the non-blank name field.
+	 * @return The non-blank name field.
+	 */
+	public String getName()
+	{
+		if (m_name != null && !m_name.isBlank()) {
+			return m_name;
+		} else if (m_listName != null && !m_listName.isBlank()) {
+			return m_listName;
+		} else {
+			return "(unnamed)";
+		}
+	}
 
 	@Override
 	public String toString() {
