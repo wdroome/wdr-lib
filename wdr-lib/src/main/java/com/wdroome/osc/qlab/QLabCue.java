@@ -118,6 +118,91 @@ public class QLabCue
 			return "(unnamed)";
 		}
 	}
+	
+	/**
+	 * Test if a cue is a child of a cuelist, rather than embedded in a group.
+	 * @return True iff this is a top-level cue directly in a cuelist.
+	 * 		Also return true if this cue is a cuelist.
+	 */
+	public boolean isTopLevelCue()
+	{
+		return m_parent == null || m_parent instanceof QLabCuelistCue;
+	}
+	
+	/**
+	 * Find the top-level parent of this cue.
+	 * Return "this" if this is a top-level cue.
+	 * @return The top-level cue which contains this cue.
+	 */
+	public QLabCue getTopLevelCue()
+	{
+		QLabCue cue = this;
+		for (; !cue.isTopLevelCue(); cue = cue.m_parent) {
+			// nothing here
+		}
+		return cue;
+	}
+	
+	/**
+	 * Get the unique id of the cuelist containing this cue.
+	 * @return The unique id of the cuelist containing this cue.
+	 * 		Never returns null.
+	 */
+	public String getCuelistId()
+	{
+		QLabCue cue;
+		for (cue = this; cue.m_parent != null; cue = cue.m_parent) {
+		}
+		return cue.m_parent != null ? cue.m_parent.m_uniqueId : cue.m_uniqueId;
+	}
+	
+	/**
+	 * Return the previous cue in this cue's containing cuelist or group.
+	 * @return The previous cue, or null.
+	 */
+	public QLabCue getPrevCue()
+	{
+		if (m_parent == null) {
+			return null;
+		}
+		List<QLabCue> siblings = m_parent.getChildren();
+		int iPrev = m_parentIndex - 1;
+		if (iPrev >= 0 && iPrev < siblings.size()) {
+			return siblings.get(iPrev);
+		} else {
+			return null;
+		}
+	}
+	
+	/**
+	 * Return the nexf cue in this cue's containing cuelist or group.
+	 * @return The next cue, or null.
+	 */
+	public QLabCue getNextCue()
+	{
+		if (m_parent == null) {
+			return null;
+		}
+		List<QLabCue> siblings = m_parent.getChildren();
+		int iNext = m_parentIndex + 1;
+		if (iNext >= 0 && iNext < siblings.size()) {
+			return siblings.get(iNext);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Return a list of the "child cues" contained in this cue,
+	 * or null if this isn't a container cue.
+	 * The base class returns null.
+	 * Container cues must override this.
+	 * @return The "child cues" in this cue, or null;
+	 */
+	public List<QLabCue> getChildren()
+	{
+		return null;
+	}
 
 	@Override
 	public String toString() {

@@ -84,7 +84,9 @@ public class QLabUtil
 	public static final String FILE_TARGET_CUE_REQ = "/fileTarget";		// string
 	public static final String PREWAIT_CUE_REQ = "/preWait";			// number
 	public static final String POSTWAIT_CUE_REQ = "/postWait";			// number
+	
 	public static final String NEW_CUE_REQ = "/new";					// cue-type [cue-id]
+	public static final String MOVE_CUE_REQ = "/move/%s";				// cue-id new-index [new-parent-id]
 	
 	public static final String CONTINUE_MODE_CUE_REQ = "/continueMode";	// number
 	public static enum ContinueMode {

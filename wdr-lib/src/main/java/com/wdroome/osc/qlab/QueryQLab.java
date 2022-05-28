@@ -506,7 +506,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setPatchNumber(String idOrNumber, int patchNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.CONTINUE_MODE_CUE_REQ),
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.PATCH_CUE_REQ),
 									new Object[] {Integer.valueOf(patchNumber)});
 		return reply != null && reply.isOk();
 	}
@@ -589,6 +589,18 @@ public class QueryQLab extends OSCConnection
 			setName(newCueId, name);
 		}
 		return newCueId;
+	}
+	
+	public boolean moveCue(String cueId, int newIndex, String newParentId) throws IOException
+	{
+		ArrayList<Object> args = new ArrayList<>();
+		args.add(Integer.valueOf(newIndex));
+		if (newParentId != null && !newParentId.isBlank()) {
+			args.add(newParentId);
+		}
+		QLabReply reply = sendQLabReq(String.format(QLabUtil.MOVE_CUE_REQ, cueId),
+										args.toArray());
+		return reply != null && reply.isOk();
 	}
 	
 	/**

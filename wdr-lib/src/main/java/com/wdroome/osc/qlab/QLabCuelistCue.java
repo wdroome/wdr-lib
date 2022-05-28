@@ -25,7 +25,8 @@ public class QLabCuelistCue extends QLabCue
 		}
 	}
 	
-	public List<QLabCue> getCues()
+	@Override
+	public List<QLabCue> getChildren()
 	{
 		return m_cues;
 	}

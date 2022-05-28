@@ -128,10 +128,9 @@ public enum QLabCueType
 		if (!handleCue.test(cue)) {
 			return 1;
 		}
-		if (cue instanceof QLabCuelistCue) {
-			return walkCues(((QLabCuelistCue) cue).getCues(), handleCue);
-		} else if (cue instanceof QLabGroupCue) {
-			return walkCues(((QLabGroupCue) cue).getCues(), handleCue);
+		List<QLabCue> children = cue.getChildren();
+		if (children != null) {
+			return walkCues(children, handleCue);
 		} else {
 			return 1;
 		}

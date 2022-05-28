@@ -14,6 +14,8 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 	private final String m_stringNumber;	// Cue number as string
 	private final int m_part;
 	
+	private static boolean g_showDefaultCuelist = true;
+	
 	private static final int SCALE_EXPONENT = 3;
 	private static final int SCALE_FACTOR = (int)Math.pow(10, SCALE_EXPONENT);
 	private static final String FRAC_FMT = "%0" + SCALE_EXPONENT + "d";
@@ -138,12 +140,41 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 	}
 
 	/**
-	 * Return the cue number portion, without cuelist or part number.
+	 * Test if toString() always displays the cuelist prefix,
+	 * even for cues in the default list.
+	 * @return True iff toString() includes the cuelist prefix
+	 * 			for all cues, even for cues in the default cuelist.
+	 */
+	public static boolean isShowCuelist()
+	{
+		return g_showDefaultCuelist;
+	}
+
+	/**
+	 * Determine whether toString() includes the cuelist number for cues
+	 * in the default cuelist. This is a static option, so it applies
+	 * to all EOSCueNumber objects.
+	 * @param showCuelist If true, toString() always includes the cuelist number prefix.
+	 * 		If false, it doesn't for cues in the default cuelist.
+	 */
+	public static void setShowDefaultCuelist(boolean showDefaultCuelist)
+	{
+		EOSCueNumber.g_showDefaultCuelist = showDefaultCuelist;
+	}
+
+	/**
+	 * Return the cue number without the part number.
+	 * Include the cuelist prefix iff this cue is not in the default cuelist,
+	 * or if the shwoDefaultCuelist flag is true.
 	 */
 	@Override
 	public String toString()
 	{
-		return m_stringNumber;
+		if (m_cuelist == EOSUtil.DEFAULT_CUE_LIST && !g_showDefaultCuelist) {
+			return m_stringNumber;
+		} else {
+			return m_cuelist + "/" + m_stringNumber;
+		}
 	}
 	
 	/**

@@ -39,9 +39,22 @@ public class EOS2QLab implements Closeable
 	public final static String[] QUIT_CMD = {"quit", "q", "exit"};
 	public final static String[] REFRESH_CMD = {"refresh"};
 	public final static String[] ADD_CMD = {"add", "add-cues"};
+	public final static String[] HELP_CMD = {"help", "?"};
+	
 	public final static String[] EOS_ARG = {"eos"};
 	public final static String[] QLAB_ARG = {"qlab"};
 	public final static String[] MISSING_ARG = {"missing"};
+	
+	public final static String[] HELP_RESP = {
+				"refresh: Get the cue information from EOS & QLab.",
+				"compare: Find the EOS cues not in QLab, and the QLab cues not in EOS.",
+				"print eos: Print a summary of the EOS cues.",
+				"print qlab: Print a summary of the QLab cues.",
+				"print missing: Print the EOS cues not in QLab and the QLab cues not in EOS.",
+				"print: Print all of the above.",
+				"add: Add missing EOS cues to QLab.",
+				"quit: Quit.",
+	};
 	
 	private Config m_config = null;
 	private final PrintStream m_out;
@@ -65,7 +78,7 @@ public class EOS2QLab implements Closeable
 	private List<QLabCuelistCue> m_qlabCuelists = null;
 	
 	// QLab network cues with EOS fire commands, as a map from EOS cue number to the QLab cue data.
-	private HashMap<EOSCueNumber, QLabNetworkCue> m_eosCuesInQLab = null;
+	private TreeMap<EOSCueNumber, QLabNetworkCue> m_eosCuesInQLab = null;
 	
 	private NotInQLabResults m_notInQLab = null;
 	private List<QLabNetworkCue> m_notInEOS = null;
@@ -77,6 +90,8 @@ public class EOS2QLab implements Closeable
 		m_out = (out != null) ? out : System.out;
 		m_in = (in != null) ? in : System.in;
 		
+		m_out.println("Addresses: EOS=" + m_config.m_EOSAddrPort
+							+ " QLab=" + m_config.m_QLabAddrPort);
 		m_queryEOS = new QueryEOS(m_config.m_EOSAddrPort);
 		m_queryQLab = new QueryQLab(m_config.m_QLabAddrPort);
 		
@@ -128,7 +143,7 @@ public class EOS2QLab implements Closeable
 			for (QLabWorkspaceInfo ws: qlabWorkspaces) {
 				m_out.println("  \"" + ws.m_displayName + "\"  version: " + ws.m_version);
 			}
-			m_qlabCuelists = m_queryQLab.getAllCueLists();
+			int nQLabCues = refreshQLabCuelists();
 			String activeWS = m_queryQLab.getLastReplyWorkspaceId();
 			if (activeWS != null) {
 				for (QLabWorkspaceInfo ws: qlabWorkspaces) {
@@ -138,17 +153,6 @@ public class EOS2QLab implements Closeable
 					}
 				}
 			}
-			m_eosCuesInQLab = new HashMap<>();
-			int nQLabCues = QLabCueType.walkCues(m_qlabCuelists,
-					(testCue) -> {
-						if (testCue instanceof QLabNetworkCue) {
-							EOSCueNumber eosCueNum = ((QLabNetworkCue)testCue).m_eosCueNumber;
-							if (eosCueNum != null) {
-								m_eosCuesInQLab.put(eosCueNum, (QLabNetworkCue)testCue);
-							}
-						}
-						return true;
-					});
 			m_out.println("  " + nQLabCues + " cues in " + m_qlabCuelists.size() + " cuelist(s)"
 						+ (m_qlabWorkspaceName != null ? (" in \"" + m_qlabWorkspaceName + "\"") : "")
 						+ ".");
@@ -157,6 +161,22 @@ public class EOS2QLab implements Closeable
 			System.err.println("Error connecting to QLab at " + m_config.m_QLabAddrPort + ": " + e);
 			return false;
 		}
+	}
+	
+	private int refreshQLabCuelists() throws IOException
+	{
+		m_qlabCuelists = m_queryQLab.getAllCueLists();
+		m_eosCuesInQLab = new TreeMap<>();
+		return QLabCueType.walkCues(m_qlabCuelists,
+				(testCue) -> {
+					if (testCue instanceof QLabNetworkCue) {
+						EOSCueNumber eosCueNum = ((QLabNetworkCue)testCue).m_eosCueNumber;
+						if (eosCueNum != null) {
+							m_eosCuesInQLab.put(eosCueNum, (QLabNetworkCue)testCue);
+						}
+					}
+					return true;
+				});
 	}
 	
 	@Override
@@ -191,7 +211,7 @@ public class EOS2QLab implements Closeable
 		/** EOS cues not in QLab, grouped by EOS cuelist number. */
 		public final TreeMap<Integer, List<EOSCueInfo>> m_missingCuesByList;
 
-		/** EOS cues not in QLab, by cue number. */
+		/** EOS cues not in QLab, by EOS cue number. */
 		public final TreeMap<EOSCueNumber,EOSCueInfo> m_missingCuesByNumber;
 	
 		/** EOS cue ranges not in QLab. */
@@ -349,7 +369,7 @@ public class EOS2QLab implements Closeable
 			}
 		}
 		for (QLabCuelistCue cuelist: m_qlabCuelists) {
-			List<QLabCue> cues = cuelist.getCues();
+			List<QLabCue> cues = cuelist.getChildren();
 			if (cues == null) {
 				cues = new ArrayList<>();
 			}
@@ -473,6 +493,12 @@ public class EOS2QLab implements Closeable
 		if (targetQLabCuelist == null) {
 			return false;
 		}
+		Integer networkPatch = getIntResponse("Enter QLab network patch: (default is "
+						+ m_config.m_newCueNetworkPatch + ")", m_config.m_newCueNetworkPatch,
+						1, 16);
+		if (networkPatch == null) {
+			return false;
+		}
 		NewCueMarking newCueMarking = selectNewCueMarking();
 		if (newCueMarking == null) {
 			return false;
@@ -498,28 +524,42 @@ public class EOS2QLab implements Closeable
 			return false;
 		}
 		int nAdded = 0;
-		String afterCueId = targetQLabCuelist.m_uniqueId;	// means add at end
-		for (EOSCueInfo eosCue: cuesToAdd.values()) {
+		String targetCuelistId = targetQLabCuelist.m_uniqueId;	// means add at end
+		for (EOSCueInfo eosCue: cuesToAdd.descendingMap().values()) {
 			try {
 				EOSCueNumber eosNumber = eosCue.getCueNumber();
-				String qlabCueId = m_queryQLab.newCue(QLabCueType.NETWORK, afterCueId,
-										m_config.makeNewCueNumber(eosNumber),
-										m_config.makeNewCueName(eosCue.getLabel(), eosNumber));
+				InsertPoint insertPoint = findCueInsertPoint(eosNumber, targetCuelistId);
+				String qlabCueId = m_queryQLab.newCue(QLabCueType.NETWORK,
+										insertPoint.m_afterId,
+										m_config.makeNewCueNumber(eosCue),
+										m_config.makeNewCueName(eosCue));
 				if (qlabCueId == null) {
 					break;
 				}
 				nAdded++;
+				if (insertPoint.m_moveToHead) {
+					if (!m_queryQLab.moveCue(qlabCueId, 0, null)) {
+						m_out.println("Error moving " + eosNumber + " to head.");
+					}
+				}
 				m_queryQLab.setNetworkMessageType(qlabCueId, QLabUtil.NetworkMessageType.OSC);
 				m_queryQLab.setCustomString(qlabCueId, EOSUtil.makeCueFireRequest(eosNumber));
-				m_queryQLab.setPatchNumber(qlabCueId, m_config.m_newCueNetworkPatch);
+				m_queryQLab.setPatchNumber(qlabCueId, networkPatch);
 				m_queryQLab.setColorName(qlabCueId, newCueMarking.m_color);
 				m_queryQLab.setFlagged(qlabCueId, newCueMarking.m_flag);
 				m_queryQLab.setNotes(qlabCueId, eosCue.getNotes());
-				afterCueId = qlabCueId;
+				refreshQLabCuelists();
+				if (nAdded > 0 && nAdded%60 == 0) {
+					m_out.println();
+				}
+				m_out.print(".");
 			} catch (IOException e) {
 				m_out.println("Error adding cue \"" + eosCue.getCueNumber() + "\"");
 				break;
 			}
+		}
+		if (nAdded > 0) {
+			m_out.println();
 		}
 		m_out.println("Added " + nAdded + " cues to QLab.");
 		if (nAdded > 0) {
@@ -527,6 +567,49 @@ public class EOS2QLab implements Closeable
 			m_notInQLab = null;
 		}
 		return nAdded > 0;
+	}
+	
+	private class InsertPoint
+	{
+		private final String m_afterId;
+		private final boolean m_moveToHead;
+		private InsertPoint(String afterId, boolean moveToHead)
+		{
+			m_afterId = afterId;
+			m_moveToHead = moveToHead;
+		}
+	}
+	
+	/**
+	 * Get the ID of the QLab cue after which the network cue for a missing EOS
+	 * should be inserted. This is the cue before the existing network cue
+	 * for the lowest EOS cue after the given cue.  The existing network cue
+	 * must be in the QLab cuelist "cuelistId"; ignore network cues in other cuelists.
+	 * If QLab does not have such a cue, return cuelistId to add the cue at the end
+	 * of that cuelist.
+	 * @param eosNum An EOS cue number.
+	 * @param cuelistId The ID to return if there 
+	 * @return The QLab cue after which the EOS network cue should be added.
+	 */
+	private InsertPoint findCueInsertPoint(EOSCueNumber eosNum, String cuelistId)
+	{
+		Map.Entry<EOSCueNumber, QLabNetworkCue> nextCue;
+		for (nextCue = m_eosCuesInQLab.higherEntry(eosNum);
+				nextCue != null && !nextCue.getValue().getCuelistId().equals(cuelistId);
+				nextCue = m_eosCuesInQLab.higherEntry(nextCue.getKey())) {
+		}
+		if (nextCue == null) {
+			return new InsertPoint(cuelistId, false);
+		}
+		QLabCue insertPoint = nextCue.getValue().getTopLevelCue();
+		if (insertPoint == null) {
+			return new InsertPoint(cuelistId, false);
+		}
+		insertPoint = insertPoint.getPrevCue();
+		if (insertPoint == null) {
+			return new InsertPoint(cuelistId, true);
+		}
+		return new InsertPoint(insertPoint.m_uniqueId, false);
 	}
 	
 	private QLabCuelistCue selectQLabCuelist()
@@ -548,27 +631,18 @@ public class EOS2QLab implements Closeable
 					iDefault = iCuelist;
 					defaultLabel = " (default)";
 				}
-				m_out.println("   " + (iCuelist+1) + ": \"" + cuelist.getName() + defaultLabel);
+				m_out.println("   " + (iCuelist+1) + ": \"" + cuelist.getName()
+								+ "\""+ defaultLabel);
 				cuelists.add(cuelist);
 				iCuelist++;
 			}
-			String resp = getResponse("Enter cuelist number, " + QUIT_CMD[0]
-							+ (iDefault >= 0 ? ", or return for default" : "") + ":");
-			while (true) {
-				if (resp == null || isCmd(resp, QUIT_CMD)) {
-					return null;
-				} else if (resp.isBlank() && iDefault >= 0) {
-					return cuelists.get(iDefault);
-				} else {
-					try {
-						int iresp = Integer.parseInt(resp);
-						if (iresp >= 1 && iresp <= cuelists.size()) {
-							return cuelists.get(iresp-1);
-						}
-					} catch (Exception e) {
-						// ignore, repeat.
-					}
-				}
+			Integer iResp = getIntResponse("Enter cuelist number, " + QUIT_CMD[0]
+									+ (iDefault >= 0 ? ", or return for default" : "") + ":",
+									iDefault+1, 1, cuelists.size());
+			if (iResp == null) {
+				return null;
+			} else {
+				return cuelists.get(iResp-1);
 			}
 		}
 	}
@@ -618,6 +692,30 @@ public class EOS2QLab implements Closeable
 			return null;
 		}
 		return line.trim();
+	}
+	
+	private Integer getIntResponse(String msg, int def, int min, int max)
+	{
+		while (true) {
+			String respStr = getResponse(msg);
+			if (respStr == null) {
+				return null;
+			} else if (respStr.isBlank()) {
+				return def;
+			} else if (isCmd(respStr, QUIT_CMD)) {
+				return null;
+			} else {
+				try {
+					int resp = Integer.parseInt(respStr);
+					if (resp >= min && resp <= max) {
+						return resp;
+					}
+					m_out.println("Enter a number between " + min + " and " + max);
+				} catch (Exception e) {
+					m_out.println("Enter a number between " + min + " and " + max);
+				}
+			}
+		}
 	}
 	
 	private TreeMap<EOSCueNumber, EOSCueInfo> selectCuesToAdd()
@@ -734,7 +832,9 @@ public class EOS2QLab implements Closeable
 							eos2QLab.prtCuesNotInEOS();
 						} else {
 							eos2QLab.prtEOSCueSummary();							
+							eos2QLab.prtCuesNotInQLab(true, true);
 							eos2QLab.prtQLabCueSummary();							
+							eos2QLab.prtCuesNotInEOS();
 						}
 					} else if (isCmd(cmd[0], COMPARE_CMD)) {
 						eos2QLab.notInQLab();
@@ -743,6 +843,10 @@ public class EOS2QLab implements Closeable
 						eos2QLab.prtCuesNotInEOS();							
 					} else if (isCmd(cmd[0], ADD_CMD)) {
 						eos2QLab.add2QLab();
+					} else if (isCmd(cmd[0], HELP_CMD)) {
+						for (String s: HELP_RESP) {
+							out.println(s);
+						}
 					} else {
 						out.println("Unknown command \"" + line + "\"");
 					}
@@ -762,89 +866,6 @@ public class EOS2QLab implements Closeable
 			}
 		}
 		return false;
-	}
-	
-	public static void XXmain(String[] args) throws IOException
-	{
-		Config config = new Config();
-		System.out.println("EOS Address: " + config.m_EOSAddrPort);
-		System.out.println("QLab Address: " + config.m_QLabAddrPort);
-		QueryEOS queryEOS = new QueryEOS(config.m_EOSAddrPort);
-		QueryQLab queryQLab = new QueryQLab(config.m_QLabAddrPort);
-		
-		System.out.println("EOS Show: \"" + queryEOS.getShowName()
-					+ "\"  version: " + queryEOS.getVersion());
-		System.out.println("QLab Workspaces:");
-		List<QLabWorkspaceInfo> qlabWorkspaces = queryQLab.getWorkspaces();
-		for (QLabWorkspaceInfo ws: qlabWorkspaces) {
-			System.out.println("  \"" + ws.m_displayName + "\"  version: " + ws.m_version);
-		}
-		String indent = "   ";
-		
-		TreeMap<Integer, EOSCuelistInfo> eosCuelists = queryEOS.getCuelists();
-		System.out.println("EOS: " + eosCuelists.size() + " cuelist(s).");
-		TreeMap<Integer, TreeMap<EOSCueNumber, EOSCueInfo>> cuesByList = new TreeMap<>();
-		for (EOSCuelistInfo cuelist: eosCuelists.values()) {
-			cuelist.getCueCount();
-			int cuelistNum = cuelist.getCuelistNumber();
-			String label = cuelist.getLabel();
-			if (label != null && !label.isBlank()) {
-				label = " \"" + label + "\"";
-			} else {
-				label = "";
-			}
-			TreeMap<EOSCueNumber, EOSCueInfo> cues = queryEOS.getCues(cuelistNum);
-			cuesByList.put(cuelist.getCuelistNumber(), cues);
-			if (cues.size() != cuelist.getCueCount()) {
-				System.out.println(indent + "**** cuelist " + cuelistNum + " count mismatch: "
-								+ cues.size() + " != " + cuelist.getCueCount());
-			}
-			int nNonAutoCues = 0;
-			for (EOSCueInfo cue: cues.values()) {
-				if (!cue.isAutoCue() && !cue.getCueNumber().isPart()) {
-					nNonAutoCues++;
-				}
-			}
-			System.out.println(indent + "Cuelist " + cuelistNum + ": "
-								+ nNonAutoCues + " non-auto cues, "
-								+ cues.size() + " total cues" + label);
-		}
-		
-		List<QLabCuelistCue> qlabCuelists = queryQLab.getAllCueLists();
-		System.out.println("QLab: " + qlabCuelists.size() + " cuelist(s).");
-		for (QLabCuelistCue cuelist: qlabCuelists) {
-			List<QLabCue> cues = cuelist.getCues();
-			if (cues == null) {
-				cues = new ArrayList<>();
-			}
-			String name = cuelist.getName();
-			QLabCueStats cueStats = qlabCueStats(cues, null);			
-			System.out.println(indent + "Cuelist \"" + name + "\": "
-							+ cueStats.m_nNonAutoCues + " non-auto cues"
-							+ ", " + cueStats.m_nCues + " total cues"
-							+ ", " + cueStats.m_nBrokenCues + " broken cues.");
-			if (!cueStats.m_counts.isEmpty()) {
-				System.out.println(indent + indent + "By type: ");
-				String sep = "";
-				int nTypes = 0;
-				for (Map.Entry<QLabCueType, ACount> entry : cueStats.m_counts.entrySet()) {
-					if (nTypes % 7 == 0) {
-						if (nTypes > 0) {
-							System.out.println();
-						}
-						System.out.print(indent + indent + indent);
-						sep = "";
-					}
-					System.out.print(sep + entry.getValue().count + " " + entry.getKey().toString());
-					sep = ", ";
-					nTypes++;
-				}
-				System.out.println();
-			}
-		}
-		
-		//  EOS connect, get version/show, get cues
-		// QLab connect, get version/file, get cues
 	}
 	
 	private static class ACount
@@ -896,11 +917,7 @@ public class EOS2QLab implements Closeable
 					cueStats.m_counts.put(cue.m_type, cnt);
 				}
 				cnt.incr();
-				if (cue instanceof QLabCuelistCue) {
-					qlabCueStats(((QLabCuelistCue) cue).getCues(), cueStats);
-				} else if (cue instanceof QLabGroupCue) {
-					qlabCueStats(((QLabGroupCue) cue).getCues(), cueStats);
-				}
+				qlabCueStats(cue.getChildren(), cueStats);
 			} 
 		}
 		return cueStats;
