@@ -2,6 +2,10 @@ package com.wdroome.osc.qlab;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Stack;
+import java.util.function.Predicate;
+import java.util.function.BiPredicate;
+
 import java.io.IOException;
 import java.io.PrintStream;
 
@@ -20,10 +24,10 @@ public class QLabCue
 	public final QLabCueType m_type;
 	
 	// May be null.
-	public final QLabCue m_parent;
+	private QLabCue m_parent;
 	
 	// If m_parent isn't null, the index in m_parent.
-	public final int m_parentIndex;
+	protected final int m_parentIndex;
 	
 	public final String m_listName;
 	public final String m_name;
@@ -40,7 +44,8 @@ public class QLabCue
 	public final double m_postwait;
 	public final String m_cueTargetId;
 	public final String m_fileTarget;
-	public final boolean m_isAuto;
+	
+	private boolean m_isAuto;
 	
 	/**
 	 * Create a QlabCue from a QLab reply message.
@@ -49,7 +54,8 @@ public class QLabCue
 	 * @param parent The parent cue, if not null.
 	 * @param parentIndex The index in the parent cue, if there is one.
 	 */
-	public QLabCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex, boolean isAuto, QueryQLab queryQLab)
+	public QLabCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex,
+							boolean isAuto, QueryQLab queryQLab)
 	{
 		m_parent = parent;
 		m_parentIndex = parentIndex;
@@ -102,6 +108,89 @@ public class QLabCue
 		} else {
 			return false;
 		}
+	}
+	
+	protected QLabCue(String uniqueId, QLabCueType type, QLabCue parent, QueryQLab queryQLab)
+	{
+		m_uniqueId = uniqueId;
+		m_parent = parent;
+		m_parentIndex = parent != null ? parent.getIndexOfChild(uniqueId) : -1;
+		m_type = type;
+		m_isAuto = false;
+		
+		String number = "";
+		String listName = "";
+		String name = "";
+		QLabUtil.ColorName colorName = QLabUtil.ColorName.NONE;
+		boolean armed = true;
+		boolean flagged = false;
+		boolean isBroken = false;
+		double duration = 0;
+		double prewait = 0;
+		double postwait = 0;
+		String cueTargetId = "";
+		String fileTarget = "";
+		QLabUtil.ContinueMode continueMode = QLabUtil.ContinueMode.NO_CONTINUE;
+		String notes = "";
+		if (queryQLab != null) {
+			try {
+				number = queryQLab.getNumber(m_uniqueId);
+				listName = queryQLab.getListName(m_uniqueId);
+				name = queryQLab.getName(m_uniqueId);
+				colorName = queryQLab.getColorName(m_uniqueId);
+				flagged = queryQLab.getIsFlagged(m_uniqueId);
+				armed = queryQLab.getArmed(m_uniqueId);
+				name = queryQLab.getName(m_uniqueId);
+				isBroken = queryQLab.getIsBroken(m_uniqueId);
+				continueMode = queryQLab.getContinueMode(m_uniqueId);
+				notes = queryQLab.getNotes(m_uniqueId);
+				duration = queryQLab.getDuration(m_uniqueId);
+				prewait = queryQLab.getPrewait(m_uniqueId);
+				postwait = queryQLab.getPostwait(m_uniqueId);
+				cueTargetId = queryQLab.getCueTargetId(m_uniqueId);
+				fileTarget = queryQLab.getFileTarget(m_uniqueId);
+			} catch (IOException e) {
+				// Skip ??
+			}
+		}
+		m_number = number;
+		m_listName = listName;
+		m_name = name;
+		m_colorName = colorName;
+		m_armed = armed;
+		m_flagged = flagged;
+		m_isBroken = isBroken;
+		m_continueMode = continueMode;
+		m_notes = notes;
+		m_duration = duration;
+		m_prewait = prewait;
+		m_postwait = postwait;
+		m_cueTargetId = cueTargetId;
+		m_fileTarget = fileTarget;
+	}
+	
+	/**
+	 * Get the cue or list which contains this cue.
+	 * @return The containing cue, or null if none.
+	 */
+	public QLabCue getParent()
+	{
+		return m_parent;
+	}
+	
+	protected void setParent(QLabCue parent)
+	{
+		m_parent = parent;
+	}
+	
+	public boolean isAuto()
+	{
+		return m_isAuto;
+	}
+	
+	protected void setIsAuto(boolean isAuto)
+	{
+		m_isAuto = isAuto;
 	}
 	
 	/**
@@ -157,6 +246,16 @@ public class QLabCue
 	}
 	
 	/**
+	 * Return the index of this cue in it's container cue,
+	 * of -1 if it's not in a cuelist or a group cue.
+	 * @return
+	 */
+	public int getIndexInParent()
+	{
+		return m_parent != null ? m_parent.getIndexOfChild(m_uniqueId) : -1;
+	}
+	
+	/**
 	 * Return the previous cue in this cue's containing cuelist or group.
 	 * @return The previous cue, or null.
 	 */
@@ -166,7 +265,7 @@ public class QLabCue
 			return null;
 		}
 		List<QLabCue> siblings = m_parent.getChildren();
-		int iPrev = m_parentIndex - 1;
+		int iPrev = getIndexInParent() - 1;
 		if (iPrev >= 0 && iPrev < siblings.size()) {
 			return siblings.get(iPrev);
 		} else {
@@ -175,7 +274,7 @@ public class QLabCue
 	}
 	
 	/**
-	 * Return the nexf cue in this cue's containing cuelist or group.
+	 * Return the next cue in this cue's containing cuelist or group.
 	 * @return The next cue, or null.
 	 */
 	public QLabCue getNextCue()
@@ -184,7 +283,7 @@ public class QLabCue
 			return null;
 		}
 		List<QLabCue> siblings = m_parent.getChildren();
-		int iNext = m_parentIndex + 1;
+		int iNext = getIndexInParent() + 1;
 		if (iNext >= 0 && iNext < siblings.size()) {
 			return siblings.get(iNext);
 		} else {
@@ -202,6 +301,92 @@ public class QLabCue
 	public List<QLabCue> getChildren()
 	{
 		return null;
+	}
+	
+	/**
+	 * Get the index of a child in this list,
+	 * or -1 if it's not in this list or this isn't a container cue.
+	 * The base class returns -1; container cue classes should override.
+	 * @param childId The unique ID of a cue.
+	 * @return The index of childId in this container cue, or -1.
+	 */
+	public int getIndexOfChild(String childId)
+	{
+		return -1;
+	}
+	
+	/**
+	 * Insert a cue into a container cue.
+	 * @param index the insert point.
+	 * @param cue the cue to insert.
+	 * @return True iff successful. The base class always returns false.
+	 */
+	public boolean insertCue(int index, QLabCue cue)
+	{
+		return false;
+	}
+	
+	/**
+	 * Call a function on this cue and on all contained cues.
+	 * That is, "walk the cue tree."
+	 * @param handleCue The function to be called. The first argument is the cue being processed.
+	 * 			The second argument is the stack of cues which contain the cue.
+	 * 			This stack only goes up to the cue on which walkCues() was invoked.
+	 * 			If the predicate returns false, stop walking the cue tree.
+	 * @return The number of cues walked.
+	 */
+	public int walkCues(BiPredicate<QLabCue, Stack<QLabCue>> handleCue)
+	{
+		WalkState walkState = myWalkCues(null, handleCue);
+		return walkState.m_nWalked;
+	}
+	
+	/**
+	 * Call a function on all cues in a list and on all contained cues.
+	 * That is, "walk the cue tree(s)."
+	 * @param handleCue The function to be called. The first argument is the cue being processed.
+	 * 			The second argument is the stack of cues which contain the cue.
+	 * 			This stack only goes up to the cue in the list on which walkCues() was invoked.
+	 * 			If the predicate returns false, stop walking the cue tree.
+	 * @return The number of cues walked.
+	 */
+	public static int walkCues(List<? extends QLabCue> cues, BiPredicate<QLabCue, Stack<QLabCue>> handleCue)
+	{
+		WalkState walkState = new WalkState();
+		for (QLabCue cue: cues) {
+			cue.myWalkCues(walkState, handleCue);
+		}
+		return walkState.m_nWalked;
+	}
+	
+	private static class WalkState
+	{
+		private boolean m_walking = true;
+		private int m_nWalked = 0;
+		Stack<QLabCue> m_path = new Stack<>();
+	}
+	
+	private WalkState myWalkCues(WalkState walkState, BiPredicate<QLabCue, Stack<QLabCue>> handleCue)
+	{
+		if (walkState == null) {
+			walkState = new WalkState();
+		}
+		if (walkState.m_walking) {
+			walkState.m_nWalked++;
+			if (!handleCue.test(this, walkState.m_path)) {
+				walkState.m_walking = false;
+			} else {
+				List<QLabCue> children = getChildren();
+				if (children != null) {
+					walkState.m_path.push(this);
+					for (QLabCue child : children) {
+						child.myWalkCues(walkState, handleCue);
+					}
+					walkState.m_path.pop();
+				}
+			}
+		}
+		return walkState;
 	}
 
 	@Override

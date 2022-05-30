@@ -77,6 +77,7 @@ public class QLabUtil
 	public static final String NOTES_CUE_REQ = "/notes";				// string
 	public static final String NUMBER_CUE_REQ = "/number";				// string
 	public static final String FLAGGED_CUE_REQ = "/flagged";			// number: 0 false, !0 true
+	public static final String ARMED_CUE_REQ = "/armed";				// number: 0 false, !0 true
 	public static final String IS_BROKEN_CUE_REQ = "/isBroken";			// get only
 	public static final String CUE_TARGET_ID_CUE_REQ = "/cueTargetId";	// string
 	public static final String CUE_TARGET_NUMBER_CUE_REQ = "/cueTargetNumber";	// string

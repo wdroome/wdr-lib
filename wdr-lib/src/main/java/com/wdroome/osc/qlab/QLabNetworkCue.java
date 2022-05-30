@@ -45,6 +45,27 @@ public class QLabNetworkCue extends QLabCue
 		m_eosCueNumber = EOSUtil.getCueInFireRequest(m_customString);
 	}
 	
+	public QLabNetworkCue(String uniqueId, QLabCue parent, QueryQLab queryQLab)
+	{
+		super(uniqueId, QLabCueType.NETWORK, parent, queryQLab);
+		int patchNumber = 1;
+		QLabUtil.NetworkMessageType msgType = QLabUtil.NetworkMessageType.OSC;
+		String customString = "";
+		if (queryQLab != null) {
+			try {
+				patchNumber = queryQLab.getPatchNumber(uniqueId);
+				msgType = queryQLab.getNetworkMessageType(uniqueId);
+				customString = queryQLab.getCustomString(uniqueId);
+			} catch (IOException e) {
+				// Skip ??
+			}
+		}
+		m_patchNumber = patchNumber;
+		m_msgType = msgType;
+		m_customString = customString;
+		m_eosCueNumber = EOSUtil.getCueInFireRequest(m_customString);
+	}
+	
 	@Override
 	public String toString()
 	{

@@ -32,6 +32,28 @@ public class QLabCuelistCue extends QLabCue
 	}
 	
 	@Override
+	public int getIndexOfChild(String childId)
+	{
+		int nChildren = m_cues.size();
+		for (int iChild = 0; iChild < nChildren; iChild++) {
+			if (m_cues.get(iChild).m_uniqueId.equals(childId)) {
+				return iChild;
+			}
+		}
+		return -1;
+	}
+	
+	@Override
+	public boolean insertCue(int index, QLabCue cue)
+	{
+		m_cues.add(index, cue);
+		cue.setParent(this);
+		cue.setIsAuto(index > 0
+				&& m_cues.get(index-1).m_continueMode != QLabUtil.ContinueMode.NO_CONTINUE);
+		return true;
+	}
+	
+	@Override
 	public String toString()
 	{
 		return super.toString() + " cues=" + m_cues;

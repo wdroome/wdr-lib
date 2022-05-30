@@ -167,8 +167,8 @@ public class EOS2QLab implements Closeable
 	{
 		m_qlabCuelists = m_queryQLab.getAllCueLists();
 		m_eosCuesInQLab = new TreeMap<>();
-		return QLabCueType.walkCues(m_qlabCuelists,
-				(testCue) -> {
+		return QLabCue.walkCues(m_qlabCuelists,
+					(testCue, path) -> {
 					if (testCue instanceof QLabNetworkCue) {
 						EOSCueNumber eosCueNum = ((QLabNetworkCue)testCue).m_eosCueNumber;
 						if (eosCueNum != null) {
@@ -304,6 +304,16 @@ public class EOS2QLab implements Closeable
 	 */
 	public List<QLabNetworkCue> notInEOS()
 	{
+		if (m_eosCuelists == null) {
+			if (!getEOSCues()) {
+				return null;
+			}
+		}
+		if (m_qlabCuelists == null) {
+			if (!getQLabCues()) {
+				return null;
+			}
+		}
 		List<QLabNetworkCue> notInEOS = new ArrayList<>();
 		for (Map.Entry<EOSCueNumber,QLabNetworkCue> ent: m_eosCuesInQLab.entrySet()) {
 			if (getEOSCue(ent.getKey()) == null) {
@@ -403,7 +413,9 @@ public class EOS2QLab implements Closeable
 	public void prtCuesNotInQLab(boolean prtRanges, boolean prtCues)
 	{
 		if (m_notInQLab == null) {
-			notInQLab();
+			if (notInQLab() == null) {
+				m_out.println("Cannot connect to QLab.");
+			}
 		}
 		if (m_notInQLab.isEmpty()) {
 			m_out.println("All EOS Cues are in QLab");
@@ -905,7 +917,7 @@ public class EOS2QLab implements Closeable
 		if (cues != null) {
 			for (QLabCue cue : cues) {
 				cueStats.m_nCues++;
-				if (cue.m_isAuto) {
+				if (cue.isAuto()) {
 					cueStats.m_nNonAutoCues++;
 				}
 				if (cue.m_isBroken) {

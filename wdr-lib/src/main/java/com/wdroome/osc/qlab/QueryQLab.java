@@ -222,6 +222,18 @@ public class QueryQLab extends OSCConnection
 	}
 	
 	/**
+	 * Get the number for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The number for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public String getNumber(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NUMBER_CUE_REQ));
+		return reply != null ? reply.getString("") : "";
+	}
+	
+	/**
 	 * Set the cue number for a cue.
 	 * @param idOrNumber The cue unique id or number.
 	 * @param number The new number.
@@ -308,6 +320,18 @@ public class QueryQLab extends OSCConnection
 	public String getCueTargetId(String idOrNumber) throws IOException
 	{
 		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.CUE_TARGET_ID_CUE_REQ));
+		return reply != null ? reply.getString("") : "";
+	}
+	
+	/**
+	 * Get the list name field for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The list name field for the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public String getListName(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.LIST_NAME_CUE_REQ));
 		return reply != null ? reply.getString("") : "";
 	}
 
@@ -467,6 +491,32 @@ public class QueryQLab extends OSCConnection
 	public boolean setFlagged(String idOrNumber, boolean flagged) throws IOException
 	{
 		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.FLAGGED_CUE_REQ),
+									new Object[] {Integer.valueOf(flagged ? 1 : 0)});
+		return reply != null && reply.isOk();
+	}
+	
+	/**
+	 * Get the armed attribute for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return True if the cue is armed.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean getArmed(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.ARMED_CUE_REQ));
+		return reply != null ? reply.getBool(false) : false;
+	}
+	
+	/**
+	 * Set the armed attribute for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param flagged The new armed attribute.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setArmed(String idOrNumber, boolean flagged) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.ARMED_CUE_REQ),
 									new Object[] {Integer.valueOf(flagged ? 1 : 0)});
 		return reply != null && reply.isOk();
 	}
@@ -643,6 +693,15 @@ public class QueryQLab extends OSCConnection
 			System.err.println("QueryQLab: recvd " + msg);
 		}
 	}
+	
+	private static String mkIndent(int depth)
+	{
+		StringBuilder b = new StringBuilder();
+		for (int n = 0; n < depth; n++) {
+			b.append("   ");
+		}
+		return b.toString();
+	}
 
 	public static void main(String[] args) throws IOException
 	{
@@ -657,6 +716,29 @@ public class QueryQLab extends OSCConnection
 				System.out.println();
 				cue.printCue(System.out, "", "   ");
 			}
+			for (QLabCuelistCue cuelist: allCues) {
+				System.out.println();
+				System.out.println("Using walkCues() on \"" + cuelist.getName() + "\":");
+				int n = cuelist.walkCues((cue, path) -> {
+										System.out.println(mkIndent(path.size())
+												+ cue.m_type + " \""
+												+ cue.m_number + "\" \"" + cue.getName() + "\"");
+										return true;
+									});
+				System.out.println(n + " cues in cuelist");
+			}
+			System.out.println("Using walkCues() on all cuelists:");
+			int n = QLabCue.walkCues(allCues, (cue, path) -> {
+						if (cue instanceof QLabCuelistCue) {
+							System.out.println();
+						}
+						System.out.println(mkIndent(1+path.size())
+								+ cue.m_type + " \""
+								+ cue.m_number + "\" \"" + cue.getName() + "\"");
+						return true;
+			});
+			System.out.println(n + " cues in all cuelists.");
+
 		} catch (IllegalArgumentException e) {
 			System.err.println(e);
 		}

@@ -104,6 +104,26 @@ public enum QLabCueType
 		default: return new QLabCue(jsonCue, parent, parentIndex, isAuto, queryQLab);
 		}
 	}
+	
+	public static QLabCue insertCue(int index, String uniqueId, QLabCueType type,
+										QLabCue parent, QueryQLab queryQLab)
+	{
+		QLabCue newCue = null;
+		switch (type) {
+		case NETWORK:
+			newCue = new QLabNetworkCue(uniqueId, parent, queryQLab);
+			break;
+			
+		default:
+			newCue = new QLabCue(uniqueId, type, parent, queryQLab);
+			break;
+		}
+		if (!parent.insertCue(index, newCue)) {
+			System.err.println("QLabCueType.insertCue: Cannot insert into type "
+								+ parent.m_type);
+		}
+		return newCue;
+	}
 
 	public static List<QLabCue> getCueArray(JSONValue_Array jsonCues, QLabCue parent,
 							boolean isAuto, QueryQLab queryQLab)
@@ -118,34 +138,6 @@ public enum QLabCueType
 			}
 		}
 		return cues;
-	}
-	
-	public static int walkCues(QLabCue cue, Predicate<QLabCue> handleCue)
-	{
-		if (cue == null) {
-			return 0;
-		}
-		if (!handleCue.test(cue)) {
-			return 1;
-		}
-		List<QLabCue> children = cue.getChildren();
-		if (children != null) {
-			return walkCues(children, handleCue);
-		} else {
-			return 1;
-		}
-	}
-	
-	public static int walkCues(List<? extends QLabCue> cues, Predicate<QLabCue> handleCue)
-	{
-		if (cues == null) {
-			return 0;
-		}
-		int nCues = 0;
-		for (QLabCue cue: cues) {
-			nCues += walkCues(cue, handleCue);
-		}
-		return nCues;
 	}
 
 	/**

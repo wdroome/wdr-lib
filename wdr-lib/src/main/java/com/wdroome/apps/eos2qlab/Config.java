@@ -12,8 +12,8 @@ public class Config
 {
 	public String m_QLabAddrPort = "127.0.0.1:53000";
 	public String m_EOSAddrPort =
-								"192.168.0.113:8192";
-								// "127.0.0.1:8192";
+								false ? "192.168.0.113:8192"
+								      : "127.0.0.1:8192";
 	
 	public int m_newCueNetworkPatch = 1;
 	public String[] m_newCueNumberFmt = {"q%cuenumber%", "q%cuelist%-%cuenumber%"};
