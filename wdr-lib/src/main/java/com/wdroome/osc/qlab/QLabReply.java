@@ -90,6 +90,11 @@ public class QLabReply
 		return m_data != null ? m_data : def;
 	}
 	
+	/**
+	 * Get the data field in the reply as a JSON dictionary.
+	 * @param def The default value.
+	 * @return The data field as a JSON dictionary, or def if it isn't a dictionary.
+	 */
 	public JSONValue_Object getJSONObject(JSONValue_Object def)
 	{
 		if (m_data == null) {
@@ -101,6 +106,11 @@ public class QLabReply
 		}
 	}
 	
+	/**
+	 * Get the data field in the reply as a JSON array.
+	 * @param def The default value.
+	 * @return The data field as a JSON array, or def if it isn't a array.
+	 */
 	public JSONValue_Array getJSONArray(JSONValue_Array def)
 	{
 		if (m_data == null) {
@@ -112,6 +122,11 @@ public class QLabReply
 		}
 	}
 	
+	/**
+	 * Get the data field in the reply as a JSON array of JSON dictionaries.
+	 * @param def The default value.
+	 * @return The data field as a JSON array of dictionaries, or def if it isn't an array.
+	 */
 	public JSONValue_ObjectArray getJSONObjectArray(JSONValue_ObjectArray def)
 	{
 		if (m_data == null) {

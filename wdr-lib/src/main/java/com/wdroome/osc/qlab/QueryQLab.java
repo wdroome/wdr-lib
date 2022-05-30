@@ -616,6 +616,55 @@ public class QueryQLab extends OSCConnection
 		return reply != null && reply.isOk();
 	}
 	
+	/**
+	 * Get the unique ID of the cue which contains a cue.
+	 * @param idOrNumber The child cue.
+	 * @return The unique ID of the cue, or "" if it cannot be determined.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public String getParent(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.PARENT_CUE_REQ), null);
+		String parentId = reply != null ? reply.getString("") : "";
+		if (QLabUtil.CUELIST_CUE_PARENT_ID.equals(parentId)) {
+			parentId = "";
+		}
+		return parentId;
+	}
+	
+	/**
+	 * Get the unique IDs of the immediate children of a container cue.
+	 * @param idOrNumber The container cue.
+	 * @return A List of the unique IDs of the immediate children of the container cue.
+	 * 			If it's not a container cue, return an empty list.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public List<String> getChildrenIds(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber,
+										QLabUtil.CHILDREN_UNIQUEIDS_SHALLOW_CUE_REQ), null);
+		ArrayList<String> childIds = new ArrayList<>();
+		JSONValue_ObjectArray data;
+		if (reply != null && (data = reply.getJSONObjectArray(null)) != null) {
+			for (JSONValue_Object childObj: data) {
+				String childId = childObj.getString(QLabUtil.FLD_UNIQUE_ID, "");
+				if (childId != null && !childId.isBlank()) {
+					childIds.add(childId);
+				}
+			}
+		}
+		return childIds;
+	}
+	
+	/**
+	 * Create a new cue.
+	 * @param type The new cue type.
+	 * @param afterCueId Place it after this cue. If that's a cuelist, add to end of cuelist.
+	 * @param number The new cue's cue number.
+	 * @param name The new cue's name.
+	 * @return The unique ID of the new cue, or null if there was an error.
+	 * @throws IOException If an IO error occurs.
+	 */
 	public String newCue(QLabCueType type, String afterCueId, String number, String name) throws IOException
 	{
 		ArrayList<Object> args = new ArrayList<>();
@@ -641,6 +690,14 @@ public class QueryQLab extends OSCConnection
 		return newCueId;
 	}
 	
+	/**
+	 * Move a cue.
+	 * @param cueId The unique ID of the cue to move.
+	 * @param newIndex The new index for that cue in its parent. 0 to N, where N means "at end".
+	 * @param newParentId The unique ID of the new parent, or null to move it within the same parent.
+	 * @return True if successful, false if not.
+	 * @throws IOException If an IO error occurs.
+	 */
 	public boolean moveCue(String cueId, int newIndex, String newParentId) throws IOException
 	{
 		ArrayList<Object> args = new ArrayList<>();
@@ -738,7 +795,21 @@ public class QueryQLab extends OSCConnection
 						return true;
 			});
 			System.out.println(n + " cues in all cuelists.");
-
+			System.out.println();
+			System.out.println("Get parent & childrent for container cues:");
+			QLabCue.walkCues(allCues, (cue, path) -> {
+						if (cue instanceof QLabCuelistCue || cue instanceof QLabGroupCue) {
+							try {
+								System.out.println();
+								System.out.println(cue.m_type + " " + cue.m_uniqueId
+												+ ": parent=" + queryQLab.getParent(cue.m_uniqueId)
+												+ "\n   children=" + queryQLab.getChildrenIds(cue.m_uniqueId));
+							} catch (IOException e) {
+								System.out.println("  *** IOException " + e);
+							}
+						}
+						return true;
+					});
 		} catch (IllegalArgumentException e) {
 			System.err.println(e);
 		}

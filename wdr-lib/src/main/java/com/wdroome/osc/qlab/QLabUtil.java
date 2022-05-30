@@ -15,6 +15,10 @@ public class QLabUtil
 {
 	public static final String DEFAULT_CUELIST_NAME = "Main Cue List";
 	
+	// The "unique ID" which QLab returns for the "parent ID" of cuelist cues.
+	// QueryQLab.getParent() returns "" if QLab returns this ID.
+	public static final String CUELIST_CUE_PARENT_ID = "[root group of cue lists]";
+	
 	public static final String REPLY_PREFIX = "/reply";
 	
 	public static final String WORKSPACE_REQ_PREFIX = "/workspace/%s";	// Arg is workspace id
@@ -85,6 +89,9 @@ public class QLabUtil
 	public static final String FILE_TARGET_CUE_REQ = "/fileTarget";		// string
 	public static final String PREWAIT_CUE_REQ = "/preWait";			// number
 	public static final String POSTWAIT_CUE_REQ = "/postWait";			// number
+	public static final String PARENT_CUE_REQ = "/parent";
+	public static final String CHILDREN_UNIQUEIDS_SHALLOW_CUE_REQ
+									= "/children/uniqueIDs/shallow";	// get only
 	
 	public static final String NEW_CUE_REQ = "/new";					// cue-type [cue-id]
 	public static final String MOVE_CUE_REQ = "/move/%s";				// cue-id new-index [new-parent-id]
