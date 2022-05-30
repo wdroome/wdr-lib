@@ -12,6 +12,15 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.wdroome.util.CommandReader;
 import com.wdroome.util.MiscUtil;
+import com.wdroome.json.JSONLexan;
+import com.wdroome.json.JSONParseException;
+import com.wdroome.json.JSONParser;
+import com.wdroome.json.JSONValue_String;
+import com.wdroome.json.JSONWriter;
+import com.wdroome.json.JSONValue_Object;
+import com.wdroome.json.JSONValue_Array;
+import com.wdroome.json.JSONValue_ObjectArray;
+import com.wdroome.json.JSONValueTypeException;
 
 /**
  * Read OSC commands from an input source, send them to the OSC server, and display the responses.
@@ -24,6 +33,7 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 	private final AtomicReference<OSCConnection> m_conn = new AtomicReference<>(null);
 	private String m_addrPort;
 	private boolean m_streamResponses = false;
+	private AtomicBoolean m_showJson = new AtomicBoolean(false);
 	
 	/**
 	 * Create a client. This c'tor starts the thread.
@@ -101,6 +111,8 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 				m_out.println("resp      ## Show saved responses.");
 				m_out.println("clear     ## Clear saved responses.");
 				m_out.println("reconnect ## Reconnect after disconnection.");
+				m_out.println("json      ## Print responses as JSON if they look like json.");
+				m_out.println("nojson    ## Don't print responses as JSON.");
 				m_out.println("quit      ## Bye-bye.");
 			} else if (cmd.equals("send")) {
 				if (!(parsedCmd.length >= 2)) {
@@ -124,7 +136,7 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 			} else if (cmd.startsWith("resp")) {
 				synchronized (m_responses) {
 					for (OSCMessage resp: m_responses) {
-						System.out.println("  " + resp);
+						printResponse(resp, "  ");
 					}
 				}
 			} else if (cmd.equals("clear")) {
@@ -135,6 +147,10 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 				setStreamResponses(true);
 			} else if (cmd.equals("nostream")) {
 				setStreamResponses(false);
+			} else if (cmd.equals("json")) {
+				m_showJson.set(true);
+			} else if (cmd.equals("nojson")) {
+				m_showJson.set(false);
 			} else if (cmd.equals("quit") || cmd.equals("q")) {
 				break;
 			} else {
@@ -147,7 +163,7 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 	{
 		synchronized (m_responses) {
 			for (OSCMessage resp: m_responses) {
-				System.out.println("  " + resp);
+				printResponse(resp, "");
 			}
 			m_responses.clear();
 			m_streamResponses = streamResponses;
@@ -245,6 +261,32 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 		}
 		return tokens;
 	}
+	
+	private void printResponse(OSCMessage msg, String prefix)
+	{
+		if (prefix == null) {
+			prefix = "";
+		}
+		if (m_showJson.get() && msg.getArgs().size() == 1) {
+			String arg = msg.getString(0, "");
+			if (arg.startsWith("[") || arg.startsWith("{")) {
+				try {
+					JSONValue_Object jsonArg = JSONParser.parseObject(new JSONLexan(arg), true);
+					m_out.println(prefix + "OSCMessage [" + msg.getCreateTS()
+											+ "," + msg.getMethod() + "," + msg.getArgTypes() + "]:");
+					JSONWriter writer = new JSONWriter(m_out);
+					writer.setSorted(true);
+					writer.setIndents("   ", "   ");
+					jsonArg.writeJSON(writer);
+					writer.writeNewline();
+					return;
+				} catch (Exception e) {
+					// Fall true and print as string.
+				}
+			}
+		}
+		m_out.println(prefix + msg.toString());
+	}
 
 	/* (non-Javadoc)
 	 * @see OSCConnection.MessageHandlerr#handleOscResponse(OSCMessage)
@@ -257,7 +299,7 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 				if (msg == null) {
 					m_out.println(" *** resp: OSC client disconnected.");
 				} else {
-					m_out.println(" *** resp: " + msg.toString());
+					printResponse(msg, " *** resp: ");
 				}
 			} else if (msg != null) {
 				m_responses.add(msg);
