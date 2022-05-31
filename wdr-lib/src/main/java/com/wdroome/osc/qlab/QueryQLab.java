@@ -222,6 +222,20 @@ public class QueryQLab extends OSCConnection
 	}
 	
 	/**
+	 * Get the type of a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The type the cue.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public QLabCueType getType(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.TYPE_CUE_REQ));
+		return reply != null
+				? QLabCueType.fromQLab(reply.getString(""))
+				: QLabCueType.UNKNOWN;
+	}
+	
+	/**
 	 * Get the number for a cue.
 	 * @param idOrNumber The cue unique id or number.
 	 * @return The number for the cue.
@@ -657,6 +671,25 @@ public class QueryQLab extends OSCConnection
 	}
 	
 	/**
+	 * Get the index of a cue in its containing cue.
+	 * @param idOrNumber The cue.
+	 * @return The index of the cue in its container, or -1 if we cannot determine it.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public int getIndexInParent(String idOrNumber) throws IOException
+	{
+		int index = -1;
+		String parentId = getParent(idOrNumber);
+		if (parentId != null) {
+			List<String> siblings = getChildrenIds(parentId);
+			if (siblings != null) {
+				index = siblings.indexOf(idOrNumber);
+			}
+		}
+		return index;
+	}
+	
+	/**
 	 * Create a new cue.
 	 * @param type The new cue type.
 	 * @param afterCueId Place it after this cue. If that's a cuelist, add to end of cuelist.
@@ -785,6 +818,7 @@ public class QueryQLab extends OSCConnection
 				System.out.println(n + " cues in cuelist");
 			}
 			System.out.println("Using walkCues() on all cuelists:");
+			ArrayList<String> allCueIds = new ArrayList<>();
 			int n = QLabCue.walkCues(allCues, (cue, path) -> {
 						if (cue instanceof QLabCuelistCue) {
 							System.out.println();
@@ -792,6 +826,17 @@ public class QueryQLab extends OSCConnection
 						System.out.println(mkIndent(1+path.size())
 								+ cue.m_type + " \""
 								+ cue.m_number + "\" \"" + cue.getName() + "\"");
+						allCueIds.add(cue.m_uniqueId);
+						int indexInParent;
+						try {
+							indexInParent = queryQLab.getIndexInParent(cue.m_uniqueId);
+							if (indexInParent != cue.getIndexInParent()) {
+								System.out.println(mkIndent(1+path.size()) + "**** indexInParent err: "
+										+ indexInParent + " != " + cue.getIndexInParent());
+							}
+						} catch (IOException e) {
+							System.out.println("**** getIndexInParent err: " + e);
+						}
 						return true;
 			});
 			System.out.println(n + " cues in all cuelists.");
@@ -810,6 +855,23 @@ public class QueryQLab extends OSCConnection
 						}
 						return true;
 					});
+			System.out.println();
+			System.out.println("Check findCuePath for all cues:");
+			int nFound = 0;
+			for (String cueId: allCueIds) {
+				List<QLabCue> path = QLabCue.findCuePath(cueId, allCues);
+				if (path == null || path.isEmpty() || !path.get(0).m_uniqueId.equals(cueId)) {
+					System.out.println("  *** cannot find cue id " + cueId);
+				} else {
+					nFound++;
+					System.out.print("  ");
+					for (QLabCue cue: path) {
+						System.out.print(" " + cue.m_uniqueId);
+					}
+					System.out.println();
+				}
+			}
+			System.out.println("  Found " + nFound + " cues out of " + allCueIds.size());
 		} catch (IllegalArgumentException e) {
 			System.err.println(e);
 		}

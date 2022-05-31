@@ -45,9 +45,9 @@ public class QLabNetworkCue extends QLabCue
 		m_eosCueNumber = EOSUtil.getCueInFireRequest(m_customString);
 	}
 	
-	public QLabNetworkCue(String uniqueId, QLabCue parent, QueryQLab queryQLab)
+	protected QLabNetworkCue(String uniqueId, QueryQLab queryQLab)
 	{
-		super(uniqueId, QLabCueType.NETWORK, parent, queryQLab);
+		super(uniqueId, queryQLab);
 		int patchNumber = 1;
 		QLabUtil.NetworkMessageType msgType = QLabUtil.NetworkMessageType.OSC;
 		String customString = "";

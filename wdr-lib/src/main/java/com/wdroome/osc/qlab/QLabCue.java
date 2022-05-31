@@ -24,7 +24,7 @@ public class QLabCue
 	public final QLabCueType m_type;
 	
 	// May be null.
-	private QLabCue m_parent;
+	private QLabCue m_parent = null;;
 	
 	// If m_parent isn't null, the index in m_parent.
 	protected final int m_parentIndex;
@@ -110,14 +110,14 @@ public class QLabCue
 		}
 	}
 	
-	protected QLabCue(String uniqueId, QLabCueType type, QLabCue parent, QueryQLab queryQLab)
+	protected QLabCue(String uniqueId, QueryQLab queryQLab)
 	{
 		m_uniqueId = uniqueId;
-		m_parent = parent;
-		m_parentIndex = parent != null ? parent.getIndexOfChild(uniqueId) : -1;
-		m_type = type;
+		m_parent = null;
+		m_parentIndex = -1;
 		m_isAuto = false;
 		
+		QLabCueType type = QLabCueType.UNKNOWN;
 		String number = "";
 		String listName = "";
 		String name = "";
@@ -134,6 +134,7 @@ public class QLabCue
 		String notes = "";
 		if (queryQLab != null) {
 			try {
+				type = queryQLab.getType(uniqueId);
 				number = queryQLab.getNumber(m_uniqueId);
 				listName = queryQLab.getListName(m_uniqueId);
 				name = queryQLab.getName(m_uniqueId);
@@ -153,6 +154,7 @@ public class QLabCue
 				// Skip ??
 			}
 		}
+		m_type = type;
 		m_number = number;
 		m_listName = listName;
 		m_name = name;
@@ -317,11 +319,11 @@ public class QLabCue
 	
 	/**
 	 * Insert a cue into a container cue.
-	 * @param index the insert point.
+	 * @param cue The cue to add. It should be in QLab.
 	 * @param cue the cue to insert.
 	 * @return True iff successful. The base class always returns false.
 	 */
-	public boolean insertCue(int index, QLabCue cue)
+	protected boolean insertCue(QLabCue cue, QueryQLab queryQLab)
 	{
 		return false;
 	}
@@ -335,7 +337,7 @@ public class QLabCue
 	 * 			If the predicate returns false, stop walking the cue tree.
 	 * @return The number of cues walked.
 	 */
-	public int walkCues(BiPredicate<QLabCue, Stack<QLabCue>> handleCue)
+	public int walkCues(BiPredicate<QLabCue, Stack<? extends QLabCue>> handleCue)
 	{
 		WalkState walkState = myWalkCues(null, handleCue);
 		return walkState.m_nWalked;
@@ -350,11 +352,17 @@ public class QLabCue
 	 * 			If the predicate returns false, stop walking the cue tree.
 	 * @return The number of cues walked.
 	 */
-	public static int walkCues(List<? extends QLabCue> cues, BiPredicate<QLabCue, Stack<QLabCue>> handleCue)
+	public static int walkCues(List<? extends QLabCue> cues,
+								BiPredicate<QLabCue, Stack<? extends QLabCue>> handleCue)
 	{
 		WalkState walkState = new WalkState();
-		for (QLabCue cue: cues) {
-			cue.myWalkCues(walkState, handleCue);
+		if (cues != null) {
+			for (QLabCue cue: cues) {
+				cue.myWalkCues(walkState, handleCue);
+				if (!walkState.m_walking) {
+					break;
+				}
+			} 
 		}
 		return walkState.m_nWalked;
 	}
@@ -366,7 +374,7 @@ public class QLabCue
 		Stack<QLabCue> m_path = new Stack<>();
 	}
 	
-	private WalkState myWalkCues(WalkState walkState, BiPredicate<QLabCue, Stack<QLabCue>> handleCue)
+	private WalkState myWalkCues(WalkState walkState, BiPredicate<QLabCue, Stack<? extends QLabCue>> handleCue)
 	{
 		if (walkState == null) {
 			walkState = new WalkState();
@@ -376,17 +384,60 @@ public class QLabCue
 			if (!handleCue.test(this, walkState.m_path)) {
 				walkState.m_walking = false;
 			} else {
-				List<QLabCue> children = getChildren();
+				List<? extends QLabCue> children = getChildren();
 				if (children != null) {
 					walkState.m_path.push(this);
-					for (QLabCue child : children) {
+					for (QLabCue child: children) {
 						child.myWalkCues(walkState, handleCue);
+						if (!walkState.m_walking) {
+							break;
+						}
 					}
 					walkState.m_path.pop();
 				}
 			}
 		}
 		return walkState;
+	}
+	
+	/**
+	 * Find the cue in a cuelist tree with a unique ID.
+	 * @param cueId The id to find.
+	 * @param cues A list of cues (usually a list of cuelist cues).
+	 * @return The cue with cueId, or null if there is no such cue.
+	 */
+	public static QLabCue findCue(String cueId, List<? extends QLabCue> cues)
+	{
+		List<QLabCue> revPath = findCuePath(cueId, cues);
+		return (revPath != null && !revPath.isEmpty()) ? revPath.get(0) : null;
+	}
+		
+	/**
+	 * Find the path to the cue in a cuelist tree with a unique ID.
+	 * @param cueId The id to find.
+	 * @param cues A list of cues (usually a list of cuelists).
+	 * @return A list with the found cue and it's containing cues.
+	 * 			[0] is the found cue, [1] is it's container,
+	 * 			[2] is the containing cue's container, etc.
+	 * 			If not found, return an empty list.
+	 */
+	public static List<QLabCue> findCuePath(String cueId, List<? extends QLabCue> cues)
+	{
+		final ArrayList<List<QLabCue>> foundListHolder = new ArrayList<>();
+		walkCues(cues, (cue,path) -> {
+					if (cueId.equals(cue.m_uniqueId)) {
+						ArrayList<QLabCue> retList = new ArrayList<>();
+						retList.add(cue);
+						for (int i = path.size()-1; i >= 0; --i) {
+							retList.add(path.get(i));
+						}
+						foundListHolder.add(retList);
+						return false;
+					} else {
+						return true;
+					}
+				});
+		return !foundListHolder.isEmpty() ? foundListHolder.get(0) : List.of();
 	}
 
 	@Override

@@ -1,5 +1,6 @@
 package com.wdroome.osc.qlab;
 
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.ArrayList;
@@ -44,13 +45,23 @@ public class QLabCuelistCue extends QLabCue
 	}
 	
 	@Override
-	public boolean insertCue(int index, QLabCue cue)
+	protected boolean insertCue(QLabCue cue, QueryQLab queryQLab)
 	{
-		m_cues.add(index, cue);
-		cue.setParent(this);
-		cue.setIsAuto(index > 0
-				&& m_cues.get(index-1).m_continueMode != QLabUtil.ContinueMode.NO_CONTINUE);
-		return true;
+		int cueIndex;
+		try {
+			cueIndex = queryQLab.getIndexInParent(cue.m_uniqueId);
+		} catch (IOException e) {
+			return false;
+		}
+		if (cueIndex < 0) {
+			return false;
+		} else {
+			m_cues.add(cueIndex, cue);
+			cue.setParent(this);
+			cue.setIsAuto(cueIndex > 0
+					&& m_cues.get(cueIndex-1).m_continueMode != QLabUtil.ContinueMode.NO_CONTINUE);
+			return true;
+		}
 	}
 	
 	@Override

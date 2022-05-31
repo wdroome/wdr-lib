@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 import com.wdroome.json.JSONValue_Object;
+import com.wdroome.osc.eos.EOSUtil;
 
 /**
  * A QLab Group cue.
@@ -37,7 +38,7 @@ public class QLabGroupCue extends QLabCue
 			m_cues = new ArrayList<>();
 		}
 	}
-	
+
 	@Override
 	public List<QLabCue> getChildren()
 	{
@@ -57,13 +58,25 @@ public class QLabGroupCue extends QLabCue
 	}
 	
 	@Override
-	public boolean insertCue(int index, QLabCue cue)
+	protected boolean insertCue(QLabCue cue, QueryQLab queryQLab)
 	{
-		m_cues.add(index, cue);
-		cue.setParent(this);
-		cue.setIsAuto(index > 0
-				&& m_cues.get(index-1).m_continueMode != QLabUtil.ContinueMode.NO_CONTINUE);
-		return true;
+		int cueIndex;
+		try {
+			cueIndex = queryQLab.getIndexInParent(cue.m_uniqueId);
+		} catch (IOException e) {
+			return false;
+		}
+		if (cueIndex < 0) {
+			return false;
+		} else {
+			m_cues.add(cueIndex, cue);
+			cue.setParent(this);
+			cue.setIsAuto(
+					m_groupMode != QLabUtil.GroupMode.START_AND_ENTER
+					|| (cueIndex > 0
+						&& m_cues.get(cueIndex-1).m_continueMode != QLabUtil.ContinueMode.NO_CONTINUE));
+			return true;
+		}
 	}
 	
 	@Override

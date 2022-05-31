@@ -89,7 +89,8 @@ public class QLabUtil
 	public static final String FILE_TARGET_CUE_REQ = "/fileTarget";		// string
 	public static final String PREWAIT_CUE_REQ = "/preWait";			// number
 	public static final String POSTWAIT_CUE_REQ = "/postWait";			// number
-	public static final String PARENT_CUE_REQ = "/parent";
+	public static final String TYPE_CUE_REQ = "/type";					// get only
+	public static final String PARENT_CUE_REQ = "/parent";				// get only
 	public static final String CHILDREN_UNIQUEIDS_SHALLOW_CUE_REQ
 									= "/children/uniqueIDs/shallow";	// get only
 	

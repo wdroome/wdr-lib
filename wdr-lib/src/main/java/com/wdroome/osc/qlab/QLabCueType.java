@@ -1,5 +1,6 @@
 package com.wdroome.osc.qlab;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -91,6 +92,15 @@ public enum QLabCueType
 		return m_toQLab.toLowerCase();
 	}
 	
+	/**
+	 * Create a new QLabCue from the json returned by a /cueLists request.
+	 * @param jsonCue The JSON cue information.
+	 * @param parent The parent cue.
+	 * @param parentIndex The index in the parent.
+	 * @param isAuto True iff this is an automatic cue.
+	 * @param queryQLab The connection to QLab.
+	 * @return The new QLabCue object.
+	 */
 	public static QLabCue makeCue(JSONValue_Object jsonCue, QLabCue parent, int parentIndex,
 									boolean isAuto, QueryQLab queryQLab)
 	{
@@ -105,22 +115,40 @@ public enum QLabCueType
 		}
 	}
 	
-	public static QLabCue insertCue(int index, String uniqueId, QLabCueType type,
-										QLabCue parent, QueryQLab queryQLab)
+	/**
+	 * Create a QLabCue object for a cue that has been added to QLab,
+	 * and place that object in a cuelists tree.
+	 * @param uniqueId The id of the newly added cue.
+	 * @param cuelists A list of cuelists, as returned by {@link QueryQLab#getAllCueLists()}.
+	 * @param queryQLab The QLab connection.
+	 * @return The new QLabCue object, or null if it cannot be created.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public static QLabCue insertNewCue(String uniqueId, List<QLabCue> cuelists, QueryQLab queryQLab)
+								throws IOException
 	{
 		QLabCue newCue = null;
+		String parentId = queryQLab.getParent(uniqueId);
+		if (parentId == null || parentId.isBlank()) {
+			return null;
+		}
+		QLabCue parentCue = QLabCue.findCue(uniqueId, cuelists);
+		if (parentCue == null) {
+			return null;
+		}
+		QLabCueType type = queryQLab.getType(uniqueId);
 		switch (type) {
 		case NETWORK:
-			newCue = new QLabNetworkCue(uniqueId, parent, queryQLab);
+			newCue = new QLabNetworkCue(uniqueId, queryQLab);
 			break;
-			
+
 		default:
-			newCue = new QLabCue(uniqueId, type, parent, queryQLab);
+			newCue = new QLabCue(uniqueId, queryQLab);
 			break;
 		}
-		if (!parent.insertCue(index, newCue)) {
+		if (!parentCue.insertCue(newCue, queryQLab)) {
 			System.err.println("QLabCueType.insertCue: Cannot insert into type "
-								+ parent.m_type);
+								+ parentCue.m_type);
 		}
 		return newCue;
 	}
