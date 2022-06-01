@@ -110,14 +110,15 @@ public class QLabCue
 		}
 	}
 	
-	protected QLabCue(String uniqueId, QueryQLab queryQLab)
+	protected QLabCue(String uniqueId, QLabCueType type, QueryQLab queryQLab)
 	{
+		long t0 = System.currentTimeMillis();
 		m_uniqueId = uniqueId;
+		m_type = type;
 		m_parent = null;
 		m_parentIndex = -1;
 		m_isAuto = false;
 		
-		QLabCueType type = QLabCueType.UNKNOWN;
 		String number = "";
 		String listName = "";
 		String name = "";
@@ -134,7 +135,6 @@ public class QLabCue
 		String notes = "";
 		if (queryQLab != null) {
 			try {
-				type = queryQLab.getType(uniqueId);
 				number = queryQLab.getNumber(m_uniqueId);
 				listName = queryQLab.getListName(m_uniqueId);
 				name = queryQLab.getName(m_uniqueId);
@@ -154,7 +154,6 @@ public class QLabCue
 				// Skip ??
 			}
 		}
-		m_type = type;
 		m_number = number;
 		m_listName = listName;
 		m_name = name;

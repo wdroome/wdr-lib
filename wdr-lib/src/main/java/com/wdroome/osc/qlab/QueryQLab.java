@@ -224,15 +224,16 @@ public class QueryQLab extends OSCConnection
 	/**
 	 * Get the type of a cue.
 	 * @param idOrNumber The cue unique id or number.
-	 * @return The type the cue.
+	 * @return The type the cue. If there's an error, return QLabCueType.UNKNOWN, rather than null.
 	 * @throws IOException If an IO error occurs.
 	 */
 	public QLabCueType getType(String idOrNumber) throws IOException
 	{
 		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.TYPE_CUE_REQ));
-		return reply != null
+		QLabCueType type = reply != null
 				? QLabCueType.fromQLab(reply.getString(""))
 				: QLabCueType.UNKNOWN;
+		return type;
 	}
 	
 	/**
@@ -680,8 +681,12 @@ public class QueryQLab extends OSCConnection
 	{
 		int index = -1;
 		String parentId = getParent(idOrNumber);
-		if (parentId != null) {
+		if (parentId != null && !parentId.isBlank()) {
+			long startTS = System.currentTimeMillis();
 			List<String> siblings = getChildrenIds(parentId);
+			if (parentId.isBlank()) {
+				System.out.println("XXX child of blank parent: " + siblings);
+			}
 			if (siblings != null) {
 				index = siblings.indexOf(idOrNumber);
 			}
@@ -830,6 +835,7 @@ public class QueryQLab extends OSCConnection
 						int indexInParent;
 						try {
 							indexInParent = queryQLab.getIndexInParent(cue.m_uniqueId);
+							cue.getIndexInParent();
 							if (indexInParent != cue.getIndexInParent()) {
 								System.out.println(mkIndent(1+path.size()) + "**** indexInParent err: "
 										+ indexInParent + " != " + cue.getIndexInParent());

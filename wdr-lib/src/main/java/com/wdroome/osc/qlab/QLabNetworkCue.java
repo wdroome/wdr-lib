@@ -47,7 +47,7 @@ public class QLabNetworkCue extends QLabCue
 	
 	protected QLabNetworkCue(String uniqueId, QueryQLab queryQLab)
 	{
-		super(uniqueId, queryQLab);
+		super(uniqueId, QLabCueType.NETWORK, queryQLab);
 		int patchNumber = 1;
 		QLabUtil.NetworkMessageType msgType = QLabUtil.NetworkMessageType.OSC;
 		String customString = "";
