@@ -440,22 +440,53 @@ public class OSCUtil
 	 */
 	public static void writeSlipMsg(OutputStream out, List<byte[]> byteArrays) throws IOException
 	{
-		out.write(SLIP_END_BYTE);
+		SimpleByteBuffer buff = new SimpleByteBuffer(out);
+		buff.add(SLIP_END_BYTE);
+		
 		for (byte[] bytes: byteArrays) {
 			for (byte b: bytes) {
 				if (b == SLIP_END_BYTE) {
-					out.write(SLIP_ESC_BYTE);
-					out.write(SLIP_ESC_END_BYTE);
+					buff.add(SLIP_ESC_BYTE);
+					buff.add(SLIP_ESC_END_BYTE);
 				} else if (b == SLIP_ESC_BYTE) {
-					out.write(SLIP_ESC_BYTE);
-					out.write(SLIP_ESC_ESC_BYTE);
+					buff.add(SLIP_ESC_BYTE);
+					buff.add(SLIP_ESC_ESC_BYTE);
 				} else {
-					out.write(b);
+					buff.add(b);
 				}
 			}
 		}
-		out.write(SLIP_END_BYTE);
-		out.flush();
+		buff.add(SLIP_END_BYTE);
+		buff.flush();
+	}
+	
+	private static class SimpleByteBuffer
+	{
+		private OutputStream m_out;
+		private static final int BUFF_LEN = 2048;
+		private byte[] m_buff = new byte[BUFF_LEN];
+		int m_iBuff = 0;
+		
+		private SimpleByteBuffer(OutputStream out)
+		{
+			m_out = out;
+		}
+		
+		private void add(byte b) throws IOException
+		{
+			if (m_iBuff >= BUFF_LEN) {
+				flush();
+			}
+			m_buff[m_iBuff++] = b;
+		}
+		
+		private void flush() throws IOException
+		{
+			if (m_iBuff > 0) {
+				m_out.write(m_buff, 0, m_iBuff);
+				m_iBuff = 0;
+			}
+		}
 	}
 	
 	/**

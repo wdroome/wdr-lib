@@ -236,7 +236,25 @@ public class QueryQLab extends OSCConnection
 				: QLabCueType.UNKNOWN;
 		return type;
 	}
-	
+
+	/**
+	 * For testing, send a "get type" request with an argument.
+	 * QLab seems to ignore the argument.
+	 * @param idOrNumber
+	 * @param arg
+	 * @return
+	 * @throws IOException
+	 */
+	public QLabCueType getType(String idOrNumber, String arg) throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.TYPE_CUE_REQ),
+						(arg != null && !arg.isBlank()) ? new Object[] {arg} : null);
+		QLabCueType type = reply != null
+				? QLabCueType.fromQLab(reply.getString(""))
+				: QLabCueType.UNKNOWN;
+		return type;
+	}
+
 	/**
 	 * Get the number for a cue.
 	 * @param idOrNumber The cue unique id or number.
