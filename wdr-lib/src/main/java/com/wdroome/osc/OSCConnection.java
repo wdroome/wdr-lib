@@ -286,7 +286,7 @@ public class OSCConnection implements Closeable
 	}
 	
 	/**
-	 * Send a message to the server and append associated reply messages to a quque.
+	 * Send a message to the server and append associated reply messages to a queue.
 	 * @param msg The message to send.
 	 * @param replyMethodRegex A regular expression that matches the method
 	 * 			in the reply messages expected for "msg".
@@ -307,6 +307,76 @@ public class OSCConnection implements Closeable
 					catch (Exception e) { logError("OSCConnection.sendMessage handler: " + e); }
 					return true;
 				});
+	}
+	
+	/**
+	 * Send a message to the server and append the single associated reply message to a queue.
+	 * This cancels the reply handler after getting the first matching reply.
+	 * @param msg The message to send.
+	 * @param replyMethodRegex A regular expression that matches the method
+	 * 			in the reply messages expected for "msg".
+	 * @param replyQueue Add the reply messages to this queue. If the queue is full,
+	 * 		wait at most 500 milliseconds, and then discard the reply.
+	 * @return A ReplyHandler object for the registered reply handler.
+	 * 		The caller can use this to drop the reply handler if needed.
+	 * @throws IOException
+	 * 		If an error occurs while sending the message.
+	 */
+	public ReplyHandler sendMessage1Reply(OSCMessage msg, String replyMethodRegex, BlockingQueue<OSCMessage> replyQueue)
+			throws IOException
+	{
+		return sendMessage(msg, replyMethodRegex,
+				(resp) -> {
+					// System.err.println("XXX Conn.replyHandler " + resp);
+					try { replyQueue.offer(resp, 1000, TimeUnit.MILLISECONDS); }
+					catch (Exception e) { logError("OSCConnection.sendMessage handler: " + e); }
+					return false;
+				});
+	}
+
+	/**
+	 * Send a message to the server and append the associated reply messages to a queue.
+	 * Cancel the reply handler after receiving a fixed number of replies.
+	 * @param msg The message to send.
+	 * @param replyMethodRegex A regular expression that matches the method
+	 * 			in the reply messages expected for "msg".
+	 * @param replyQueue Add the reply messages to this queue. If the queue is full,
+	 * 		wait at most 500 milliseconds, and then discard the reply.
+	 * @param maxReplies The maximum number of rely messages expected.
+	 * @return A ReplyHandler object for the registered reply handler.
+	 * 		The caller can use this to drop the reply handler if needed.
+	 * @throws IOException
+	 * 		If an error occurs while sending the message.
+	 */
+	public ReplyHandler sendMessage(OSCMessage msg, String replyMethodRegex,
+				BlockingQueue<OSCMessage> replyQueue, int maxReplies)
+			throws IOException
+	{
+		return sendMessage(msg, replyMethodRegex, new BoundedReplyQueuer(replyQueue, maxReplies));
+	}
+	
+	/**
+	 * A reply handler that adds the reply to a queue, but stops after a maximum number of replies.
+	 */
+	private class BoundedReplyQueuer implements Predicate<OSCMessage>
+	{
+		private BlockingQueue<OSCMessage> m_replyQueue;
+		int m_maxReplies;
+		int m_nReplies = 0;
+		private BoundedReplyQueuer(BlockingQueue<OSCMessage> replyQueue, int maxReplies)
+		{
+			m_replyQueue = replyQueue;
+			m_maxReplies = maxReplies;
+		}
+		@Override
+		public boolean test(OSCMessage msg)
+		{
+			// System.err.println("XXX Conn.replyHandler " + msg);
+			try { m_replyQueue.offer(msg, 1000, TimeUnit.MILLISECONDS); }
+			catch (Exception e) { logError("OSCConnection.sendMessage handler: " + e); }
+			m_nReplies++;
+			return m_nReplies < m_maxReplies;
+		}
 	}
 
 	/**
@@ -414,6 +484,8 @@ public class OSCConnection implements Closeable
 		m_messageHandler = null;
 	}
 	
+	private boolean m_prtAddDropCalls = false;
+	
 	/**
 	 * Register a new reply handler.
 	 * @param methodRegex A regular expression. The handler will be called for all incoming messages
@@ -430,8 +502,13 @@ public class OSCConnection implements Closeable
 	public ReplyHandler addReplyHandler(String methodRegex, Predicate<OSCMessage> replyHandler)
 	{
 		ReplyHandler rep = new ReplyHandler(methodRegex, replyHandler);
+		int size;
 		synchronized (m_replyHandlers) {
 			m_replyHandlers.add(rep);
+			size = m_replyHandlers.size();
+		}
+		if (m_prtAddDropCalls) {
+			System.out.println("XXX addReplyHandler " + methodRegex + " " + size + " " + rep.hashCode());
 		}
 		return rep;
 	}
@@ -444,9 +521,17 @@ public class OSCConnection implements Closeable
 	public boolean dropReplyHandler(ReplyHandler replyHandler)
 	{
 		// System.err.println("XXX OSCConn.dropReplyHandler " + replyHandler);
+		boolean removed;
+		int size;
 		synchronized (m_replyHandlers) {
-			return m_replyHandlers.remove(replyHandler);
+			removed = m_replyHandlers.remove(replyHandler);
+			size = m_replyHandlers.size();
 		}
+		if (m_prtAddDropCalls) {
+			System.out.println("XXX: dropReplyHandler " + removed + " " + replyHandler.m_methodPattern
+							+ " " + size + " " + replyHandler.hashCode());
+		}
+		return removed;
 	}
 	
 	/**
@@ -544,14 +629,16 @@ public class OSCConnection implements Closeable
 					matchingHandlers.clear();
 					OSCMessage msg = readOscMessage();
 					logMsgReceived(msg);
-					// System.err.println("XXX OSCConnnection.Listener: " + msg);
-					// Save matching reply handlers, but do NOT call the handler in the synch block.
-					synchronized (m_replyHandlers) {
-						for (ReplyHandler replyHandler: m_replyHandlers) {
-							if (replyHandler.m_methodPattern.matcher(msg.getMethod()).matches()) {
-								matchingHandlers.add(replyHandler);
+					if (msg != null) {
+						// System.err.println("XXX OSCConnnection.Listener: " + msg);
+						// Save matching reply handlers, but do NOT call the handler in the synch block.
+						synchronized (m_replyHandlers) {
+							for (ReplyHandler replyHandler : m_replyHandlers) {
+								if (replyHandler.m_methodPattern.matcher(msg.getMethod()).matches()) {
+									matchingHandlers.add(replyHandler);
+								}
 							}
-						}
+						} 
 					}
 					// Now call the matching reply handlers. If none, call the backup handler.
 					if (!matchingHandlers.isEmpty()) {
@@ -559,6 +646,7 @@ public class OSCConnection implements Closeable
 							boolean keep;
 							try {
 								keep = replyHandler.m_replyHandler.test(msg);
+								// System.out.println("XXX Listener call " + replyHandler.hashCode() + " " + keep);
 							} catch (Exception e) {
 								logError("Exception in ReplyHandler for \"" + replyHandler.m_methodPattern
 											+ "\": " + e);

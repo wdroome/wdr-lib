@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.wdroome.util.MiscUtil;
 import com.wdroome.osc.OSCConnection;
 import com.wdroome.osc.OSCMessage;
 import com.wdroome.osc.OSCUtil;
@@ -113,7 +114,7 @@ public class QueryQLab extends OSCConnection
 		OSCMessage req = new OSCMessage(requestMethod, args);
 		final ArrayBlockingQueue<OSCMessage> replyQueue = new ArrayBlockingQueue<>(10);
 		ReplyHandler replyHandler;
-		replyHandler = sendMessage(req,
+		replyHandler = sendMessage1Reply(req,
 					QLabUtil.REPLY_PREFIX + QLabUtil.WORKSPACE_REPLY_PREFIX_PAT + requestMethod,
 					replyQueue);
 		OSCMessage replyMsg = null;
@@ -122,7 +123,7 @@ public class QueryQLab extends OSCConnection
 		} catch (Exception e) {
 			// Usually this is timeout on the poll().
 		}
-		dropReplyHandler(replyHandler);
+		boolean dropped = dropReplyHandler(replyHandler);
 		if (replyMsg == null) {
 			return null;
 		}
@@ -877,9 +878,35 @@ public class QueryQLab extends OSCConnection
 					System.out.println();
 				}
 			}
+
 			System.out.println("  Found " + nFound + " cues out of " + allCueIds.size());
+			QLabCue.walkCues(allCues, (cue,path) -> {
+				try {
+					long t0 = System.currentTimeMillis();
+					QLabCueType type0 = queryQLab.getType(cue.m_uniqueId);
+					// QLabUtil.ColorName color0 = queryQLab.getColorName(cue.m_uniqueId);
+					long t1 = System.currentTimeMillis();
+					MiscUtil.sleep(0);
+					// QLabUtil.ColorName color1 = queryQLab.getColorName(cue.m_uniqueId);
+					QLabCueType type1 = queryQLab.getType(cue.m_uniqueId);
+					long t2 = System.currentTimeMillis();
+					System.out.println(" " + cue.m_uniqueId + "/" + cue.m_type
+								+ ": t1-t0: " + (t1-t0) + " t2-t1: " + (t2-t1));
+					if (!cue.m_type.equals(type0)) {
+						System.out.println(" *** " + cue.m_uniqueId + " getType0 " + type0 + " != " + cue.m_type);
+					}
+					if (!cue.m_type.equals(type1)) {
+						System.out.println(" *** " + cue.m_uniqueId + " getType1 " + type1 + " != " + cue.m_type);
+					}
+				} catch (IOException e) {
+					System.out.println("Err: " + e);
+					return false;
+				}
+				return true;
+			});
 		} catch (IllegalArgumentException e) {
 			System.err.println(e);
 		}
+		
 	}
 }

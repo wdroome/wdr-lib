@@ -541,7 +541,6 @@ public class EOS2QLab implements Closeable
 			try {
 				EOSCueNumber eosNumber = eosCue.getCueNumber();
 				InsertPoint insertPoint = findCueInsertPoint(eosNumber, targetCuelistId);
-				long t0 = System.currentTimeMillis();	// XXX
 				String qlabCueId = m_queryQLab.newCue(QLabCueType.NETWORK,
 										insertPoint.m_afterId,
 										m_config.makeNewCueNumber(eosCue),
@@ -555,7 +554,6 @@ public class EOS2QLab implements Closeable
 						m_out.println("Error moving " + eosNumber + " to head.");
 					}
 				}
-				long t1 = System.currentTimeMillis();
 				QLabCue newCue = QLabCueType.insertNewCue(qlabCueId, m_qlabCuelists, m_queryQLab);
 				if (newCue == null) {
 					m_out.println("Error adding EOS cue " + eosNumber + ": insertNewCue failed");
@@ -566,16 +564,12 @@ public class EOS2QLab implements Closeable
 				} else {
 					System.out.println("Error: Added EOS cue " + eosNumber + " but it's type " + newCue.m_type);
 				}
-				long t2 = System.currentTimeMillis();
 				m_queryQLab.setNetworkMessageType(qlabCueId, QLabUtil.NetworkMessageType.OSC);
 				m_queryQLab.setCustomString(qlabCueId, EOSUtil.makeCueFireRequest(eosNumber));
 				m_queryQLab.setPatchNumber(qlabCueId, networkPatch);
 				m_queryQLab.setColorName(qlabCueId, newCueMarking.m_color);
 				m_queryQLab.setFlagged(qlabCueId, newCueMarking.m_flag);
 				m_queryQLab.setNotes(qlabCueId, eosCue.getNotes());
-				long t3 = System.currentTimeMillis();
-				// System.out.println("XXX t0-1: " + (t1-t0) + " t1-2: " + (t2-t1) + " t2-3: " + (t3-t2));
-				// XXX refreshQLabCuelists();
 				if (nAdded > 0 && nAdded%60 == 0) {
 					m_out.println();
 				}

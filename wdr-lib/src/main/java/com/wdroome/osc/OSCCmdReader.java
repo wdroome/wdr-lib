@@ -121,6 +121,19 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 				} else {
 					sendCmd(parsedCmd, 1);
 				}
+			} else if (cmd.equals("send3")) {
+				if (!(parsedCmd.length >= 2)) {
+					m_out.println("Usage: send3 osc-method [arg arg ...]");
+					continue;
+				} else {
+					sendCmd(parsedCmd, 1);
+					sendCmd(parsedCmd, 1);
+					sendCmd(parsedCmd, 1);
+				}
+			} else if (cmd.equals("send-reqs")) {
+				for (int i = 1; i < parsedCmd.length; i++) {
+					sendSimpleReq(parsedCmd[i]);
+				}
 			} else if (cmd.startsWith("recon")) {
 				if (m_conn.get() != null) {
 					m_out.println("Already connected to " + m_addrPort);
@@ -219,11 +232,38 @@ public class OSCCmdReader extends CommandReader implements OSCConnection.Message
 			m_out.println("*** IO Error: " + e);
 			return;
 		}
-		MiscUtil.sleep(250);
-		int postNumResp = getNumResponses();
-		if (postNumResp != preNumResp) {
-			m_out.println("   " + (postNumResp - preNumResp) + " new responses.");
+		if (!m_streamResponses) {
+			MiscUtil.sleep(250);
+			int postNumResp = getNumResponses();
+			if (postNumResp != preNumResp) {
+				m_out.println("   " + (postNumResp - preNumResp) + " new responses.");
+			} 
 		}
+	}
+	
+	private void sendSimpleReq(String req)
+	{
+		OSCMessage msg = new OSCMessage(req);
+		int preNumResp = getNumResponses();
+		try {
+			OSCConnection conn = m_conn.get();
+			if (conn != null) {
+				conn.sendMessage(msg);
+			} else {
+				m_out.println("*** Not connected to OSC client");
+				return;
+			}
+		} catch (IOException e) {
+			m_out.println("*** IO Error: " + e);
+			return;
+		}
+		if (!m_streamResponses) {
+			MiscUtil.sleep(250);
+			int postNumResp = getNumResponses();
+			if (postNumResp != preNumResp) {
+				m_out.println("   " + (postNumResp - preNumResp) + " new responses.");
+			} 
+		}		
 	}
 	
 	private int getNumResponses()
