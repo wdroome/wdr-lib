@@ -19,6 +19,9 @@ import java.util.HashMap;
 import java.util.function.Predicate;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+
+import com.wdroome.util.MiscUtil;
+
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -90,6 +93,10 @@ public class OSCConnection implements Closeable
 	private final List<ReplyHandler> m_replyHandlers = new LinkedList<ReplyHandler>();
 
 	private int m_connectTimeout = DEF_CONNECT_TIMEOUT;
+	
+	private String m_lastSentMsgMethod = null;
+	private long m_lastSentMsgTS = 0;
+	private long m_minTimeBetweenRepeatMsgs = 0;
 	
 	/**
 	 * Create a new connection to OSC server.
@@ -173,6 +180,14 @@ public class OSCConnection implements Closeable
 		}		
 	}
 	
+	public long getMinTimeBetweenRepeatMsgs() {
+		return m_minTimeBetweenRepeatMsgs;
+	}
+
+	public void setMinTimeBetweenRepeatMsgs(long minTimeBetweenRepeatMsgs) {
+		this.m_minTimeBetweenRepeatMsgs = minTimeBetweenRepeatMsgs;
+	}
+
 	/**
 	 * Open a TCP connection to the OSC server.
 	 * @throws IOException
@@ -250,9 +265,18 @@ public class OSCConnection implements Closeable
 	{
 		logMsgSent(msg);
 		List<byte[]> byteArrays = msg.getOSCBytes(null);
+		if (m_lastSentMsgMethod != null && m_lastSentMsgMethod.equals(msg.getMethod())) {
+			long waitTime = (m_lastSentMsgTS + m_minTimeBetweenRepeatMsgs) - System.currentTimeMillis();
+			if (waitTime > 0) {
+				System.out.println("XXX: OSCConn delay repeat msg " + waitTime);
+				MiscUtil.sleep(waitTime);
+			}
+		}
 		synchronized (m_oscOutputStream) {
 			try {
 				OSCUtil.writeSlipMsg(m_oscOutputStream, byteArrays);
+				m_lastSentMsgMethod = msg.getMethod();
+				m_lastSentMsgTS = System.currentTimeMillis();
 			} catch (IOException e) {
 				disconnect();
 				throw e;

@@ -484,6 +484,7 @@ public class OSCUtil
 		{
 			if (m_iBuff > 0) {
 				m_out.write(m_buff, 0, m_iBuff);
+				m_out.flush();
 				m_iBuff = 0;
 			}
 		}

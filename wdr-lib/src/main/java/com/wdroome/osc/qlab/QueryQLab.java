@@ -20,6 +20,8 @@ import com.wdroome.json.JSONValueTypeException;
 
 public class QueryQLab extends OSCConnection
 {
+	public static final long DEF_MIN_TIME_BETWEEN_REPEAT_MSGS = 200;
+	
 	private long m_timeoutMS = 2500;
 	private String m_passcode = "";
 	private String m_lastReplyWorkspaceId = "";
@@ -41,6 +43,7 @@ public class QueryQLab extends OSCConnection
 	public QueryQLab(String addr, int port) throws IllegalArgumentException
 	{
 		super(addr, port);
+		setMinTimeBetweenRepeatMsgs(DEF_MIN_TIME_BETWEEN_REPEAT_MSGS);
 	}
 
 	/**
@@ -52,7 +55,7 @@ public class QueryQLab extends OSCConnection
 	{
 		super(extractAddrPort(addrPortPasscode));
 		m_passcode = extractPasscode(addrPortPasscode);
-		
+		setMinTimeBetweenRepeatMsgs(DEF_MIN_TIME_BETWEEN_REPEAT_MSGS);
 	}
 	
 	private static String extractAddrPort(String addrPortPasscode)
