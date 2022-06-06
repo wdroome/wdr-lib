@@ -26,6 +26,7 @@ import com.wdroome.osc.eos.EOSUtil;
 import com.wdroome.osc.eos.EOSCueNumber;
 
 import com.wdroome.osc.qlab.QueryQLab;
+import com.wdroome.osc.qlab.QLabReply;
 import com.wdroome.osc.qlab.QLabCue;
 import com.wdroome.osc.qlab.QLabCuelistCue;
 import com.wdroome.osc.qlab.QLabGroupCue;
@@ -36,11 +37,12 @@ import com.wdroome.osc.qlab.QLabWorkspaceInfo;
 
 public class EOS2QLab implements Closeable
 {
-	public final static String[] COMPARE_CMD = {"compare", "cmp"};
+	public final static String[] CHECK_CMD = {"check", "chk", "compare", "cmp"};
 	public final static String[] PRINT_CMD = {"print", "prt"};
 	public final static String[] QUIT_CMD = {"quit", "q", "exit"};
 	public final static String[] REFRESH_CMD = {"refresh"};
 	public final static String[] ADD_CMD = {"add", "add-cues"};
+	public final static String[] SELECT_CMD = {"select", "sel"};
 	public final static String[] HELP_CMD = {"help", "?"};
 	
 	public final static String[] EOS_ARG = {"eos"};
@@ -49,12 +51,13 @@ public class EOS2QLab implements Closeable
 	
 	public final static String[] HELP_RESP = {
 				"refresh: Get the cue information from EOS & QLab.",
-				"compare: Find the EOS cues not in QLab, and the QLab cues not in EOS.",
+				"check: Find the EOS cues not in QLab, and the QLab cues not in EOS.",
 				"print eos: Print a summary of the EOS cues.",
 				"print qlab: Print a summary of the QLab cues.",
 				"print missing: Print the EOS cues not in QLab and the QLab cues not in EOS.",
 				"print: Print all of the above.",
 				"add: Add missing EOS cues to QLab.",
+				"select: Select QLab network cues not in EOS.",
 				"quit: Quit.",
 	};
 	
@@ -521,6 +524,35 @@ public class EOS2QLab implements Closeable
 		}
 	}
 	
+	public void selectCuesNotInEOS() throws IOException
+	{
+		if (m_queryQLab == null) {
+			m_out.println("  *** Not connected to QLab controller.");
+			return;
+		}
+		if (m_notInEOS == null) {
+			notInEOS();
+		}
+		if (m_notInEOS.isEmpty()) {
+			m_out.println("All QLab network cues are in EOS.");
+		} else {
+			StringBuffer cueIds = new StringBuffer();
+			String sep = "";
+			for (QLabCue cue: m_notInEOS) {
+				cueIds.append(sep + cue.m_uniqueId);
+				sep = ",";
+			}
+			m_out.println("XXX req: " + String.format(QLabUtil.SELECT_CUE_ID, cueIds.toString()));
+			QLabReply reply = m_queryQLab.sendQLabReq(
+							String.format(QLabUtil.SELECT_CUE_ID, cueIds.toString()));
+			if (reply.isOk()) {
+				m_out.println("Selected " + m_notInEOS.size() + " cues.");
+			} else {
+				m_out.println("Select request failed.");
+			}
+		}
+	}
+	
 	public boolean add2QLab()
 	{
 		if (m_notInQLab == null) {
@@ -890,13 +922,15 @@ public class EOS2QLab implements Closeable
 							eos2QLab.prtQLabCueSummary();							
 							eos2QLab.prtCuesNotInEOS();
 						}
-					} else if (isCmd(cmd[0], COMPARE_CMD)) {
+					} else if (isCmd(cmd[0], CHECK_CMD)) {
 						eos2QLab.notInQLab();
 						eos2QLab.notInEOS();
 						eos2QLab.prtCuesNotInQLab(true, false);							
-						eos2QLab.prtCuesNotInEOS();							
+						eos2QLab.prtCuesNotInEOS();					
 					} else if (isCmd(cmd[0], ADD_CMD)) {
 						eos2QLab.add2QLab();
+					} else if (isCmd(cmd[0], SELECT_CMD)) {
+						eos2QLab.selectCuesNotInEOS();
 					} else if (isCmd(cmd[0], HELP_CMD)) {
 						for (String s: HELP_RESP) {
 							out.println(s);

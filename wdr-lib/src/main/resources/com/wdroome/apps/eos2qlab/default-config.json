@@ -1,0 +1,66 @@
+{
+	"## AddrPort arrays": [
+			"Try these addresses in turn. Use the first that responds properly.",
+			"If QLab has a passcode, add it after the port as '/passcode'."
+			],
+	"QLabAddrPort": ["192.168.42.3:53000", "127.0.0.1:53000"],
+	"EOSAddrPort": ["192.168.0.113:8192", "191.168.42.101:8192", "127.0.0.1:8192"],
+	
+	"## QLabDefaultCueList": "Default QLab cuelist to add missing EOS cues to.",
+	"QLabDefaultCueList": "Main Cue List",
+	
+	"## QLabNetworkPatch": "Network patch for EOS Network cues added to QLab.",
+	"QLabNetworkPatch": 1,
+	
+	"## CueColor": "Color for cues added to QLab. none, red, orange, green, blue, purple.",
+	"CueColor": "red",
+	
+	"## CueFlagged": "If true, 'flag' EOS cues added to QLab.",
+	"CueFlagged": false,
+	
+	"## CueNumberFmt": [
+			"Format for the QLab cue number for EOS cues added to QLab.",
+			"Variables are %list%, the EOS cuelist number,",
+			"and %number%, the nuber part of the EOS cue.",
+			"If it's an array with two strings,",
+			"use [0] when EOS has just one cuelist (eg, Element2),",
+			"and [1] when EOS has more than one cuelist.",
+			"If it's an array with one string, or just a string,",
+			"use that format for both cases."
+			],
+	"CueNumberFmt": ["q%number%", "q%list%-%number%"],
+	
+	"## CueNameFmt": [
+			"Format for the QLab cue name for EOS cues added to QLab.",
+			"Like CueNumberFmt, except that if the EOS cue has a label,",
+			"use that label instead. But see CueLabelPrefix & CueScenePrefix."
+			],
+	"CueNameFmt": ["Light cue %number%",
+					"Light cue %list%/%number%"],
+	
+	"## CueNameSceneSuffixFmt": [
+			"If an EOS cue being added to QLab has a 'scene name',",
+			"and if this parameter is a string,",
+			"then append this string to the QLab cue name.",
+			"Replace %scene% with the EOS scene name."
+			],
+	"CueNameSceneSuffixFmt": " ***** Scene %scene%",
+	
+	"## CueNameSceneEndSufixFmt": [
+			"If an EOS cue being added to QLab is marked as a 'scene end',",
+			"and if this parameter is a string,",
+			"then append this string to the QLab cue name.",
+			"EOS 'scene end' just has a flag, not a scene name,",
+			"so you can't use %scene% in this parameter."
+			],
+	"CueNameSceneEndSuffix": " ***** Scene End",
+	
+	"## CueLabelPrefix": [
+			"If an EOS cue being added to QLab has a label in EOS,",
+			"and if this parameter is a string,",
+			"the set the QLab cue name to this prefix followed by the EOS label."
+			],
+	"CueLabelPrefix": null,
+	
+	"## End": null
+}
