@@ -21,8 +21,9 @@ import com.wdroome.json.JSONValueTypeException;
 public class QueryQLab extends OSCConnection
 {
 	public static final long DEF_MIN_TIME_BETWEEN_REPEAT_MSGS = 200;
+	public static final int DEF_TIMEOUT = 2000;
 	
-	private long m_timeoutMS = 2500;
+	private long m_timeoutMS = DEF_TIMEOUT;
 	private String m_passcode = "";
 	private String m_lastReplyWorkspaceId = "";
 
@@ -73,6 +74,30 @@ public class QueryQLab extends OSCConnection
 	public void setPasscode(String passcode)
 	{
 		m_passcode = passcode != null ? passcode : "";
+	}
+	
+	/**
+	 * Create a connection to a QLab instance. Try a list of addresses,
+	 * and use the first one that responds to QLab requests.
+	 * @param addrPorts A list of IP addresses and ports (addr:port).
+	 * @return A QueryQLab for the first address that responds,
+	 * 		or null if none do.
+	 */
+	public static QueryQLab makeQueryQLab(String[] addrPortPasscodes)
+	{
+		for (String addrPortPasscode: addrPortPasscodes) {
+			try {
+				QueryQLab queryQLab = new QueryQLab(addrPortPasscode);
+				queryQLab.setConnectTimeout(DEF_TIMEOUT);
+				queryQLab.connect();
+				if (queryQLab.isQLab()) {
+					return queryQLab;
+				}
+			} catch (Exception e) {
+				// skip, try next address.
+			}
+		}
+		return null;
 	}
 	
 	/**

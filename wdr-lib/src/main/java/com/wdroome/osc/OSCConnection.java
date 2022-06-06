@@ -559,12 +559,25 @@ public class OSCConnection implements Closeable
 	}
 	
 	/**
-	 * Return IP address of OSC server.
-	 * @return IP address of OSC server.
+	 * Return IP socket address of OSC server.
+	 * @return IP socket address of OSC server.
 	 */
 	public InetSocketAddress getIpAddress()
 	{
 		return m_oscIpAddr;
+	}
+	
+	/**
+	 * Get the IP socket address of the OSC server as an addr:port string.
+	 * @return The IP socket address of the OSC server as an addr:port string.
+	 */
+	public String getIpAddrString()
+	{
+		if (m_oscIpAddr == null) {
+			return "0.0.0.0:0";
+		} else {
+			return m_oscIpAddr.getAddress().getHostAddress() + ":" + m_oscIpAddr.getPort();
+		}
 	}
 
 	/**

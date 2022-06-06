@@ -23,7 +23,9 @@ import com.wdroome.osc.qlab.QLabUtil;
  */
 public class QueryEOS extends OSCConnection implements OSCConnection.MessageHandler
 {
-	private long m_timeoutMS = 2500;
+	public static final int DEF_TIMEOUT = 3000;
+	
+	private long m_timeoutMS = DEF_TIMEOUT;
 	private String m_showName = "";
 
 	/**
@@ -52,6 +54,30 @@ public class QueryEOS extends OSCConnection implements OSCConnection.MessageHand
 	public QueryEOS(String addrPort) throws IllegalArgumentException
 	{
 		super(addrPort);
+	}
+	
+	/**
+	 * Create a connection to an EOS controller. Try a list of addresses,
+	 * and use the first one that responds to EOS requests.
+	 * @param addrPorts A list of IP addresses and ports (addr:port).
+	 * @return A QueryEOS for the first address that responds,
+	 * 		or null if none do.
+	 */
+	public static QueryEOS makeQueryEOS(String[] addrPorts)
+	{
+		for (String addrPort: addrPorts) {
+			try {
+				QueryEOS queryEOS = new QueryEOS(addrPort);
+				queryEOS.setConnectTimeout(DEF_TIMEOUT);
+				queryEOS.connect();
+				if (queryEOS.isEos()) {
+					return queryEOS;
+				}
+			} catch (Exception e) {
+				// skip, try next address.
+			}
+		}
+		return null;
 	}
 	
 	public long getTimeoutMS() {
