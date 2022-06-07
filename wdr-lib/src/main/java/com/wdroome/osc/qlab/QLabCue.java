@@ -247,6 +247,22 @@ public class QLabCue
 	}
 	
 	/**
+	 * Get the cuelist containing this cue.
+	 * @return The cuelist cue containing this cue, or null if we cannot determine it.
+	 */
+	public QLabCuelistCue getCuelist()
+	{
+		if (m_parent == null) {
+			return (this instanceof QLabCuelistCue) ? (QLabCuelistCue)this : null;
+		}
+		QLabCue cue;
+		for (cue = this; cue.m_parent != null; cue = cue.m_parent) {
+		}
+		QLabCue root = cue.m_parent;
+		return (cue instanceof QLabCuelistCue) ? (QLabCuelistCue)root : null;
+	}
+	
+	/**
 	 * Return the index of this cue in it's container cue,
 	 * of -1 if it's not in a cuelist or a group cue.
 	 * @return
