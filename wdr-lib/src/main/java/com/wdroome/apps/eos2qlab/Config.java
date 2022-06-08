@@ -120,7 +120,8 @@ public class Config
 			} else if (name.equals(FLD_CueFlagged)) {
 				m_newCueFlag = jsonToBoolean(value, name);
 			} else {
-				throw new IllegalArgumentException("Error in config file: unknown field '" + name + "'");
+				throw new IllegalArgumentException("Error in config file or overrides:"
+						+ " unknown field '" + name + "'");
 			}
 		}
 	}

@@ -12,6 +12,7 @@ import java.util.TreeMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Set;
 
 import com.wdroome.util.MiscUtil;
 import com.wdroome.util.StringUtils;
@@ -86,8 +87,11 @@ public class EOS2QLab implements Closeable
 	private TreeMap<EOSCueNumber, QLabNetworkCue> m_eosCuesInQLab = null;
 	
 	private NotInQLabResults m_notInQLab = null;
-	private List<QLabNetworkCue> m_notInEOS = null;
-	private TreeMap<String, List<QLabNetworkCue>> m_notInEOS2 = null;
+	
+	// QLab network cues with EOS fire commands for cues NOT in EOS.
+	// The key is the name of a QLab cuelist, the value is the invalid cues in that list.
+	// If all the network cues in a cuelist are valid, there's no entry for that cuelist.
+	private TreeMap<String, List<QLabNetworkCue>> m_notInEOS = null;
 	
 	public EOS2QLab(String[] args, PrintStream out, InputStream in)
 			throws IOException, IllegalArgumentException
@@ -334,55 +338,26 @@ public class EOS2QLab implements Closeable
 	
 	/**
 	 * Get the QLab network cues which are not in EOS.
-	 * @return The QLab network cues which are not in EOS.
-	 * 		The list may be empty, but is never null.
 	 */
-	public List<QLabNetworkCue> notInEOS()
+	public void notInEOS()
 	{
 		if (m_eosCuelists == null || m_eosCuesByNumber == null) {
 			if (!getEOSCues()) {
-				return null;
+				return;
 			}
 		}
 		if (m_qlabCuelists == null) {
 			if (!getQLabCues()) {
-				return null;
+				return;
 			}
 		}
-		List<QLabNetworkCue> notInEOS = new ArrayList<>();
 		TreeMap<String, List<QLabNetworkCue>> notInEOS2 = new TreeMap<>();
-		
-		/*
-		 XXX
-		for (Map.Entry<EOSCueNumber,QLabNetworkCue> ent: m_eosCuesInQLab.entrySet()) {
-			if (getEOSCue(ent.getKey()) == null) {
-				QLabNetworkCue cue = ent.getValue();
-				notInEOS.add(cue);
-				String cuelistName = null;
-				QLabCuelistCue cuelist = cue.getCuelist();
-				if (cuelist != null) {
-					cuelistName = cuelist.getName();
-				}
-				if (cuelistName == null || cuelist.getName().isBlank()) {
-					cuelistName = QLabUtil.DEFAULT_CUELIST_NAME;
-				}
-				List<QLabNetworkCue> inCuelist = notInEOS2.get(cuelistName);
-				if (inCuelist == null) {
-					inCuelist = new ArrayList<>();
-					notInEOS2.put(cuelistName, inCuelist);
-				}
-				inCuelist.add(cue);
-			}
-		}
-		*/
-
 		for (QLabCuelistCue cuelistCue: m_qlabCuelists) {
 			cuelistCue.walkCues(
 					(testCue, path) -> {
 					if (testCue instanceof QLabNetworkCue) {
 						EOSCueNumber eosCueNum = ((QLabNetworkCue)testCue).m_eosCueNumber;
 						if (eosCueNum != null && !m_eosCuesByNumber.containsKey(eosCueNum)) {
-							notInEOS.add((QLabNetworkCue)testCue);
 							String cuelistName = cuelistCue.getName();
 							if (cuelistName == null || cuelistName.isBlank()) {
 								cuelistName = QLabUtil.DEFAULT_CUELIST_NAME;
@@ -399,9 +374,7 @@ public class EOS2QLab implements Closeable
 				});
 		}
 	
-		m_notInEOS = notInEOS;
-		m_notInEOS2 = notInEOS2;
-		return notInEOS;
+		m_notInEOS = notInEOS2;
 	}
 	
 	/**
@@ -545,12 +518,16 @@ public class EOS2QLab implements Closeable
 		if (m_notInEOS == null) {
 			notInEOS();
 		}
-		if (m_notInEOS2.isEmpty()) {
+		if (m_notInEOS.isEmpty()) {
 			m_out.println("All QLab network cues are in EOS.");
 		} else {
 			String indent = "   ";
-			m_out.println(m_notInEOS.size() + " QLab network cue(s) are not in EOS (QLab# => EOS#):");
-			for (Map.Entry<String, List<QLabNetworkCue>> ent: m_notInEOS2.entrySet()) {
+			int nTotalCues = 0;
+			for (List<QLabNetworkCue> cueSet: m_notInEOS.values()) {
+				nTotalCues += cueSet.size();
+			}
+			m_out.println(nTotalCues + " QLab network cue(s) are not in EOS (QLab# => EOS#):");
+			for (Map.Entry<String, List<QLabNetworkCue>> ent: m_notInEOS.entrySet()) {
 				int nCues = 0;
 				m_out.println(indent + "Cuelist " + ent.getKey() + ":");
 				m_out.print(indent + indent);
@@ -570,25 +547,6 @@ public class EOS2QLab implements Closeable
 				}
 				m_out.println();
 			}
-			
-			/* XXX
-			m_out.print(indent);
-			for (QLabNetworkCue cue: m_notInEOS) {
-				if ((nCues % 10) != 0) {
-					m_out.print("  ");
-				} else if (nCues > 0) {
-					m_out.println();
-					m_out.print(indent);
-				}
-				String number = cue.m_number;
-				if (number.isBlank()) {
-					number = "()";
-				}
-				m_out.print(number + " => " + cue.m_eosCueNumber);
-				nCues++;
-			}
-			m_out.println();
-			*/
 		}
 	}
 	
@@ -604,20 +562,58 @@ public class EOS2QLab implements Closeable
 		if (m_notInEOS.isEmpty()) {
 			m_out.println("All QLab network cues are in EOS.");
 		} else {
+			String cuelistName = pickCuelist();
+			if (cuelistName == null) {
+				return;
+			}
 			StringBuffer cueIds = new StringBuffer();
 			String sep = "";
-			for (QLabCue cue: m_notInEOS) {
+			for (QLabCue cue: m_notInEOS.get(cuelistName)) {
 				cueIds.append(sep + cue.m_uniqueId);
 				sep = ",";
 			}
-			m_out.println("XXX req: " + String.format(QLabUtil.SELECT_CUE_ID, cueIds.toString()));
 			QLabReply reply = m_queryQLab.sendQLabReq(
 							String.format(QLabUtil.SELECT_CUE_ID, cueIds.toString()));
 			if (reply.isOk()) {
-				m_out.println("Selected " + m_notInEOS.size() + " cues.");
+				m_out.println("Selected " + m_notInEOS.get(cuelistName).size() + " cues.");
 			} else {
 				m_out.println("Select request failed.");
 			}
+		}
+	}
+	
+	private String pickCuelist()
+	{
+		Set<String> cuelistNames = m_notInEOS.keySet();
+		if (cuelistNames.size() == 0) {
+			return null;
+		} else if (cuelistNames.size() == 1) {
+			for (String cuelistName: cuelistNames) {
+				return cuelistName;
+			}
+		}
+		ArrayList<String> choices = new ArrayList<>();
+		m_out.println("Pick QLab cue list -- you can only select one:");
+		int iCuelist = 0;
+		int iDefault = -1;
+		for (Map.Entry<String, List<QLabNetworkCue>> ent: m_notInEOS.entrySet()) {
+			String defaultLabel = "";
+			if (m_config.m_defaultQLabCuelist.equals(ent.getKey()) && iDefault < 0) {
+				iDefault = iCuelist;
+				defaultLabel = " (default)";
+			}
+			m_out.println("   " + (iCuelist+1) + ": \"" + ent.getKey() + "\": "
+								+ ent.getValue().size() + " cues" + defaultLabel);
+			choices.add(ent.getKey());
+			iCuelist++;
+		}
+		Integer iResp = getIntResponse("Enter cuelist number, " + QUIT_CMD[0]
+								+ (iDefault >= 0 ? ", or return for default" : "") + ":",
+								iDefault+1, 1, choices.size());
+		if (iResp == null) {
+			return null;
+		} else {
+			return choices.get(iResp-1);
 		}
 	}
 	
