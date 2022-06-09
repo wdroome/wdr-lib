@@ -49,6 +49,7 @@ public class EOS2QLab implements Closeable
 	public final static String[] EOS_ARG = {"eos"};
 	public final static String[] QLAB_ARG = {"qlab"};
 	public final static String[] MISSING_ARG = {"missing"};
+	public final static String[] CONFIG_ARG = {"config"};
 	
 	public final static String[] HELP_RESP = {
 				"refresh: Get the cue information from EOS & QLab.",
@@ -56,6 +57,7 @@ public class EOS2QLab implements Closeable
 				"print eos: Print a summary of the EOS cues.",
 				"print qlab: Print a summary of the QLab cues.",
 				"print missing: Print the EOS cues not in QLab and the QLab cues not in EOS.",
+				"print config: Print the JSON configuration file.",
 				"print: Print all of the above.",
 				"add: Add missing EOS cues to QLab.",
 				"select: Select QLab network cues not in EOS.",
@@ -101,8 +103,8 @@ public class EOS2QLab implements Closeable
 		m_config = new Config(args);
 		
 		m_out.println("Connecting to EOS & QLab ...");
-		m_queryEOS = QueryEOS.makeQueryEOS(m_config.m_EOSAddrPorts);
-		m_queryQLab = QueryQLab.makeQueryQLab(m_config.m_QLabAddrPorts);
+		m_queryEOS = QueryEOS.makeQueryEOS(m_config.m_EOSAddrPorts, m_config.m_connectTimeoutMS);
+		m_queryQLab = QueryQLab.makeQueryQLab(m_config.m_QLabAddrPorts, m_config.m_connectTimeoutMS);
 		if (m_queryEOS != null && m_queryQLab != null) {
 			m_out.println("Connected to EOS at " + m_queryEOS.getIpAddrString()
 						+ " and QLab at " + m_queryQLab.getIpAddrString() + ".");
@@ -944,6 +946,11 @@ public class EOS2QLab implements Closeable
 			return null;
 		}
 	}
+	
+	public void prtConfig(String lineIndent) throws IOException
+	{
+		m_config.prtConfigFile(m_out, lineIndent);
+	}
 		
 	public static void main(String[] args)
 	{
@@ -980,6 +987,10 @@ public class EOS2QLab implements Closeable
 						} else if (cmd.length >= 2 && isCmd(cmd[1], MISSING_ARG)) {
 							eos2QLab.prtCuesNotInQLab(true, true);
 							eos2QLab.prtCuesNotInEOS();
+						} else if (cmd.length == 2 && isCmd(cmd[1], CONFIG_ARG)) {
+							eos2QLab.prtConfig("   ");
+						} else if (cmd.length >= 2) {
+							out.print("Unknown print command.");
 						} else {
 							eos2QLab.prtEOSCueSummary();							
 							eos2QLab.prtCuesNotInQLab(true, true);

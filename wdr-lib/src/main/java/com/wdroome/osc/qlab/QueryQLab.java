@@ -80,15 +80,20 @@ public class QueryQLab extends OSCConnection
 	 * Create a connection to a QLab instance. Try a list of addresses,
 	 * and use the first one that responds to QLab requests.
 	 * @param addrPorts A list of IP addresses and ports (addr:port).
+	 * @param connectTimeoutMS Timeout for establishing the connection, in milliseconds.
+	 * 				If 0, use a default timeout.
 	 * @return A QueryQLab for the first address that responds,
 	 * 		or null if none do.
 	 */
-	public static QueryQLab makeQueryQLab(String[] addrPortPasscodes)
+	public static QueryQLab makeQueryQLab(String[] addrPortPasscodes, int connectTimeoutMS)
 	{
+		if (connectTimeoutMS <= 50) {
+			connectTimeoutMS = DEF_TIMEOUT;
+		}
 		for (String addrPortPasscode: addrPortPasscodes) {
 			try {
 				QueryQLab queryQLab = new QueryQLab(addrPortPasscode);
-				queryQLab.setConnectTimeout(DEF_TIMEOUT);
+				queryQLab.setConnectTimeout(connectTimeoutMS);
 				queryQLab.connect();
 				if (queryQLab.isQLab()) {
 					return queryQLab;

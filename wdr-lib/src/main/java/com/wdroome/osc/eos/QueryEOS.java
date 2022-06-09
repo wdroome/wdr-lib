@@ -59,16 +59,21 @@ public class QueryEOS extends OSCConnection implements OSCConnection.MessageHand
 	/**
 	 * Create a connection to an EOS controller. Try a list of addresses,
 	 * and use the first one that responds to EOS requests.
+	 * @param connectTimeoutMS Timeout for establishing the connection, in milliseconds.
+	 * 				If 0, use a default timeout.
 	 * @param addrPorts A list of IP addresses and ports (addr:port).
 	 * @return A QueryEOS for the first address that responds,
 	 * 		or null if none do.
 	 */
-	public static QueryEOS makeQueryEOS(String[] addrPorts)
+	public static QueryEOS makeQueryEOS(String[] addrPorts, int connectTimeoutMS)
 	{
+		if (connectTimeoutMS <= 50) {
+			connectTimeoutMS = DEF_TIMEOUT;
+		}
 		for (String addrPort: addrPorts) {
 			try {
 				QueryEOS queryEOS = new QueryEOS(addrPort);
-				queryEOS.setConnectTimeout(DEF_TIMEOUT);
+				queryEOS.setConnectTimeout(connectTimeoutMS);
 				queryEOS.connect();
 				if (queryEOS.isEos()) {
 					return queryEOS;

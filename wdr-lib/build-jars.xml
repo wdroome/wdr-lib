@@ -57,6 +57,17 @@
 					"
   			excludes=""
   		/>
+  		<fileset dir="src/main/resources"
+  			includes="
+  					com/wdroome/*/*.json
+					com/wdroome/*/*/*.json
+					com/wdroome/*/*.txt
+					com/wdroome/*/*/*.txt
+					com/wdroome/*/*.xml
+					com/wdroome/*/*/*.xml
+					"
+  			excludes=""
+ 		/>
     </jar>
   </target>
 </project>

@@ -1,8 +1,10 @@
 package com.wdroome.apps.eos2qlab;
 
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -16,6 +18,7 @@ import com.wdroome.json.JSONValue;
 import com.wdroome.json.JSONValueTypeException;
 import com.wdroome.json.JSONValue_Object;
 import com.wdroome.json.JSONValue_String;
+import com.wdroome.json.JSONWriter;
 import com.wdroome.json.JSONValue_Array;
 import com.wdroome.json.JSONValue_ObjectArray;
 import com.wdroome.json.JSONValue_Boolean;
@@ -41,6 +44,7 @@ public class Config
 	public static final String FLD_CueNameSceneSuffixFmt = "CueNameSceneSuffixFmt";
 	public static final String FLD_CueNameSceneEndSuffix = "CueNameSceneEndSuffix";
 	public static final String FLD_CueLabelPrefix = "CueLabelPrefix";
+	public static final String FLD_ConnectTimeoutMS = "ConnectTimeoutMS";
 
 	public String[] m_QLabAddrPorts = {"127.0.0.1:53000"};
 	public String[] m_EOSAddrPorts = {"192.168.0.113:8192", "127.0.0.1:8192"};
@@ -55,8 +59,10 @@ public class Config
 	public QLabUtil.ColorName m_newCueColor = QLabUtil.ColorName.RED;
 	public String m_newCueLabelPrefix = "";
 	public boolean m_newCueFlag = true;
+	public int m_connectTimeoutMS = 2000;
 	
 	private boolean m_isSingleEOSCuelist = false;
+	private JSONValue_Object m_jsonConfig;
 	
 	public Config(String[] args)
 	{
@@ -73,15 +79,14 @@ public class Config
 		} else {
 			configInput = getClass().getResourceAsStream(CONFIG_FILE_RESOURCE_NAME);
 		}
-		JSONValue_Object jsonConfig;
 		if (configInput != null) {
 			try {
-				jsonConfig = JSONParser.parseObject(new JSONLexan(configInput), true);
+				m_jsonConfig = JSONParser.parseObject(new JSONLexan(configInput), true);
 			} catch (Exception e) {
 				throw new IllegalArgumentException("JSON error in EOS2QLab config file: " + e);
 			}
 		} else {
-			jsonConfig = new JSONValue_Object();
+			m_jsonConfig = new JSONValue_Object();
 		}
 		for (int iArg = iStart; iArg < args.length; iArg++) {
 			int iSep = args[iArg].indexOf('=');
@@ -89,9 +94,9 @@ public class Config
 				throw new IllegalArgumentException("Invalid override '" + args[iArg]
 										+ "'; must be var=value");
 			}
-			jsonConfig.put(args[iArg].substring(0,iSep), args[iArg].substring(iSep+1));
+			m_jsonConfig.put(args[iArg].substring(0,iSep), args[iArg].substring(iSep+1));
 		}
-		for (Map.Entry<String, JSONValue> ent: jsonConfig.entrySet()) {
+		for (Map.Entry<String, JSONValue> ent: m_jsonConfig.entrySet()) {
 			String name = ent.getKey().trim();
 			JSONValue value = ent.getValue();
 			if (name.startsWith("#")) {
@@ -102,7 +107,7 @@ public class Config
 			} else if (name.equals(FLD_EOSAddrPort)) {
 				m_EOSAddrPorts = jsonToStringArr(value, name);
 			} else if (name.equals(FLD_QLabNetworkPatch)) {
-				m_newCueNetworkPatch = jsonToInt(value, name);
+				m_newCueNetworkPatch = jsonToInt(value, name, 1, 16);
 			} else if (name.equals(FLD_QLabDefaultCueList)) {
 				m_defaultQLabCuelist = jsonToString(value, name);
 			} else if (name.equals(FLD_CueNumberFmt)) {
@@ -119,6 +124,8 @@ public class Config
 				m_newCueColor = QLabUtil.ColorName.fromQLab(jsonToString(value, name).trim());
 			} else if (name.equals(FLD_CueFlagged)) {
 				m_newCueFlag = jsonToBoolean(value, name);
+			} else if (name.equals(FLD_ConnectTimeoutMS)) {
+				m_connectTimeoutMS = jsonToInt(value, name, 25, 30000);
 			} else {
 				throw new IllegalArgumentException("Error in config file or overrides:"
 						+ " unknown field '" + name + "'");
@@ -154,13 +161,36 @@ public class Config
 		}
 	}
 	
-	private int jsonToInt(JSONValue val, String key)
+	private int jsonToInt(JSONValue val, String key, int min, int max)
 	{
+		int intVal;
 		if (val instanceof JSONValue_Number) {
-			return (int)((JSONValue_Number)val).m_value;
+			intVal = (int)((JSONValue_Number)val).m_value;
 		} else if (val instanceof JSONValue_String) {
 			try {
-				return Integer.parseInt(((JSONValue_String)val).m_value.trim());
+				intVal = Integer.parseInt(((JSONValue_String)val).m_value.trim());
+			} catch (Exception e) {
+				throw new IllegalArgumentException("Error in config file: " + key
+						+ " isn't a number.");			
+			}
+		} else {
+			throw new IllegalArgumentException("Error in config file: " + key
+					+ " isn't a number.");			
+		}
+		if (!(intVal >= min && intVal <= max)) {
+			throw new IllegalArgumentException("Error in config file: " + key
+					+ " must be between " + min + " and " + max + ".");						
+		}
+		return intVal;
+	}
+	
+	private long jsonToLong(JSONValue val, String key)
+	{
+		if (val instanceof JSONValue_Number) {
+			return (long)((JSONValue_Number)val).m_value;
+		} else if (val instanceof JSONValue_String) {
+			try {
+				return Long.parseLong(((JSONValue_String)val).m_value.trim());
 			} catch (Exception e) {
 				throw new IllegalArgumentException("Error in config file: " + key
 						+ " isn't a number.");			
@@ -240,6 +270,23 @@ public class Config
 			name += m_newCueNameSceneEndSuffix;
 		}
 		return name;
+	}
+	
+	/**
+	 * Print the json config file.
+	 * @param out
+	 * @throws IOException
+	 */
+	public void prtConfigFile(PrintStream out, String lineIndent) throws IOException
+	{
+		if (lineIndent == null) {
+			lineIndent = "   ";
+		}
+		JSONWriter writer = new JSONWriter(out);
+		writer.setSorted(true);
+		writer.setIndents(lineIndent, "   ");
+		m_jsonConfig.writeJSON(writer);
+		writer.writeNewline();		
 	}
 	
 	public static void main(String[] args) throws JSONParseException, JSONValueTypeException
