@@ -5,6 +5,10 @@ import java.io.PrintStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -39,27 +43,27 @@ public class Config
 	public static final String FLD_QLabDefaultCueList = "QLabDefaultCueList";
 	public static final String FLD_CueColor = "CueColor";
 	public static final String FLD_CueFlagged = "CueFlagged";
-	public static final String FLD_CueNumberFmt = "CueNumberFmt";
-	public static final String FLD_CueNameFmt = "CueNameFmt";
-	public static final String FLD_CueNameSceneSuffixFmt = "CueNameSceneSuffixFmt";
-	public static final String FLD_CueNameSceneEndSuffix = "CueNameSceneEndSuffix";
-	public static final String FLD_CueLabelPrefix = "CueLabelPrefix";
+	public static final String FLD_CueNumber = "CueNumber";
+	public static final String FLD_CueNameNoLabel = "CueNameNoLabel";
+	public static final String FLD_CueNameFromLabel = "CueNameFromLabel";
 	public static final String FLD_ConnectTimeoutMS = "ConnectTimeoutMS";
 
-	public String[] m_QLabAddrPorts = {"127.0.0.1:53000"};
-	public String[] m_EOSAddrPorts = {"192.168.0.113:8192", "127.0.0.1:8192"};
+	private String[] m_QLabAddrPorts = {"127.0.0.1:53000"};
+	private String[] m_EOSAddrPorts = {"192.168.0.113:8192", "127.0.0.1:8192"};
 	
-	public int m_newCueNetworkPatch = 1;
-	public String m_defaultQLabCuelist = QLabUtil.DEFAULT_CUELIST_NAME;
-	public String[] m_newCueNumberFmt = {"q%number%", "q%list%-%number%"};
-	public String[] m_newCueNameFmt = {"Light cue %number%",
-										"Light cue %list%/%number%"};
-	public String m_newCueNameSceneSuffixFmt = " ***** Scene %scene%";
-	public String m_newCueNameSceneEndSuffix = " ***** Scene End";
-	public QLabUtil.ColorName m_newCueColor = QLabUtil.ColorName.RED;
-	public String m_newCueLabelPrefix = "";
-	public boolean m_newCueFlag = true;
-	public int m_connectTimeoutMS = 2000;
+	private int m_newCueNetworkPatch = 1;
+	private String m_defaultQLabCuelist = QLabUtil.DEFAULT_CUELIST_NAME;
+	private String m_newCueNumber = "q%{list}-%%number%";
+	private String m_newCueNameNoLabel =
+						"Light cue %{list}/%%number%% ***** scene-end{sceneend}%% ***** {scene}%";
+	private String m_newCueNameFromLabel =
+						"Cue %{list}/%%number%: %label%% ***** scene-end{sceneend}%% ***** {scene}%";
+	private QLabUtil.ColorName m_newCueColor = QLabUtil.ColorName.RED;
+	private boolean m_newCueFlag = true;
+	private int m_connectTimeoutMS = 2000;
+	
+	private static final String VAR_BASE_PATTERN = "%([^%]*)%";
+	private static final String VAR_FULL_PATTERN = "^(.*)\\{([A-Za-z0-9]+)\\}(.*)$";
 	
 	private boolean m_isSingleEOSCuelist = false;
 	private JSONValue_Object m_jsonConfig;
@@ -110,16 +114,12 @@ public class Config
 				m_newCueNetworkPatch = jsonToInt(value, name, 1, 16);
 			} else if (name.equals(FLD_QLabDefaultCueList)) {
 				m_defaultQLabCuelist = jsonToString(value, name);
-			} else if (name.equals(FLD_CueNumberFmt)) {
-				m_newCueNumberFmt = jsonToStringArr(value, name);
-			} else if (name.equals(FLD_CueNameFmt)) {
-				m_newCueNameFmt = jsonToStringArr(value, name);
-			} else if (name.equals(FLD_CueNameSceneSuffixFmt)) {
-				m_newCueNameSceneSuffixFmt = jsonToString(value, name);
-			} else if (name.equals(FLD_CueNameSceneEndSuffix)) {
-				m_newCueNameSceneEndSuffix = jsonToString(value, name);
-			} else if (name.equals(FLD_CueLabelPrefix)) {
-				m_newCueLabelPrefix = jsonToString(value, name);
+			} else if (name.equals(FLD_CueNumber)) {
+				m_newCueNumber = jsonToString(value, name);
+			} else if (name.equals(FLD_CueNameNoLabel)) {
+				m_newCueNameNoLabel = jsonToString(value, name);
+			} else if (name.equals(FLD_CueNameFromLabel)) {
+				m_newCueNameFromLabel = jsonToString(value, name);
 			} else if (name.equals(FLD_CueColor)) {
 				m_newCueColor = QLabUtil.ColorName.fromQLab(jsonToString(value, name).trim());
 			} else if (name.equals(FLD_CueFlagged)) {
@@ -133,6 +133,40 @@ public class Config
 		}
 	}
 	
+	public String[] getQLabAddrPorts() {
+		return m_QLabAddrPorts;
+	}
+
+	public String[] getEOSAddrPorts() {
+		return m_EOSAddrPorts;
+	}
+
+
+
+	public int getNewCueNetworkPatch() {
+		return m_newCueNetworkPatch;
+	}
+
+	public String getDefaultQLabCuelist() {
+		return m_defaultQLabCuelist;
+	}
+
+	public QLabUtil.ColorName getNewCueColor() {
+		return m_newCueColor;
+	}
+
+	public boolean getNewCueFlag() {
+		return m_newCueFlag;
+	}
+
+	public int getConnectTimeoutMS() {
+		return m_connectTimeoutMS;
+	}
+
+	public boolean isSingleEOSCuelist() {
+		return m_isSingleEOSCuelist;
+	}
+
 	private String[] jsonToStringArr(JSONValue val, String key)
 	{
 		if (val instanceof JSONValue_String) {
@@ -228,15 +262,81 @@ public class Config
 		}
 	}
 	
-	public String replaceVars(String fmt, EOSCueInfo cue)
+	public String replaceVars(String src, EOSCueInfo cue)
 	{
-		return fmt
-				.replace("%cuelist%", "" + cue.getCueNumber().getCuelist())
-				.replace("%list%", "" + cue.getCueNumber().getCuelist())
-				.replace("%cuenumber%", cue.getCueNumber().getCueNumber())
-				.replace("%number%", cue.getCueNumber().getCueNumber())
-				.replace("%scene%", cue.getScene())
-				;
+		Pattern basePat = Pattern.compile(VAR_BASE_PATTERN);
+		Pattern fullPat = Pattern.compile(VAR_FULL_PATTERN);
+		Matcher baseMatcher = basePat.matcher(src);
+		StringBuffer result = new StringBuffer();
+		int start = 0;
+		while (baseMatcher.find() && baseMatcher.groupCount() == 1) {
+			int findStart = baseMatcher.start();
+			if (findStart > start) {
+				result.append(src.substring(start, findStart));
+			}
+			start = baseMatcher.end();
+			String fullVar = baseMatcher.group(1);
+			Matcher varMatcher = fullPat.matcher(fullVar);
+			if (varMatcher.find() && varMatcher.groupCount() == 3) {
+				GetVarResult varInfo = getVar(varMatcher.group(2), cue);
+				if (varInfo == null) {
+					result.append(baseMatcher.group(0));
+				} else if (varInfo.m_needed) {
+					result.append(varMatcher.group(1));
+					result.append(varInfo.m_value);
+					result.append(varMatcher.group(3));
+				}
+			} else {
+				String var = baseMatcher.group(1);
+				if (var.isBlank()) {
+					result.append("%");
+				} else {
+					GetVarResult varInfo = getVar(baseMatcher.group(1), cue);
+					if (varInfo == null) {
+						result.append(baseMatcher.group(0));
+					} else {
+						result.append(varInfo.m_value);
+					}
+				}
+			}
+		}
+		result.append(src.substring(start));
+		return result.toString();
+	}
+	
+	private static class GetVarResult
+	{
+		private final String m_value;
+		private final boolean m_needed;
+		
+		private GetVarResult(String value)
+		{
+			m_value = value;
+			m_needed = m_value != null && !m_value.isBlank();
+		}
+		
+		private GetVarResult(String value, boolean needed)
+		{
+			m_value = value;
+			m_needed = needed;
+		}
+	}
+	
+	private GetVarResult getVar(String var, EOSCueInfo cue)
+	{
+		if (var.equalsIgnoreCase("list")) {
+			return new GetVarResult(cue.getCueNumber().getCuelist() + "", !m_isSingleEOSCuelist);
+		} else if (var.equalsIgnoreCase("number")) {
+			return new GetVarResult(cue.getCueNumber().getCueNumber());
+		} else if (var.equalsIgnoreCase("label")) {
+			return new GetVarResult(cue.getLabel());
+		} else if (var.equalsIgnoreCase("scene")) {
+			return new GetVarResult(cue.getScene());
+		} else if (var.equalsIgnoreCase("sceneend")) {
+			return new GetVarResult("", cue.isSceneEnd());
+		} else {
+			return null;
+		}
 	}
 	
 	public void setSingleEOSCuelist(boolean isSingleEOSCuelist)
@@ -247,29 +347,15 @@ public class Config
 	
 	public String makeNewCueNumber(EOSCueInfo cue)
 	{
-		return replaceVars(m_newCueNumberFmt[m_isSingleEOSCuelist ? 0 : 1], cue);
+		return replaceVars(m_newCueNumber, cue);
 	}
 	
 	public String makeNewCueName(EOSCueInfo cue)
 	{
-		String name;
 		String label = cue.getLabel();
-		if (label != null && !label.isBlank()) {
-			name = (m_newCueLabelPrefix != null ? m_newCueLabelPrefix : "") + label;
-		} else {
-			name = replaceVars(m_newCueNameFmt[m_isSingleEOSCuelist ? 0 : 1], cue);
-		}
-		String scene = cue.getScene();
-		if (scene != null && !scene.isBlank()
-				&& m_newCueNameSceneSuffixFmt != null
-				&& !m_newCueNameSceneSuffixFmt.isBlank()) {
-			name += replaceVars(m_newCueNameSceneSuffixFmt, cue);
-		} else if (cue.isSceneEnd()
-				&& m_newCueNameSceneEndSuffix != null
-				&& !m_newCueNameSceneEndSuffix.isBlank()) {
-			name += m_newCueNameSceneEndSuffix;
-		}
-		return name;
+		String nameFmt = (label != null && !label.isBlank()) ?
+							m_newCueNameFromLabel : m_newCueNameNoLabel; 
+		return replaceVars(nameFmt, cue);
 	}
 	
 	/**

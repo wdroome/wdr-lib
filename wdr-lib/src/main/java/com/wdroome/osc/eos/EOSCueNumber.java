@@ -187,21 +187,29 @@ public class EOSCueNumber implements Comparable<EOSCueNumber>
 	}
 
 	@Override
-	public int hashCode()
-	{
-		return m_scaledNumber;
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + m_cuelist;
+		result = prime * result + m_part;
+		result = prime * result + m_scaledNumber;
+		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj)
-	{
+	public boolean equals(Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		if (m_scaledNumber != ((EOSCueNumber)obj).m_scaledNumber)
+		EOSCueNumber other = (EOSCueNumber) obj;
+		if (m_cuelist != other.m_cuelist)
+			return false;
+		if (m_part != other.m_part)
+			return false;
+		if (m_scaledNumber != other.m_scaledNumber)
 			return false;
 		return true;
 	}

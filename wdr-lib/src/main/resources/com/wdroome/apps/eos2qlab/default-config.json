@@ -18,49 +18,34 @@
 	"## CueFlagged": "If true, 'flag' EOS cues added to QLab.",
 	"CueFlagged": false,
 	
-	"## CueNumberFmt": [
+	"## CueNumber": [
 			"Format for the QLab cue number for EOS cues added to QLab.",
 			"Variables are %list%, the EOS cuelist number,",
-			"and %number%, the nuber part of the EOS cue.",
-			"If it's an array with two strings,",
-			"use [0] when EOS has just one cuelist (eg, Element2),",
-			"and [1] when EOS has more than one cuelist.",
-			"If it's an array with one string, or just a string,",
-			"use that format for both cases."
+			"and %number%, the number part of the EOS cue.",
+			"Also, a variable reference in the format %prefix{list}suffix%",
+			"is a conditional reference. If the variable {} is specified,",
+			"insert the variable's value, with the indicated prefix & suffix",
+			"(if any). But if the variable in {} isn't specified -- or for {list},",
+			"isn't necessary because this EOS only has one cue list --",
+			"then omit the entire reference.",
+			"The default value is q%{list}-%%number%. For cue 1/101,",
+			"that evaluates to q-101 if cuelist 1 is the only EOS cuelist,",
+			"or q1-101 if EOS has multiple cuelists."
 			],
-	"CueNumberFmt": ["q%number%", "q%list%-%number%"],
+	"CueNumber": "q%{list}-%%number%",
 	
-	"## CueNameFmt": [
-			"Format for the QLab cue name for EOS cues added to QLab.",
-			"Like CueNumberFmt, except that if the EOS cue has a label,",
-			"use that label instead. But see CueLabelPrefix & CueScenePrefix."
+	"## CueNameFromLabel": [
+			"Format for the QLab cue name for EOS cues added to QLab",
+			"which to not have a label in EOS.",
+			"As with CueNumber, a variable reference with {} is conditional.",
+			"Additional variables are label, the EOS cue label,",
+			"scene, the scene number/name, and sceneend, which is defined",
+			"if this cue is marked as a scene end."
 			],
-	"CueNameFmt": ["Light cue %number%",
-					"Light cue %list%/%number%"],
+	"CueNameFromLabel": "Cue %{list}/%%number%: %label%% ***** scene-end{sceneend}%% ***** {scene}%",
 	
-	"## CueNameSceneSuffixFmt": [
-			"If an EOS cue being added to QLab has a 'scene name',",
-			"and if this parameter is a string,",
-			"then append this string to the QLab cue name.",
-			"Replace %scene% with the EOS scene name."
-			],
-	"CueNameSceneSuffixFmt": " ***** Scene %scene%",
-	
-	"## CueNameSceneEndSufixFmt": [
-			"If an EOS cue being added to QLab is marked as a 'scene end',",
-			"and if this parameter is a string,",
-			"then append this string to the QLab cue name.",
-			"EOS 'scene end' just has a flag, not a scene name,",
-			"so you can't use %scene% in this parameter."
-			],
-	"CueNameSceneEndSuffix": " ***** Scene End",
-	
-	"## CueLabelPrefix": [
-			"If an EOS cue being added to QLab has a label in EOS,",
-			"and if this parameter is a string,",
-			"the set the QLab cue name to this prefix followed by the EOS label."
-			],
-	"CueLabelPrefix": null,
+	"## CueNameNoLabel": "Like CueNameFromLabel, but for EOS cues without a label.",
+	"CueNameNoLabel": "Light cue %{list}/%%number%% ***** scene-end{sceneend}%% ***** {scene}%",
 	
 	"## ConnectTimeoutMS": "The wait-time, in millisec, when connecting to QLab or EOS.",
 	"ConnectTimeoutMS": 2000
