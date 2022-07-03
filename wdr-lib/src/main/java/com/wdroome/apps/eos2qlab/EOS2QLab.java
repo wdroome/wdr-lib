@@ -13,14 +13,18 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
+import java.util.Stack;
+
+import java.util.function.BiPredicate;
 
 import com.wdroome.util.MiscUtil;
 import com.wdroome.util.StringUtils;
 import com.wdroome.util.HashCounter;
 
-import com.wdroome.osc.eos.QueryEOS;
 import com.wdroome.json.JSONParseException;
 import com.wdroome.json.JSONValueTypeException;
+
+import com.wdroome.osc.eos.QueryEOS;
 import com.wdroome.osc.eos.EOSCueInfo;
 import com.wdroome.osc.eos.EOSCuelistInfo;
 import com.wdroome.osc.eos.EOSUtil;
@@ -48,19 +52,21 @@ public class EOS2QLab implements Closeable
 	
 	public final static String[] EOS_ARG = {"eos"};
 	public final static String[] QLAB_ARG = {"qlab"};
-	public final static String[] MISSING_ARG = {"missing"};
+	public final static String[] MISSING_ARG = {"missing", "miss"};
+	public final static String[] ORDER_ARG = {"order", "seqn"};
 	public final static String[] CONFIG_ARG = {"config"};
 	
 	public final static String[] HELP_RESP = {
 				"refresh: Get the cue information from EOS & QLab.",
 				"check: Find the EOS cues not in QLab, and the QLab cues not in EOS.",
+				"add: Add missing EOS cues to QLab.",
+				"select missing: Select QLab network cues not in EOS.",
+				"select order: Select QLab network cues not inEOS cue order.",
 				"print eos: Print a summary of the EOS cues.",
 				"print qlab: Print a summary of the QLab cues.",
 				"print missing: Print the EOS cues not in QLab and the QLab cues not in EOS.",
 				"print config: Print the JSON configuration file.",
 				"print: Print all of the above.",
-				"add: Add missing EOS cues to QLab.",
-				"select: Select QLab network cues not in EOS.",
 				"quit: Quit.",
 	};
 	
@@ -92,8 +98,14 @@ public class EOS2QLab implements Closeable
 	
 	// QLab network cues with EOS fire commands for cues NOT in EOS.
 	// The key is the name of a QLab cuelist, the value is the invalid cues in that list.
-	// If all the network cues in a cuelist are valid, there's no entry for that cuelist.
+	// If all  network cues in a cuelist are valid, there's no entry for that cuelist.
 	private TreeMap<String, List<QLabNetworkCue>> m_notInEOS = null;
+	
+	// QLab network cues not in EOS cue order.
+	// That is, the network cue's EOS cue number is less than the previous metwork cue in the QLab list.
+	// The key is the name of a QLab cuelist, the value is the misordered cues in that list.
+	// If all network cues in a cuelist are in order, there's no entry for that cuelist.
+	private TreeMap<String, List<QLabNetworkCue>> m_misorderedNetworkCues = null;
 	
 	public EOS2QLab(String[] args, PrintStream out, InputStream in)
 			throws IOException, IllegalArgumentException
@@ -208,16 +220,44 @@ public class EOS2QLab implements Closeable
 		}
 		m_qlabCuelists = m_queryQLab.getAllCueLists();
 		m_eosCuesInQLab = new TreeMap<>();
-		return QLabCue.walkCues(m_qlabCuelists,
-					(testCue, path) -> {
-					if (testCue instanceof QLabNetworkCue) {
-						EOSCueNumber eosCueNum = ((QLabNetworkCue)testCue).m_eosCueNumber;
-						if (eosCueNum != null) {
-							m_eosCuesInQLab.put(eosCueNum, (QLabNetworkCue)testCue);
+		m_misorderedNetworkCues = new TreeMap<>();
+		int nQLabCues = 0;
+		for (QLabCuelistCue cuelist: m_qlabCuelists) {
+			nQLabCues += cuelist.walkCues(new QLabCueHandler(cuelist.getName()));
+		}
+		return nQLabCues;
+	}
+	
+	private class QLabCueHandler implements BiPredicate<QLabCue, Stack<? extends QLabCue>>
+	{
+		private EOSCueNumber m_prevCueNum = null;
+		private final String m_qlabCuelistName;
+		
+		private QLabCueHandler(String qlabCuelistName)
+		{
+			m_qlabCuelistName = qlabCuelistName;
+		}
+		
+		@Override
+		public boolean test(QLabCue testCue, Stack<? extends QLabCue> path) {
+			if (testCue instanceof QLabNetworkCue) {
+				EOSCueNumber eosCueNum = ((QLabNetworkCue)testCue).m_eosCueNumber;
+				if (eosCueNum != null) {
+					m_eosCuesInQLab.put(eosCueNum, (QLabNetworkCue)testCue);
+					if (m_prevCueNum != null && eosCueNum.compareTo(m_prevCueNum) < 0) {
+						List<QLabNetworkCue> list = m_misorderedNetworkCues.get(m_qlabCuelistName);
+						if (list == null) {
+							list = new ArrayList<>();
+							m_misorderedNetworkCues.put(m_qlabCuelistName, list);
 						}
+						list.add((QLabNetworkCue)testCue);
 					}
-					return true;
-				});
+					m_prevCueNum = eosCueNum;
+				}
+			}
+			return true;
+		}
+		
 	}
 	
 	@Override
@@ -564,7 +604,7 @@ public class EOS2QLab implements Closeable
 		if (m_notInEOS.isEmpty()) {
 			m_out.println("All QLab network cues are in EOS.");
 		} else {
-			String cuelistName = pickCuelist();
+			String cuelistName = pickCuelist(m_notInEOS);
 			if (cuelistName == null) {
 				return;
 			}
@@ -573,6 +613,10 @@ public class EOS2QLab implements Closeable
 			for (QLabCue cue: m_notInEOS.get(cuelistName)) {
 				cueIds.append(sep + cue.m_uniqueId);
 				sep = ",";
+			}
+			if (cueIds.isEmpty()) {
+				m_out.println("All QLab network cues in that list are in EOS.");
+				return;
 			}
 			QLabReply reply = m_queryQLab.sendQLabReq(
 							String.format(QLabUtil.SELECT_CUE_ID, cueIds.toString()));
@@ -584,9 +628,42 @@ public class EOS2QLab implements Closeable
 		}
 	}
 	
-	private String pickCuelist()
+	public void selectMisorderedCues() throws IOException
 	{
-		Set<String> cuelistNames = m_notInEOS.keySet();
+		if (m_queryQLab == null) {
+			m_out.println("  *** Not connected to QLab controller.");
+			return;
+		}
+		if (m_misorderedNetworkCues == null || m_misorderedNetworkCues.isEmpty()) {
+			m_out.println("All QLab network cues in order.");
+		} else {
+			String cuelistName = pickCuelist(m_misorderedNetworkCues);
+			if (cuelistName == null) {
+				return;
+			}
+			StringBuffer cueIds = new StringBuffer();
+			String sep = "";
+			for (QLabCue cue: m_misorderedNetworkCues.get(cuelistName)) {
+				cueIds.append(sep + cue.m_uniqueId);
+				sep = ",";
+			}
+			if (cueIds.isEmpty()) {
+				m_out.println("All QLab network cues in that list are in EOS order.");
+				return;
+			}
+			QLabReply reply = m_queryQLab.sendQLabReq(
+							String.format(QLabUtil.SELECT_CUE_ID, cueIds.toString()));
+			if (reply.isOk()) {
+				m_out.println("Selected " + m_misorderedNetworkCues.get(cuelistName).size() + " cues.");
+			} else {
+				m_out.println("Select request failed.");
+			}
+		}
+	}
+	
+	private String pickCuelist(TreeMap<String, List<QLabNetworkCue>> cuelistMap)
+	{
+		Set<String> cuelistNames = cuelistMap.keySet();
 		if (cuelistNames.size() == 0) {
 			return null;
 		} else if (cuelistNames.size() == 1) {
@@ -598,7 +675,7 @@ public class EOS2QLab implements Closeable
 		m_out.println("Pick QLab cue list -- you can only select one:");
 		int iCuelist = 0;
 		int iDefault = -1;
-		for (Map.Entry<String, List<QLabNetworkCue>> ent: m_notInEOS.entrySet()) {
+		for (Map.Entry<String, List<QLabNetworkCue>> ent: cuelistMap.entrySet()) {
 			String defaultLabel = "";
 			if (m_config.getDefaultQLabCuelist().equals(ent.getKey()) && iDefault < 0) {
 				iDefault = iCuelist;
@@ -663,9 +740,17 @@ public class EOS2QLab implements Closeable
 		m_out.println("  Destination: QLab cuelist \"" + targetQLabCuelist.getName() + "\"");
 		m_out.println("  Cue marking:" + (newCueMarking.m_flag ? " flagged" : "")
 							+ " " + newCueMarking.m_color.toQLab());
-		String resp = getResponse("Ok? [y or n]");
-		if (!resp.toLowerCase().startsWith("y")) {
-			return false;
+		String prompt = "Ok? [y or n]";
+		while (true) {
+			String resp = getResponse(prompt);
+			if (resp.toLowerCase().startsWith("y")) {
+				break;
+			} else if (resp.toLowerCase().startsWith("n") || resp.toLowerCase().startsWith("q")) {
+				m_out.println("No changes made.");
+				return false;
+			} else {
+				prompt = "Please enter y or n:";
+			}
 		}
 		int nAdded = 0;
 		String targetCuelistId = targetQLabCuelist.m_uniqueId;	// means add at end
@@ -808,26 +893,31 @@ public class EOS2QLab implements Closeable
 	private NewCueMarking selectNewCueMarking()
 	{
 		NewCueMarking marking = new NewCueMarking();
-		m_out.println("New cues will be color " + marking.m_color.toQLab()
-					+ " and " + (marking.m_flag ? "flagged" : "not flagged"));
-		String resp = getResponse("Enter return if ok, or flagged, unflagged, and/or a color to change:");
-		if (resp == null || isCmd(resp, QUIT_CMD)) {
-			return null;
-		} else if (!resp.isBlank()) {
-			String[] tokens = resp.split("[ \t,;]+");
-			QLabUtil.ColorName newColor = null;
-			for (String token: tokens) {
-				if (token.startsWith("flag")) {
-					marking.m_flag = true;
-				} else if (token.startsWith("unflag")) {
-					marking.m_flag = false;
-				} else if ((newColor = QLabUtil.ColorName.valueOf(resp.toUpperCase())) != null) {
-					marking.m_color = newColor;
-				} else {
-					m_out.println("\"" + resp + "\" is not flagged, unflaged, or a QLab color.");
+		boolean responseOk;
+		do {
+			responseOk = true;
+			m_out.println("New cues will be color " + marking.m_color.toQLab() + " and "
+					+ (marking.m_flag ? "flagged" : "not flagged"));
+			String resp = getResponse("Enter return if ok, or flagged, unflagged, and/or a color to change:");
+			if (resp == null || isCmd(resp, QUIT_CMD)) {
+				return null;
+			} else if (!resp.isBlank()) {
+				String[] tokens = resp.split("[ \t,;]+");
+				QLabUtil.ColorName newColor = null;
+				for (String token : tokens) {
+					if (token.startsWith("flag")) {
+						marking.m_flag = true;
+					} else if (token.startsWith("unflag")) {
+						marking.m_flag = false;
+					} else if ((newColor = QLabUtil.ColorName.valueOf(resp.toUpperCase(), null)) != null) {
+						marking.m_color = newColor;
+					} else {
+						m_out.println("   \"" + token + "\" is not flagged, unflagged, or a QLab color.");
+						responseOk = false;
+					}
 				}
-			}
-		}
+			} 
+		} while (!responseOk);
 		return marking;
 	}
 	
@@ -1005,7 +1095,14 @@ public class EOS2QLab implements Closeable
 					} else if (isCmd(cmd[0], ADD_CMD)) {
 						eos2QLab.add2QLab();
 					} else if (isCmd(cmd[0], SELECT_CMD)) {
-						eos2QLab.selectCuesNotInEOS();
+						if (cmd.length >= 2 && isCmd(cmd[1], MISSING_ARG)) {
+							eos2QLab.selectCuesNotInEOS();							
+						} else if (cmd.length >= 2 && isCmd(cmd[1], ORDER_ARG)) {
+							eos2QLab.selectMisorderedCues();							
+						} else {
+							out.println("Usage: " + SELECT_CMD[0] + " {" + MISSING_ARG[0]
+																+ " | " + ORDER_ARG[0] + "}");
+						}
 					} else if (isCmd(cmd[0], HELP_CMD)) {
 						for (String s: HELP_RESP) {
 							out.println(s);

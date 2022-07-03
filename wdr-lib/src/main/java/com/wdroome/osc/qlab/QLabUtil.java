@@ -132,6 +132,15 @@ public class QLabUtil
 						}
 						return NONE;
 					}
+					
+					public static ColorName valueOf(String name, ColorName def)
+					{
+						try {
+							return valueOf(name);
+						} catch (Exception e) {
+							return def;
+						}
+					}
 				}
 	
 	/*

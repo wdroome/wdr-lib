@@ -59,12 +59,9 @@
   		/>
   		<fileset dir="src/main/resources"
   			includes="
-  					com/wdroome/*/*.json
-					com/wdroome/*/*/*.json
-					com/wdroome/*/*.txt
-					com/wdroome/*/*/*.txt
-					com/wdroome/*/*.xml
-					com/wdroome/*/*/*.xml
+  					com/wdroome/**/*.json
+					com/wdroome/**/*.txt
+					com/wdroome/**/*.xml
 					"
   			excludes=""
  		/>

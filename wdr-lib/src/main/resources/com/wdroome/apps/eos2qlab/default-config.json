@@ -4,7 +4,7 @@
 			"If QLab has a passcode, add it after the port as '/passcode'."
 			],
 	"QLabAddrPort": ["127.0.0.1:53000", "192.168.42.3:53000"],
-	"EOSAddrPort": ["191.168.42.101:8192", "192.168.0.113:8192", "127.0.0.1:8192"],
+	"EOSAddrPort": ["192.168.42.101:8192", "192.168.42.104:8192", "192.168.0.113:8192", "127.0.0.1:8192"],
 	
 	"## QLabDefaultCueList": "Default QLab cuelist to add missing EOS cues to.",
 	"QLabDefaultCueList": "Main Cue List",
