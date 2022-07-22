@@ -100,6 +100,8 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 	private String m_extActions = "";
 	
 	private boolean m_isAutoCue = false;
+	
+	private String m_warnings = null;
 
 	/**
 	 * Get the information for a cue list from the EOS server.
@@ -121,10 +123,13 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 		// System.err.println("XXX GetCue resp: " + replyMethod);
 		final ArrayBlockingQueue<OSCMessage> replies = new ArrayBlockingQueue<>(10);
 		ReplyHandler replyHandler = oscConn.sendMessage(new OSCMessage(requestMethod), replyMethod, replies);
-		boolean gotListReply = false;
-		boolean gotFxReply = false;
-		boolean gotLinksReply = false;
-		boolean gotActionsReply = false;
+		int listIndex = -1;
+		int fxIndex = -1;
+		int linksIndex = -1;
+		int actionsIndex = -1;
+		EOSCueNumber fxCueNumber = null;
+		EOSCueNumber linksCueNumber = null;
+		EOSCueNumber actionsCueNumber = null;
 		while (true) {
 			try {
 				OSCMessage msg = replies.poll(timeoutMS, TimeUnit.MILLISECONDS);
@@ -133,27 +138,31 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 				}
 				// System.out.println("XXX CueInfo Resp: " + msg);
 				int indexArg = (int)msg.getLong(GET_CUE_INFO_REPLY_FLD_INDEX, -1);
+				/* XXX
 				if (indexArg != cueIndex) {
-					// System.err.println("---Bad index " + indexArg + "!=" + cueIndex);
+					System.err.println("XXX EOSCueInfo: Bad index " + indexArg + "!=" + cueIndex);
 					continue;
 				}
+				XXX */
 				List<String> cmdTokens = OSCUtil.parseMethod(msg.getMethod(), "",
 							GET_CUE_INFO_REPLY_CUE_NUMBER,
 							GET_CUE_INFO_REPLY_PART_NUMBER,
 							GET_CUE_INFO_REPLY_TYPE);
+				int part;
+				try {
+					part = Integer.parseInt(cmdTokens.get(1));
+				} catch (Exception e1) {
+					continue;
+				}
+				EOSCueNumber msgCueNumber;
+				try {
+					msgCueNumber = new EOSCueNumber(m_cuelist, cmdTokens.get(0), part);
+				} catch (Exception e) {
+					continue;
+				}
 				String respType = cmdTokens.get(2);
 				if (respType.equals(GET_CUE_INFO_REPLY_TYPE_LIST)) {
-					int part;
-					try {
-						part = Integer.parseInt(cmdTokens.get(1));
-					} catch (Exception e1) {
-						continue;
-					}
-					try {
-						m_cueNumber = new EOSCueNumber(m_cuelist, cmdTokens.get(0), part);
-					} catch (Exception e) {
-						continue;
-					}
+					m_cueNumber = msgCueNumber;
 					m_uuid = msg.getString(GET_CUE_INFO_REPLY_FLD_UUID, m_label);
 					m_label = msg.getString(GET_CUE_INFO_REPLY_FLD_LABEL, m_label);
 					m_upTimeMS = (int)msg.getLong(GET_CUE_INFO_REPLY_FLD_UP_TIME, m_upTimeMS);
@@ -180,19 +189,41 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 					m_scene = msg.getString(GET_CUE_INFO_REPLY_FLD_SCENE, m_scene);
 					m_sceneEnd = msg.getBoolean(GET_CUE_INFO_REPLY_FLD_SCENE_END, m_sceneEnd);
 					m_partIndex = (int)msg.getLong(GET_CUE_INFO_REPLY_FLD_PART_INDEX, m_partIndex);
-					gotListReply = true;
+					listIndex = indexArg;
 				} else if (respType.equals(GET_CUE_INFO_REPLY_TYPE_LINKS)) {
+					linksCueNumber = msgCueNumber;
 					m_linkedCuelists = getRemainingStrArgs(msg, GET_CUE_INFO_REPLY_FLD_LINKS_CUELIST);
-					gotLinksReply = true;
+					linksIndex = indexArg;
 				} else if (respType.equals(GET_CUE_INFO_REPLY_TYPE_FX)) {
+					fxCueNumber = msgCueNumber;
 					m_fxList = getRemainingStrArgs(msg, GET_CUE_INFO_REPLY_FLD_FX_LIST);
-					gotFxReply = true;
+					fxIndex = indexArg;
 				} else if (respType.equals(GET_CUE_INFO_REPLY_TYPE_ACTIONS)) {
+					actionsCueNumber = msgCueNumber;
 					m_extActions = msg.getString(GET_CUE_INFO_REPLY_FLD_ACTIONS_EXTCMD, m_extActions);
-					gotActionsReply = true;
+					actionsIndex = indexArg;
+				} else {
+					System.out.println("XXX: unknown type: " + respType + ": " + msg);
 				}
-				if (gotListReply && gotLinksReply && gotFxReply && gotActionsReply) {
-					// System.out.println("===: got Cue " + m_cueNumber.toFullString());
+				if (listIndex >= 0 && linksIndex >= 0 && fxIndex >= 0 && actionsIndex >= 0) {
+					if (linksIndex == listIndex && fxIndex == listIndex && actionsIndex == listIndex) {
+						if (listIndex != cueIndex) {
+							addWarning("EOSCue-by-index mismatch: cue=" + m_cueNumber.toFullString()
+									+ " req#=" + cueIndex + " reply#=" + listIndex);
+						}
+						if (!m_cueNumber.equals(actionsCueNumber) || !m_cueNumber.equals(linksCueNumber)
+								|| !m_cueNumber.equals(fxCueNumber) || !m_cueNumber.equals(actionsCueNumber)) {
+							addWarning("EOSCue-by-index cue number mismatch: index=#" + cueIndex
+									+ " list=" + m_cueNumber.toFullString()
+									+ " links=" + linksCueNumber.toFullString()
+									+ " fx=" + fxCueNumber.toFullString()
+									+ " actions=" + actionsCueNumber.toFullString());
+						}
+					} else {
+						addWarning(
+								"Cuelist index disagreement: cue=" + m_cueNumber.toFullString() + " list=#" + listIndex
+										+ " links=#" + linksIndex + " fx=#" + fxIndex + " actions=#" + actionsIndex);
+					}
 					break;
 				}
 			} catch (Exception e) {
@@ -201,6 +232,15 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 			}
 		}
 		oscConn.dropReplyHandler(replyHandler);
+	}
+	
+	private void addWarning(String warning)
+	{
+		if (m_warnings == null) {
+			m_warnings = warning;
+		} else {
+			m_warnings += "; " + warning;
+		}
 	}
 
 	public boolean isValid()
@@ -335,6 +375,10 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 	public boolean isAutoCue() {
 		return m_isAutoCue;
 	}
+
+	public String getWarnings() {
+		return m_warnings;
+	}
 	
 	/**
 	 * Get the cue duration, in seconds.
@@ -397,7 +441,8 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 
 	@Override
 	public String toString() {
-		return "EOSCueInfo[cueIndex=" + m_cueIndex + ",cueNumber=" + m_cueNumber.toFullString()
+		return "EOSCueInfo[cueIndex=" + m_cueIndex
+				+ ",cueNumber=" + (m_cueNumber != null ? m_cueNumber.toFullString() : "null")
 				+ ",isAuto=" + m_isAutoCue + ",uuid=" + m_uuid
 				+ ",label=" + m_label + ",upTimeMS=" + m_upTimeMS + ",upDelayMS=" + m_upDelayMS
 				+ ",downTimeMS=" + m_downTimeMS + ",downDelayMS=" + m_downDelayMS + ",focusTimeMS="

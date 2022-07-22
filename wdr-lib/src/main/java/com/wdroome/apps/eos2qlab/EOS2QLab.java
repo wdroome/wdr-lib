@@ -164,6 +164,7 @@ public class EOS2QLab implements Closeable
 			for (EOSCuelistInfo cuelist: m_eosCuelists.values()) {
 				int cuelistNum = cuelist.getCuelistNumber();
 				TreeMap<EOSCueNumber, EOSCueInfo> cuesInList = m_queryEOS.getCues(cuelistNum);
+				// System.out.println("XXX: EOS cuelist " + cuelistNum + ": " + cuesInList);
 				m_eosCuesByList.put(cuelistNum, cuesInList);
 				nEOSCues += cuesInList.size();
 				m_eosCuesByNumber.putAll(cuesInList);

@@ -28,7 +28,7 @@ public class QueryQLab extends OSCConnection
 	private String m_lastReplyWorkspaceId = "";
 
 	/**
-	 * Create connection to query an EOS server.
+	 * Create connection to query a QLab server.
 	 * @param addr The server's inet socket address.
 	 */
 	public QueryQLab(InetSocketAddress addr)
@@ -37,7 +37,7 @@ public class QueryQLab extends OSCConnection
 	}
 
 	/**
-	 * Create connection to query an EOS server.
+	 * Create connection to query a QLab server.
 	 * @param addr The server's inet address.
 	 * @param port The server's port.
 	 */
@@ -48,7 +48,7 @@ public class QueryQLab extends OSCConnection
 	}
 
 	/**
-	 * Create connection to query an EOS server.
+	 * Create connection to query a QLab server.
 	 * @param addr An ipaddr:port string with the server's inet socket address,
 	 * 			with an optional [/passcode] suffix.
 	 */
@@ -816,7 +816,7 @@ public class QueryQLab extends OSCConnection
 			if (cue instanceof QLabCuelistCue) {
 				cuelists.add((QLabCuelistCue)cue);
 			} else {
-				System.err.println("QueryEOS.getAllCuelists(): non-cuelist at top level: " + cue);
+				System.err.println("QueryQLab.getAllCuelists(): non-cuelist at top level: " + cue);
 			}
 		}
 		return cuelists;

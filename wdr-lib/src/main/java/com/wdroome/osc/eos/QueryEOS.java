@@ -192,6 +192,13 @@ public class QueryEOS extends OSCConnection implements OSCConnection.MessageHand
 			if (cue.isValid()) {
 				cues.put(cue.getCueNumber(), cue);
 				nextIsAutoCue = cue.getHangTimeMS() >= 0 || cue.getFollowTimeMS() >= 0;
+				String warnings = cue.getWarnings();
+				if (warnings != null) {
+					System.out.println("*** WARNING: EOS cue " + cue.getCueNumber().toFullString()
+							+ "[" + iCue + "]: " + warnings);
+				}
+			} else {
+				System.out.println("*** WARNING: invalid cue index " + iCue + ": " + cue);
 			}
 			// XXX try {Thread.sleep(2000); } catch (Exception e) {}
 			// XXX if (iCue >= 2) { break; } // XXXX
