@@ -50,6 +50,9 @@ public enum QLabCueType
 	CUELIST((jsonCue, parent, parentIndex, isAuto, queryQLab)
 						-> new QLabCuelistCue(jsonCue, parent, parentIndex, isAuto, queryQLab),
 			null, "Cue List", null),
+	CART((jsonCue, parent, parentIndex, isAuto, queryQLab)
+						-> new QLabCartCue(jsonCue, parent, parentIndex, isAuto, queryQLab),
+			null, "Cart", null),
 	UNKNOWN("???");
 	
 	private final String m_toQLab;

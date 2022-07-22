@@ -801,7 +801,7 @@ public class QueryQLab extends OSCConnection
 	}
 	
 	/**
-	 * Get all cue lists and all all contained cues.
+	 * Get all cue lists and all contained cues.
 	 * @return A list of cue lists.
 	 * @throws IOException If an IO error occurs.
 	 */
@@ -815,12 +815,37 @@ public class QueryQLab extends OSCConnection
 		for (QLabCue cue: QLabCueType.getCueArray(reply.getJSONArray(null), null, false, this)) {
 			if (cue instanceof QLabCuelistCue) {
 				cuelists.add((QLabCuelistCue)cue);
+			} else if (cue instanceof QLabCartCue) {
+				// ignore carts
 			} else {
-				System.err.println("QueryQLab.getAllCuelists(): non-cuelist at top level: " + cue);
+				System.err.println("QueryQLab.getAllCuelists(): non-cuelist/cuecart at top level: " + cue);
 			}
 		}
 		return cuelists;
-		// return QLabCueType.getCueArray(reply.getJSONArray(null), null, false, this);
+	}
+	
+	/**
+	 * Get all cue carts and all contained cues.
+	 * @return A list of cue carts.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public List<QLabCartCue> getAllCueCarts() throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.CUELISTS_REQ);
+		if (reply == null) {
+			return null;
+		}
+		List<QLabCartCue> cuecarts = new ArrayList<>();
+		for (QLabCue cue: QLabCueType.getCueArray(reply.getJSONArray(null), null, false, this)) {
+			if (cue instanceof QLabCartCue) {
+				cuecarts.add((QLabCartCue)cue);
+			} else if (cue instanceof QLabCuelistCue) {
+				// ignore cue lists
+			} else {
+				System.err.println("QueryQLab.getAllCueCarts(): non-cuelist/cuecart at top level: " + cue);
+			}
+		}
+		return cuecarts;
 	}
 	
 	private boolean m_printAllMsgs = false;	// XXX

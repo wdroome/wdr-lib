@@ -70,19 +70,27 @@ public class Config
 	
 	public Config(String[] args)
 	{
-		InputStream configInput;
+		// Read leading json config file arg. If several at start, read the last one.
+		InputStream configInput = null;
 		int iStart = 0;
-		if (args.length >= 1 && args[0].endsWith(".json")) {
+		int iConfig = -1;
+		for (; iStart < args.length && args[iStart].endsWith(".json"); iStart++) {
+			iConfig = iStart;
+		}
+		if (iConfig >= 0) {
 			try {
-				configInput = new FileInputStream(args[0]);
+				configInput = new FileInputStream(args[iConfig]);
 			} catch (FileNotFoundException e) {
-				throw new IllegalArgumentException("Cannot open EOS2QLab config file '" + args[0]
-														+ "': " + e);
-			}
-			iStart = 1;
-		} else {
+				throw new IllegalArgumentException("Cannot open EOS2QLab config file '" + args[iConfig] + "': " + e);
+			} 
+		}
+		
+		// If no command-line config file, use resource in jar.
+		if (configInput == null) {
 			configInput = getClass().getResourceAsStream(CONFIG_FILE_RESOURCE_NAME);
 		}
+		
+		// If still no config file, use defaults.
 		if (configInput != null) {
 			try {
 				m_jsonConfig = JSONParser.parseObject(new JSONLexan(configInput), true);
@@ -92,6 +100,8 @@ public class Config
 		} else {
 			m_jsonConfig = new JSONValue_Object();
 		}
+		
+		// Apply command line overrides.
 		for (int iArg = iStart; iArg < args.length; iArg++) {
 			int iSep = args[iArg].indexOf('=');
 			if (iSep < 1) {
@@ -100,6 +110,8 @@ public class Config
 			}
 			m_jsonConfig.put(args[iArg].substring(0,iSep), args[iArg].substring(iSep+1));
 		}
+		
+		// Extract config from final JSON object, and report any unknown fields.
 		for (Map.Entry<String, JSONValue> ent: m_jsonConfig.entrySet()) {
 			String name = ent.getKey().trim();
 			JSONValue value = ent.getValue();

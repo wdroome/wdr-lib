@@ -24,7 +24,7 @@ public class QLabCue
 	public final QLabCueType m_type;
 	
 	// May be null.
-	private QLabCue m_parent = null;;
+	private QLabCue m_parent = null;
 	
 	// If m_parent isn't null, the index in m_parent.
 	protected final int m_parentIndex;
@@ -177,6 +177,16 @@ public class QLabCue
 	public QLabCue getParent()
 	{
 		return m_parent;
+	}
+	
+	/**
+	 * Return the unique ID of the cue or list which contains this cue,
+	 * or "" if there isn't a parent.
+	 * @return The parent's unique ID, or "" if there isn't a parent.
+	 */
+	public String getParentId()
+	{
+		return m_parent != null ? m_parent.m_uniqueId : "";
 	}
 	
 	protected void setParent(QLabCue parent)
@@ -457,7 +467,7 @@ public class QLabCue
 
 	@Override
 	public String toString() {
-		return "QLabCue[type=" + m_type + ",parent=" + m_parent + "[" + m_parentIndex
+		return "QLabCue[type=" + m_type + ",parent=" + getParentId() + "[" + m_parentIndex
 				+ "],listName=" + m_listName + ",name=" + m_name + ",number=" + m_number
 				+ ",uniqueId=" + m_uniqueId + ",armed=" + m_armed + ",flagged=" + m_flagged
 				+ ",colorName=" + m_colorName

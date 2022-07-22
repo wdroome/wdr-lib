@@ -61,7 +61,7 @@ public class EOS2QLab implements Closeable
 				"check: Find the EOS cues not in QLab, and the QLab cues not in EOS.",
 				"add: Add missing EOS cues to QLab.",
 				"select missing: Select QLab network cues not in EOS.",
-				"select order: Select QLab network cues not inEOS cue order.",
+				"select order: Select QLab network cues not in EOS cue order.",
 				"print eos: Print a summary of the EOS cues.",
 				"print qlab: Print a summary of the QLab cues.",
 				"print missing: Print the EOS cues not in QLab and the QLab cues not in EOS.",
@@ -464,7 +464,6 @@ public class EOS2QLab implements Closeable
 								+ nNonAutoCues + " non-auto cues, "
 								+ nCues + " total cues" + label);
 		}
-
 	}
 	
 	public void prtQLabCueSummary()
@@ -1056,7 +1055,7 @@ public class EOS2QLab implements Closeable
 				while (true) {
 					out.print("* ");
 					String line = MiscUtil.readLine(in);
-					if (line == null || line.equals("q") || line.equals("quit") || line.equals("exit")) {
+					if (line == null) {
 						running = false;
 						break;
 					}
@@ -1069,6 +1068,9 @@ public class EOS2QLab implements Closeable
 						continue;
 					}
 					if (isCmd(cmd[0], REFRESH_CMD)) {
+						break;
+					} else if (isCmd(cmd[0], QUIT_CMD)) {
+						running = false;
 						break;
 					} else if (isCmd(cmd[0], PRINT_CMD)) {
 						if (cmd.length >= 2 && isCmd(cmd[1], EOS_ARG)) {
