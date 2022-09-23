@@ -1,5 +1,8 @@
 package com.wdroome.util.swing;
 import javax.swing.SwingUtilities;
+
+import java.awt.GraphicsDevice;
+
 import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
 
@@ -173,6 +176,25 @@ public class SwingAppUtils
 					}
 				}
 		);
+	}
+	
+	/**
+	 * Return the name for a Swing GraphicsDevice device type (TYPE_RASTER_SCREEN, etc).
+	 * @param type A GrahicsDevice type code.
+	 * @return The name of that type.
+	 */
+	public static String getGraphicsDevTypeCode(int type)
+	{
+		switch (type) {
+		case GraphicsDevice.TYPE_IMAGE_BUFFER:
+			return "ImageBuffer";
+		case GraphicsDevice.TYPE_PRINTER:
+			return "Printer";
+		case GraphicsDevice.TYPE_RASTER_SCREEN:
+			return "Screen";
+		default:
+			return "UnknownType";
+		}
 	}
 	
 	public static void main(String[] args)

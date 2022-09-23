@@ -997,6 +997,43 @@ public class MiscUtil
 		}
 		return content;
 	}
+	
+	/**
+	 * Simple method to run a set of tasks in parallel and wait for all to complete.
+	 * The tasks cannot return values, and
+	 * new threads are created for each invocation,
+	 * If you need more control, or need return values, use the thread pool tools
+	 * in java.util.concurrent.
+	 * @param tasks The tasks to run.
+	 * @param taskName A base name for the threads. Ignored if null or blank.
+	 */
+	public static void runTasksAndWait(List<Runnable> tasks, String taskName)
+	{
+		if (tasks == null || tasks.isEmpty()) {
+			return;
+		}
+		if (tasks.size() == 1) {
+			// Optimize if there's only one task.
+			tasks.get(0).run();
+		} else {
+			Thread[] workers = new Thread[tasks.size()];
+			for (int iTask = 0; iTask < tasks.size(); iTask++) {
+				Thread t = new Thread(null, tasks.get(iTask),
+							(taskName != null && !taskName.isBlank() ? (taskName + "-" + iTask) : null));
+				t.start();
+				workers[iTask] = t;
+			}
+			for (Thread t: workers) {
+				while (t.isAlive()) {
+					try {
+						t.join();
+					} catch (InterruptedException e) {
+						// Ignore interrupts to calling thread.
+					}		
+				}
+			}
+		}
+	}
 
 	/**
 	 *	Test driver: for each argument, call hexToBytes(),

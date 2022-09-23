@@ -36,11 +36,11 @@
 	
 	"## CueNameFromLabel": [
 			"Format for the QLab cue name for EOS cues added to QLab",
-			"which to not have a label in EOS.",
+			"which do not have a label in EOS.",
 			"As with CueNumber, a variable reference with {} is conditional.",
 			"Additional variables are label, the EOS cue label,",
-			"scene, the scene number/name, and sceneend, which is defined",
-			"if this cue is marked as a scene end."
+			"scene, the scene number/name,",
+			"and sceneend, which is defined if this cue is marked as a scene end."
 			],
 	"CueNameFromLabel": "Cue %{list}/%%number%: %label%% ***** scene-end{sceneend}%% ***** {scene}%",
 	

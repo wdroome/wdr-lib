@@ -1,10 +1,10 @@
 package com.wdroome.apps.eos2qlab;
 
 import java.io.IOException;
-import java.nio.file.FileSystemNotFoundException;
 import java.io.Closeable;
 import java.io.PrintStream;
 import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -115,8 +115,13 @@ public class EOS2QLab implements Closeable
 		m_config = new Config(args);
 		
 		m_out.println("Connecting to EOS & QLab ...");
-		m_queryEOS = QueryEOS.makeQueryEOS(m_config.getEOSAddrPorts(), m_config.getConnectTimeoutMS());
-		m_queryQLab = QueryQLab.makeQueryQLab(m_config.getQLabAddrPorts(), m_config.getConnectTimeoutMS());
+		MiscUtil.runTasksAndWait(List.of(
+				() -> m_queryEOS = QueryEOS.makeQueryEOS(m_config.getEOSAddrPorts(),
+										m_config.getConnectTimeoutMS()),
+				() -> m_queryQLab = QueryQLab.makeQueryQLab(m_config.getQLabAddrPorts(),
+										m_config.getConnectTimeoutMS())),
+				"Connect");
+
 		if (m_queryEOS != null && m_queryQLab != null) {
 			m_out.println("Connected to EOS at " + m_queryEOS.getIpAddrString()
 						+ " and QLab at " + m_queryQLab.getIpAddrString() + ".");
@@ -130,12 +135,7 @@ public class EOS2QLab implements Closeable
 			m_out.println("Not connected to EOS or QLab.");
 		}
 		
-		if (m_queryEOS != null) {
-			getEOSCues();
-		}
-		if (m_queryQLab != null) {
-			getQLabCues();
-		}
+		getEOSAndQLabCues(true);
 	}
 	
 	public EOS2QLab(String[] args) throws IOException, IllegalArgumentException
@@ -143,19 +143,67 @@ public class EOS2QLab implements Closeable
 		this(args, null, null);
 	}
 	
+	private boolean m_eosOk = false;
+	private boolean m_qlabOk = false;
+	
+	public boolean getEOSAndQLabCues(boolean alwaysGet)
+	{
+		m_notInQLab = null;
+		m_notInEOS = null;
+		ByteArrayOutputStream eosBuff = new ByteArrayOutputStream();
+		PrintStream eosOut = new PrintStream(eosBuff);
+		m_eosOk = true;
+		ByteArrayOutputStream qlabBuff = new ByteArrayOutputStream();
+		PrintStream qlabOut = new PrintStream(qlabBuff);
+		m_qlabOk = true;
+		ArrayList<Runnable> tasks = new ArrayList<>();
+		if (alwaysGet || (m_eosCuelists == null || m_eosCuesByNumber == null)) {
+			tasks.add(() -> m_eosOk = getEOSCues(eosOut));
+		}
+		if (alwaysGet || (m_qlabCuelists == null)) {
+			tasks.add(() -> m_qlabOk = getQLabCues(qlabOut));
+		}
+		if (!tasks.isEmpty()) {
+			m_out.println("Getting cue list(s) ...");
+		}
+		MiscUtil.runTasksAndWait(tasks, "GetCues");
+		prtOutBuff(eosOut, eosBuff);
+		prtOutBuff(qlabOut, qlabBuff);
+		return m_eosOk && m_qlabOk;
+	}
+	
+	private void prtOutBuff(PrintStream stream, ByteArrayOutputStream buff)
+	{
+		stream.flush();
+		String v = buff.toString();
+		if (!v.isBlank()) {
+			m_out.print(v);
+			if (!v.endsWith("\n")) {
+				m_out.println();
+			}
+		}
+	}
+	
 	public boolean getEOSCues()
 	{
 		m_notInQLab = null;
 		m_notInEOS = null;
+		return getEOSCues(m_out);
+	}
+	
+	private boolean getEOSCues(PrintStream out)
+	{
+		m_notInQLab = null;
+		m_notInEOS = null;
 		if (m_queryEOS == null) {
-			m_out.println("  *** Not connected to EOS controller.");
+			out.println("  *** Not connected to EOS controller.");
 			return false;
 		}
 		try {
-			m_out.println("EOS Show:");
-			m_out.println("  Address: " + m_queryEOS.getIpAddrString());
+			out.println("EOS Show:");
+			out.println("  Address: " + m_queryEOS.getIpAddrString());
 			m_eosShowName = m_queryEOS.getShowName();
-			m_out.println("  \"" + m_eosShowName + "\"  version: " + m_queryEOS.getVersion());
+			out.println("  \"" + m_eosShowName + "\"  version: " + m_queryEOS.getVersion());
 
 			m_eosCuelists = m_queryEOS.getCuelists();
 			m_eosCuesByList = new TreeMap<>();
@@ -169,11 +217,11 @@ public class EOS2QLab implements Closeable
 				nEOSCues += cuesInList.size();
 				m_eosCuesByNumber.putAll(cuesInList);
 			}
-			m_out.println("  " + nEOSCues + " cues in " + m_eosCuelists.size() + " cuelist(s).");
+			out.println("  " + nEOSCues + " cues in " + m_eosCuelists.size() + " cuelist(s).");
 			m_config.setSingleEOSCuelist(m_eosCuelists.size() == 1);
 			return true;
 		} catch (IOException e) {
-			System.err.println("Error connecting to EOS at " + m_queryEOS.getIpAddrString() + ": " + e);
+			out.println("Error connecting to EOS at " + m_queryEOS.getIpAddrString() + ": " + e);
 			return false;
 		}
 	}
@@ -182,16 +230,21 @@ public class EOS2QLab implements Closeable
 	{
 		m_notInQLab = null;
 		m_notInEOS = null;
+		return getQLabCues(m_out);
+	}
+	
+	private boolean getQLabCues(PrintStream out)
+	{
 		if (m_queryQLab == null) {
-			m_out.println("  *** Not connected to QLab controller.");
+			out.println("  *** Not connected to QLab controller.");
 			return false;
 		}
 		try {
-			m_out.println("QLab Workspaces:");
-			m_out.println("  Address: " + m_queryQLab.getIpAddrString());
+			out.println("QLab Workspaces:");
+			out.println("  Address: " + m_queryQLab.getIpAddrString());
 			List<QLabWorkspaceInfo> qlabWorkspaces = m_queryQLab.getWorkspaces();
 			for (QLabWorkspaceInfo ws: qlabWorkspaces) {
-				m_out.println("  \"" + ws.m_displayName + "\"  version: " + ws.m_version);
+				out.println("  \"" + ws.m_displayName + "\"  version: " + ws.m_version);
 			}
 			int nQLabCues = refreshQLabCuelists();
 			String activeWS = m_queryQLab.getLastReplyWorkspaceId();
@@ -203,12 +256,12 @@ public class EOS2QLab implements Closeable
 					}
 				}
 			}
-			m_out.println("  " + nQLabCues + " cues in " + m_qlabCuelists.size() + " cuelist(s)"
+			out.println("  " + nQLabCues + " cues in " + m_qlabCuelists.size() + " cuelist(s)"
 						+ (m_qlabWorkspaceName != null ? (" in \"" + m_qlabWorkspaceName + "\"") : "")
 						+ ".");
 			return true;
 		} catch (IOException e) {
-			System.err.println("Error connecting to QLab at " + m_queryQLab.getIpAddrString() + ": " + e);
+			out.println("Error connecting to QLab at " + m_queryQLab.getIpAddrString() + ": " + e);
 			return false;
 		}
 	}
@@ -319,22 +372,13 @@ public class EOS2QLab implements Closeable
 	}
 	
 	/**
-	 * Get the EOS cues not in QLab, grouped by EOS cue list.
-	 * @return A Map from the EOS cuelist numbers to the EOS cues in that list
-	 * 			which are not in QLab. Never returns null, but there is no
-	 * 			map entry for a cuelist whose cues are all in QLab.
+	 * Set m_notInQLab to the EOS cues that aren't in QLab.
+	 * @return true if successful, false if we cannot connect to the servers.
 	 */
-	public NotInQLabResults notInQLab()
+	public boolean notInQLab()
 	{
-		if (m_eosCuelists == null) {
-			if (!getEOSCues()) {
-				return null;
-			}
-		}
-		if (m_qlabCuelists == null) {
-			if (!getQLabCues()) {
-				return null;
-			}
+		if (!getEOSAndQLabCues(false)) {
+			return false;
 		}
 		TreeMap<Integer, List<EOSCueInfo>> missingCues = new TreeMap<>();
 		TreeMap<Integer, List<EOSCueRange>> missingRanges = new TreeMap<>();
@@ -376,7 +420,7 @@ public class EOS2QLab implements Closeable
 			}
 		}
 		m_notInQLab = new NotInQLabResults(missingCues, missingRanges);
-		return m_notInQLab;
+		return true;
 	}
 	
 	/**
@@ -384,15 +428,8 @@ public class EOS2QLab implements Closeable
 	 */
 	public void notInEOS()
 	{
-		if (m_eosCuelists == null || m_eosCuesByNumber == null) {
-			if (!getEOSCues()) {
-				return;
-			}
-		}
-		if (m_qlabCuelists == null) {
-			if (!getQLabCues()) {
-				return;
-			}
+		if (!getEOSAndQLabCues(false)) {
+			return;
 		}
 		TreeMap<String, List<QLabNetworkCue>> notInEOS2 = new TreeMap<>();
 		for (QLabCuelistCue cuelistCue: m_qlabCuelists) {
@@ -508,8 +545,8 @@ public class EOS2QLab implements Closeable
 	public void prtCuesNotInQLab(boolean prtRanges, boolean prtCues)
 	{
 		if (m_notInQLab == null) {
-			if (notInQLab() == null) {
-				m_out.println("Cannot connect to QLab.");
+			if (!notInQLab()) {
+				m_out.println("Cannot connect to QLab or EOS.");
 			}
 		}
 		if (m_notInQLab.isEmpty()) {
