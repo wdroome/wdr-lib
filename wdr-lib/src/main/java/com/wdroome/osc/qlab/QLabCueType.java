@@ -76,7 +76,7 @@ public enum QLabCueType
 	/**
 	 * Return the QLabCueType value for a cue type code from QLab.
 	 * @param fromQLab The type string from QLab.
-	 * @return The type, or UNKNOWN if not recognized.
+	 * @return The type, or LIST if not recognized.
 	 */
 	public static QLabCueType fromQLab(String fromQLab)
 	{

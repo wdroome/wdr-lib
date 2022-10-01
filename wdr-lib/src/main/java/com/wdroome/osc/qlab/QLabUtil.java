@@ -64,6 +64,9 @@ public class QLabUtil
 	
 	public static final String CUE_NUMBER_REQ_PREFIX = "/cue/";
 	public static final String CUE_ID_REQ_PREFIX = "/cue_id/";
+	
+	// New in QLab5: Get Network Patches.
+	public static String NETWORK_PATCH_LIST_REQ = "/settings/network/patchList";
 
 	/*
 	 * Requests whose names end in "_CUE_REQ" apply to a specific cue.
@@ -144,11 +147,12 @@ public class QLabUtil
 				}
 	
 	/*
-	 * Requests for Group cues.
+	 * Requests for Group cues. Modes CART and PLAYLIST only exist in QLab5.
 	 */
 	public static final String MODE_CUE_REQ = "/mode";					// number (group mode)
 	public static enum GroupMode {
-					UNKNOWN(0),	START_AND_ENTER(1), START_AND_NEXT(2), TIMELINE(3), RANDOM(4);
+					LIST(0), START_AND_ENTER(1), START_AND_NEXT(2), TIMELINE(3), RANDOM(4),
+					CART(5), PLAYLIST(6);
 		
 					private final int m_qlab;
 					private GroupMode(int qlab) { m_qlab = qlab; }
@@ -162,7 +166,7 @@ public class QLabUtil
 								return mode;
 							}
 						}
-						return UNKNOWN;
+						return LIST;
 					}
 				}
 	
@@ -172,6 +176,9 @@ public class QLabUtil
 	public static final String PATCH_CUE_REQ = "/patch";				// number (network patch, 1-16)
 	public static final String CUSTOM_STRING_CUE_REQ = "/customString";	// OSC command string
 	
+	//
+	// QLab4 only: Network cue message types.
+	//
 	public static final String MESSAGE_TYPE_CUE_REQ = "/messageType";	// number 
 	public static enum NetworkMessageType {
 					UNKNOWN(0), QLab(1), OSC(2), UDP(3);

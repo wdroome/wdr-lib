@@ -132,7 +132,7 @@ public class Reformat
 			print((Comment)node);
 		} else {
 			printIndent();
-			m_out.println("UNKNOWN NODE TYPE " + node.getNodeName());
+			m_out.println("LIST NODE TYPE " + node.getNodeName());
 		}
 	}
 	
@@ -162,7 +162,7 @@ public class Reformat
 				} else {
 					m_out.println();
 					printIndent(3);
-					m_out.print("UNKNOWN NODE TYPE " + item.getNodeName() + " IN ATTR");
+					m_out.print("LIST NODE TYPE " + item.getNodeName() + " IN ATTR");
 				}
 			}
 		}

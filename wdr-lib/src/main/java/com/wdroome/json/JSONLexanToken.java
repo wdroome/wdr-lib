@@ -54,7 +54,7 @@ public class JSONLexanToken
 					"Must use JSONScannerToken(BigInteger) c'tor to create BIGINT token");
 		case UNKNOWN:
 			throw new IllegalArgumentException(
-					"Must use JSONScannerToken(Token,String) c'tor to create UNKNOWN token");
+					"Must use JSONScannerToken(Token,String) c'tor to create LIST token");
 			
 		default:
 			m_token = token;
@@ -102,11 +102,11 @@ public class JSONLexanToken
 	}
 	
 	/**
-	 * Create a STRING or UNKNOWN token.
+	 * Create a STRING or LIST token.
 	 * @param token The token type.
 	 * @param value The value.
 	 * @throws IllegalArgumentException
-	 * 		If token isn't STRING or UNKNOWN.
+	 * 		If token isn't STRING or LIST.
 	 */
 	public JSONLexanToken(Token token, String value)
 	{
@@ -121,12 +121,12 @@ public class JSONLexanToken
 
 		default:
 			throw new IllegalArgumentException(
-					"Can only use JSONScannerToken(Token,String) c'tor to create STRING or UNKNOWN tokens");
+					"Can only use JSONScannerToken(Token,String) c'tor to create STRING or LIST tokens");
 		}
 	}
 	
 	/**
-	 * For STRING or UNKNOWN tokens, return the associated string.
+	 * For STRING or LIST tokens, return the associated string.
 	 * @return The associated String.
 	 */
 	public String getString()
@@ -138,7 +138,7 @@ public class JSONLexanToken
 		default:
 			throw new IllegalStateException(
 					"JSONScannerToken.getString() called on " + m_token.toString()
-					+ " instead of STRING or UNKNOWN token");
+					+ " instead of STRING or LIST token");
 		}
 	}
 	

@@ -18,6 +18,11 @@ import com.wdroome.json.JSONValue_Array;
 import com.wdroome.json.JSONValue_ObjectArray;
 import com.wdroome.json.JSONValueTypeException;
 
+/**
+ * Manage a connection to QLab. Send commands and return responses.
+ * @author wdr
+ *
+ */
 public class QueryQLab extends OSCConnection
 {
 	public static final long DEF_MIN_TIME_BETWEEN_REPEAT_MSGS = 200;
@@ -214,6 +219,27 @@ public class QueryQLab extends OSCConnection
 	}
 	
 	/**
+	 * Return the QLab major version as an integer (eg, 4 or 5).
+	 * @return The QLab major version as an integer.
+	 * 		Return -1 if there is no connection or the version cannot be determined.
+	 */
+	public int getMajorVersion()
+	{
+		try {
+			String version = getVersion();
+			if (version == null || version.isBlank()) {
+				return -1;
+			} else {
+				return Integer.parseInt(version.replaceAll("\\..*$", ""));
+			}
+		} catch (NumberFormatException e) {
+			return -1;
+		} catch (IOException e) {
+			return -1;
+		}
+	}
+	
+	/**
 	 * Get information about the workspaces in QLab.
 	 * @return A list of the workspaces. List is never null, but may be empty.
 	 * @throws IOException If an IO error occurs.
@@ -229,6 +255,27 @@ public class QueryQLab extends OSCConnection
 			}
 		}
 		return workspaces;
+	}
+	
+	/**
+	 * Get information about the network patches in QLab.
+	 * This only works in QLab5 and up.
+	 * @return A list of the patches. List is never null, but may be empty.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public List<QLabNetworkPatchInfo> getNetworkPatches() throws IOException
+	{
+		QLabReply reply = sendQLabReq(QLabUtil.NETWORK_PATCH_LIST_REQ);
+		List<QLabNetworkPatchInfo> networkPatches = new ArrayList<>();
+		JSONValue_ObjectArray arr = reply.getJSONObjectArray(null);
+		if (arr != null) {
+			int patchNumber = 1;
+			for (JSONValue_Object jsonPatch: arr) {
+				networkPatches.add(new QLabNetworkPatchInfo(patchNumber, jsonPatch));
+				patchNumber++;
+			}
+		}
+		return networkPatches;
 	}
 	
 	/**
@@ -878,10 +925,15 @@ public class QueryQLab extends OSCConnection
 	public static void main(String[] args) throws IOException
 	{
 		try (QueryQLab queryQLab = new QueryQLab(args[0])) {
-			System.out.println("Version: " + queryQLab.getVersion());
+			System.out.println("Version: " + queryQLab.getMajorVersion()
+						+ " (" + queryQLab.getVersion() + ")");
 			System.out.println("Workspaces:");
 			for (QLabWorkspaceInfo ws: queryQLab.getWorkspaces()) {
 				System.out.println("  " + ws);
+			}
+			System.out.println("Patches:");
+			for (QLabNetworkPatchInfo patch: queryQLab.getNetworkPatches()) {
+				System.out.println("  " + patch);
 			}
 			List<QLabCuelistCue> allCues = queryQLab.getAllCueLists();
 			for (QLabCue cue: allCues) {

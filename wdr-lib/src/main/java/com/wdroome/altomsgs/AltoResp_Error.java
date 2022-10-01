@@ -126,14 +126,14 @@ public class AltoResp_Error extends AltoResp_Base
 	}
 	
 	/**
-	 * Return the "code" string, or "UNKNOWN".
-	 * @return The "code" string, or "UNKNOWN".
+	 * Return the "code" string, or "LIST".
+	 * @return The "code" string, or "LIST".
 	 */
 	public String getCode()
 	{
 		String code = getMetaString(FN_CODE);
 		if (code == null || code.equals(""))
-			code = "UNKNOWN";
+			code = "LIST";
 		return code;
 	}
 	
