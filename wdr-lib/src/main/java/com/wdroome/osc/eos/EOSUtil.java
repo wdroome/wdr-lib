@@ -86,7 +86,7 @@ public class EOSUtil
 		if (methodParts.length == 3 && arg != null && !arg.isBlank()) {
 			return new EOSCueNumber(DEFAULT_CUE_LIST, arg, 0);
 		} else if (methodParts.length == 4 && arg == null) {
-			return new EOSCueNumber(DEFAULT_CUE_LIST, methodParts[3], 0);
+			return new EOSCueNumber(DEFAULT_CUE_LIST, methodParts[2], 0);
 		} else if (methodParts.length == 5 && arg == null) {
 			try {
 				return new EOSCueNumber(Integer.parseInt(methodParts[2]), methodParts[3], 0);
