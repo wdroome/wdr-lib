@@ -37,6 +37,8 @@ public class QLabUtil
 	public static final String FLD_DISPLAY_NAME= "displayName";
 	public static final String FLD_HAS_PASSCODE = "hasPasscode";
 	public static final String FLD_VERSION = "version";
+	public static final String FLD_PORT = "port";
+	public static final String FLD_UDP_REPLY_PORT = "udpReplyPort";
 	
 	// These requests are optionally prefixed by WORKSPACE_REQ_PREFIX.
 	// If there's no prefix, they apply to the currently selected workspace.
@@ -49,6 +51,7 @@ public class QLabUtil
 	public static final String SELECTED_CUES_REQ = "/selectedCues";
 	public static final String RUNNING_CUES_REQ = "/runningCues";
 	public static final String RUNNING_OR_PAUSED_CUES_REQ = "/runningOrPausedCues";
+	public static final String BASE_PATH_REQ = "/basePath";
 	
 	public static final String SELECT_CUE_NUMBER = "/select/%s";
 	public static final String SELECT_CUE_ID = "/select_id/%s";
@@ -66,7 +69,7 @@ public class QLabUtil
 	public static final String CUE_ID_REQ_PREFIX = "/cue_id/";
 	
 	// New in QLab5: Get Network Patches.
-	public static String NETWORK_PATCH_LIST_REQ = "/settings/network/patchList";
+	public static final String NETWORK_PATCH_LIST_REQ = "/settings/network/patchList";
 
 	/*
 	 * Requests whose names end in "_CUE_REQ" apply to a specific cue.

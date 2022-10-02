@@ -30,11 +30,16 @@ public class QueryQLab extends OSCConnection
 	public static final long DEF_MIN_TIME_BETWEEN_REPEAT_MSGS = 200;
 	public static final int DEF_TIMEOUT = 2000;
 	
+	private static final String UNKNOWN_VERSION = "0.0.0";
+	private static final int UNKNOWN_MAJOR_VERSION = 0;
+	
 	private long m_timeoutMS = DEF_TIMEOUT;
 	private String m_passcode = "";
 	private String m_lastReplyWorkspaceId = "";
 	private int m_numDenied = 0;
 	private PrintStream m_errOut = System.err;
+	private String m_version = UNKNOWN_VERSION;
+	private int m_majorVersion = UNKNOWN_MAJOR_VERSION;
 
 	/**
 	 * Create connection to query a QLab server.
@@ -131,18 +136,46 @@ public class QueryQLab extends OSCConnection
 		this.m_timeoutMS = timeoutMS;
 	}
 	
+	/**
+	 * Connect to QLab. Set alwaysReply, get version, set passcode, check for permissions.
+	 */
 	@Override
 	public void connect() throws IOException
 	{
 		m_numDenied = 0;
 		super.connect();
 		super.sendMessage(new OSCMessage(QLabUtil.ALWAYS_REPLY_REQ, new Object[] {"1"}));
+		QLabReply reply;
+
+		// Get & save QLab version.
+		try {
+			reply = sendQLabReqNoConn(QLabUtil.VERSION_REQ, null);
+			m_version = reply != null ? reply.getString(UNKNOWN_VERSION) : UNKNOWN_VERSION;
+		} catch (Exception e) {
+			m_version = UNKNOWN_VERSION;
+		}
+		try {
+			if (m_version != null && !m_version.isBlank()) {
+				m_majorVersion = Integer.parseInt(m_version.replaceAll("\\..*$", ""));
+			}
+		} catch (Exception e) {
+			m_majorVersion = UNKNOWN_MAJOR_VERSION;
+		}
+
+		// Connect if passcode is specified.
 		if (!m_passcode.isEmpty()) {
-			QLabReply reply = sendQLabReqNoConn(QLabUtil.CONNECT_REQ, new Object[] {m_passcode});
+			reply = sendQLabReqNoConn(QLabUtil.CONNECT_REQ, new Object[] {m_passcode});
 			String connData;
 			if (reply == null || (connData = reply.getString(null)) == null || !connData.startsWith("ok")) {
-				logError("***** QueryQLab: Connect failed. Check passcode.");
+				logError("***** QueryQLab: " + QLabUtil.CONNECT_REQ + " failed. Check passcode.");
 			}
+		}
+		reply = sendQLabReqNoConn(QLabUtil.BASE_PATH_REQ, null);
+		
+		// Check for whether we have permission to access QLab.
+		reply = sendQLabReqNoConn(QLabUtil.BASE_PATH_REQ, null);
+		if (reply == null || !reply.isOk()) {
+			accessDeniedError(QLabUtil.BASE_PATH_REQ);
 		}
 	}
 	
@@ -211,10 +244,12 @@ public class QueryQLab extends OSCConnection
 	
 	protected void accessDeniedError(String method)
 	{
-		logError("************************");
-		logError("**** QLab Denied Access for " + method);
+		logError("");
+		logError("**********************************************");
+		logError("**** QLab Denied Access for " + method + ".");
 		logError("**** Check passcode.");
-		logError("************************");
+		logError("**********************************************");
+		logError("");
 	}
 
 	/**
@@ -235,8 +270,10 @@ public class QueryQLab extends OSCConnection
 	public boolean isQLab()
 	{
 		try {
-			String version = getVersion();
-			return version != null && !version.equals("");
+			if (!isConnected()) {
+				connect();
+			}
+			return m_version != null && !m_version.equals(UNKNOWN_VERSION);
 		} catch (IOException e) {
 			return false;
 		}
@@ -244,34 +281,37 @@ public class QueryQLab extends OSCConnection
 
 	/**
 	 * Get the QLab version.
-	 * @return The QLab version.
+	 * @return The QLab version, or UNKNOWN_VERSION if we cannot get the version.
 	 * @throws IOException If an IO error occurs.
 	 */
-	public String getVersion() throws IOException
+	public String getVersion()
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.VERSION_REQ);
-		return reply != null ? reply.getString("") : "";
+		if (!isConnected()) {
+			try {
+				connect();
+			} catch (IOException e) {
+				return UNKNOWN_VERSION;
+			}
+		}
+		return m_version;
 	}
 	
 	/**
 	 * Return the QLab major version as an integer (eg, 4 or 5).
 	 * @return The QLab major version as an integer.
-	 * 		Return -1 if there is no connection or the version cannot be determined.
+	 * 		Return UNKNOWN_MAJOR_VERSION if there is no connection
+	 * 		or the version cannot be determined.
 	 */
 	public int getMajorVersion()
 	{
-		try {
-			String version = getVersion();
-			if (version == null || version.isBlank()) {
-				return -1;
-			} else {
-				return Integer.parseInt(version.replaceAll("\\..*$", ""));
+		if (!isConnected()) {
+			try {
+				connect();
+			} catch (IOException e) {
+				return UNKNOWN_MAJOR_VERSION;
 			}
-		} catch (NumberFormatException e) {
-			return -1;
-		} catch (IOException e) {
-			return -1;
 		}
+		return m_majorVersion;
 	}
 	
 	/**
@@ -977,6 +1017,7 @@ public class QueryQLab extends OSCConnection
 		try (QueryQLab queryQLab = new QueryQLab(args[0])) {
 			System.out.println("Version: " + queryQLab.getMajorVersion()
 						+ " (" + queryQLab.getVersion() + ")");
+			System.out.println("IsQLab: " + queryQLab.isQLab());
 			System.out.println("Workspaces:");
 			for (QLabWorkspaceInfo ws: queryQLab.getWorkspaces()) {
 				System.out.println("  " + ws);
