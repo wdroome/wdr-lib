@@ -1,6 +1,8 @@
 package com.wdroome.osc.qlab;
 
 import java.io.IOException;
+import java.io.PrintStream;
+
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.ArrayList;
@@ -31,6 +33,8 @@ public class QueryQLab extends OSCConnection
 	private long m_timeoutMS = DEF_TIMEOUT;
 	private String m_passcode = "";
 	private String m_lastReplyWorkspaceId = "";
+	private int m_numDenied = 0;
+	private PrintStream m_errOut = System.err;
 
 	/**
 	 * Create connection to query a QLab server.
@@ -130,10 +134,15 @@ public class QueryQLab extends OSCConnection
 	@Override
 	public void connect() throws IOException
 	{
+		m_numDenied = 0;
 		super.connect();
 		super.sendMessage(new OSCMessage(QLabUtil.ALWAYS_REPLY_REQ, new Object[] {"1"}));
 		if (!m_passcode.isEmpty()) {
-			super.sendMessage(new OSCMessage(QLabUtil.CONNECT_REQ, new Object[] {m_passcode}));
+			QLabReply reply = sendQLabReqNoConn(QLabUtil.CONNECT_REQ, new Object[] {m_passcode});
+			String connData;
+			if (reply == null || (connData = reply.getString(null)) == null || !connData.startsWith("ok")) {
+				logError("***** QueryQLab: Connect failed. Check passcode.");
+			}
 		}
 	}
 	
@@ -149,6 +158,18 @@ public class QueryQLab extends OSCConnection
 		if (!isConnected()) {
 			connect();
 		}
+		return sendQLabReqNoConn(requestMethod, args);
+	}
+	
+	/**
+	 * Send a request to QLab and return the reply.
+	 * @param requestMethod The request method.
+	 * @param args The argument. May be null.
+	 * @return Information about the reply.
+	 * @throws IOException If an IO error occurs.
+	 */
+	private QLabReply sendQLabReqNoConn(String requestMethod, Object[] args) throws IOException
+	{
 		OSCMessage req = new OSCMessage(requestMethod, args);
 		final ArrayBlockingQueue<OSCMessage> replyQueue = new ArrayBlockingQueue<>(10);
 		ReplyHandler replyHandler;
@@ -170,6 +191,12 @@ public class QueryQLab extends OSCConnection
 			if (!reply.m_workspaceId.isBlank()) {
 				m_lastReplyWorkspaceId = reply.m_workspaceId;
 			}
+			if (reply.isDenied()) {
+				if (m_numDenied <= 2) {
+					accessDeniedError(requestMethod);
+				}
+				m_numDenied++;
+			}
 			return reply;
 		} catch (JSONParseException e) {
 			logError("QueryQLab.send(" + requestMethod + "): Invalid JSON response "
@@ -180,6 +207,14 @@ public class QueryQLab extends OSCConnection
 					+ e + " " + replyMsg);
 			return null;
 		}
+	}
+	
+	protected void accessDeniedError(String method)
+	{
+		logError("************************");
+		logError("**** QLab Denied Access for " + method);
+		logError("**** Check passcode.");
+		logError("************************");
 	}
 
 	/**
@@ -815,7 +850,7 @@ public class QueryQLab extends OSCConnection
 		}
 		String newCueId = reply.getString("");
 		if (newCueId == null) {
-			System.err.println("QueryQLab: no id in new-cue reply.");
+			logError("QueryQLab: no id in new-cue reply.");
 			return null;
 		}
 		if (number != null && !number.isBlank()) {
@@ -865,7 +900,7 @@ public class QueryQLab extends OSCConnection
 			} else if (cue instanceof QLabCartCue) {
 				// ignore carts
 			} else {
-				System.err.println("QueryQLab.getAllCuelists(): non-cuelist/cuecart at top level: " + cue);
+				logError("QueryQLab.getAllCuelists(): non-cuelist/cuecart at top level: " + cue);
 			}
 		}
 		return cuelists;
@@ -889,7 +924,7 @@ public class QueryQLab extends OSCConnection
 			} else if (cue instanceof QLabCuelistCue) {
 				// ignore cue lists
 			} else {
-				System.err.println("QueryQLab.getAllCueCarts(): non-cuelist/cuecart at top level: " + cue);
+				logError("QueryQLab.getAllCueCarts(): non-cuelist/cuecart at top level: " + cue);
 			}
 		}
 		return cuecarts;
@@ -920,6 +955,21 @@ public class QueryQLab extends OSCConnection
 			b.append("   ");
 		}
 		return b.toString();
+	}
+	
+	@Override
+	public void logError(String err)
+	{
+		m_errOut.println(err);
+	}
+	
+	/**
+	 * Set the error output stream.
+	 * @param errOut The error output stream. If null, use System.err.
+	 */
+	public void setErrOut(PrintStream errOut)
+	{
+		m_errOut = errOut != null ? errOut : System.err;
 	}
 
 	public static void main(String[] args) throws IOException

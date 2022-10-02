@@ -19,10 +19,11 @@ public class QLabReply
 {
 	/**
 	 * Status in a QLab response.
+	 * DENIED is new in QLab5.
 	 */
 	public static enum Status
 	{
-		OK, ERROR;
+		OK, ERROR, DENIED;
 		
 		public static Status fromQLab(String fromQLab)
 		{
@@ -72,6 +73,15 @@ public class QLabReply
 	public boolean isOk()
 	{
 		return m_status == Status.OK;
+	}
+	
+	/**
+	 * Test if the request failed because the requester didn't have the necessary permissions.
+	 * @return True if the request was denied because the client has not connected with a valid passcode.
+	 */
+	public boolean isDenied()
+	{
+		return m_status == Status.DENIED;
 	}
 
 	@Override

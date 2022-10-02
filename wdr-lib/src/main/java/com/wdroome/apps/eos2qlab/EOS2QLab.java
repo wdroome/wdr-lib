@@ -239,6 +239,7 @@ public class EOS2QLab implements Closeable
 			out.println("  *** Not connected to QLab controller.");
 			return false;
 		}
+		m_queryQLab.setErrOut(out);
 		try {
 			out.println("QLab Workspaces:");
 			out.println("  Address: " + m_queryQLab.getIpAddrString());
@@ -263,6 +264,10 @@ public class EOS2QLab implements Closeable
 		} catch (IOException e) {
 			out.println("Error connecting to QLab at " + m_queryQLab.getIpAddrString() + ": " + e);
 			return false;
+		} finally {
+			if (m_queryQLab != null) {
+				m_queryQLab.setErrOut(null);
+			}
 		}
 	}
 	
