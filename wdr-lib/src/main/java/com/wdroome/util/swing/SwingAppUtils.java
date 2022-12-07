@@ -39,7 +39,7 @@ public class SwingAppUtils
 		 * Handle an error setting the Look And Feel.
 		 * @param lnfSpec The LnF specifier that caused the error.
 		 * @param e If null, lnfSpec could not be resolved to a Swing LnF class.
-		 * 		If not null, could be resolved to a class, but swing,UIManager returned this error
+		 * 		If not null, lnfSpec could be resolved to a class, but swing,UIManager returned this error
 		 * 		when trying to set it.
 		 */
 		public void handleLnfError(String lnfSpec, Exception e);
