@@ -1,9 +1,14 @@
 package com.wdroome.artnet.util;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -13,10 +18,10 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.event.ComponentListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
+import javax.swing.SwingUtilities;
 import javax.swing.JFrame;
 import javax.swing.JTabbedPane;
 import javax.swing.JPanel;
@@ -36,10 +41,15 @@ import javax.swing.border.CompoundBorder;
 import com.wdroome.artnet.ArtNetChannel;
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetDmx;
+import com.wdroome.artnet.ArtNetMsg;
+import com.wdroome.artnet.ArtNetOpcode;
+import com.wdroome.artnet.ArtNetPoll;
+import com.wdroome.artnet.ArtNetPollReply;
 import com.wdroome.artnet.ArtNetPort;
 import com.wdroome.util.swing.JTextAreaErrorLogger;
 import com.wdroome.util.IErrorLogger;
 import com.wdroome.util.SystemErrorLogger;
+import com.wdroome.util.inet.InetInterface;
 import com.wdroome.util.swing.SwingAppUtils;
 
 public class ArtNetMonitorWindow extends JFrame
@@ -73,7 +83,6 @@ public class ArtNetMonitorWindow extends JFrame
     	private ArtNetPort m_anPort;
     	private int m_numActiveChannels;
     	private JPanel m_chanPanel;
-    	private JTabbedPane m_tabPane;
     	private JScrollPane m_scrollPane;
     	private int m_tabIndex;
     	private JLabel[] m_chanValues;
@@ -109,9 +118,9 @@ public class ArtNetMonitorWindow extends JFrame
 		public ChanPanel()
 		{
 			super();
-			// setLayout(new FlowLayout(FlowLayout.LEFT, CHANBOX_HSEP, CHANBOX_VSEP));
 			setBorder(new EmptyBorder(4,4,4,4));
-			setLayout(new GridLayout(0, 10, CHANBOX_HSEP, CHANBOX_VSEP));
+			// setLayout(new GridLayout(0, 10, CHANBOX_HSEP, CHANBOX_VSEP));
+			setLayout(new FlowLayout(FlowLayout.LEFT, CHANBOX_HSEP, CHANBOX_VSEP));
 			setBackground(BACKGROUND_COLOR);
 		}
 		
@@ -146,6 +155,7 @@ public class ArtNetMonitorWindow extends JFrame
     private ArrayList<Integer> m_ipPorts = new ArrayList<>();
 	private ArrayList<ArtNetPort> m_anPorts = new ArrayList<>();
 	private Dimension m_chanBoxSize;
+	private JTabbedPane m_tabPane;
 	
 	private ArtNetChannel m_channel;
 	private AtomicBoolean m_running = new AtomicBoolean(true);
@@ -160,10 +170,17 @@ public class ArtNetMonitorWindow extends JFrame
 
 	public static void main(String[] args)
 	{
-		SwingAppUtils.startSwing(() -> new ArtNetMonitorWindow(args), args);
+		SwingAppUtils.startSwing(() -> {
+			try {
+				new ArtNetMonitorWindow(args);
+			} catch (IOException e) {
+				System.err.println("Exception at startup: " + e);
+				System.exit(1);
+			}
+		}, args);
 	}
 	
-	public ArtNetMonitorWindow(String[] args)
+	public ArtNetMonitorWindow(String[] args) throws IOException
 	{
 		super();
 		if (!parseArgs(args)) {
@@ -172,44 +189,37 @@ public class ArtNetMonitorWindow extends JFrame
 		init();
 	}
 	
-	private void init()
+	private void init() throws IOException
 	{
 		m_logger = new JTextAreaErrorLogger( /* alert-text-style, alert-text-id */ );
 		m_chanBoxSize = new ChanBox(new JLabel("888"), new JLabel("---")).getPreferredSize();
 		// System.out.println("XXX: chanbox size: " + m_chanBoxSize);
+    	
+		StringBuilder title = new StringBuilder();
+		title.append("Art-Net Monitor Node, IP ports");
+		for (int p: m_ipPorts) {
+			title.append(" " + p);
+		}
+		setTitle(title.toString());
 		setSize(400,300);
-		JTabbedPane tabPane = new JTabbedPane();
+		m_tabPane = new JTabbedPane();
 		
     	m_anPortDisplays = new AnPortDisplay[m_anPorts.size()];
 		for (int i = 0; i < m_anPorts.size(); i++) {
 			m_anPortDisplays[i] = new AnPortDisplay();
-			m_anPortDisplays[i].m_tabPane = tabPane;
 			m_anPortDisplays[i].m_tabIndex = i;
 			m_anPortDisplays[i].m_anPort = m_anPorts.get(i);
 			makePortTab(m_anPortDisplays[i]);
 		}
 		
-		if (m_logger instanceof JTextAreaErrorLogger) {
-			tabPane.add(TABNAME__ALERTS,
-					((JTextAreaErrorLogger)m_logger).getScrollPane("", ""));
-		}
-		StringBuilder initMsg = new StringBuilder();
-		initMsg.append("\n");
-		initMsg.append("    IP Ports:");
-		for (int p: m_ipPorts) {
-			initMsg.append("  " + p);
-		}
-		initMsg.append("\n");
-		initMsg.append("    Art-Net Ports:");
-		for (ArtNetPort p: m_anPorts) {
-			initMsg.append("  " + p.toString());
-		}
-		initMsg.append("\n");
-        m_logger.logError("ArtNetMonitorWindow config", 0, initMsg.toString());
+		makeAlertTab(m_tabPane);
 		
-		getContentPane().add(tabPane);
+		getContentPane().add(m_tabPane);
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		setVisible(true);
+		
+    	m_channel = new ArtNetChannel(new Receiver(), m_ipPorts);
+		new Monitor();
 	}
 	
 	private boolean parseArgs(String[] args)
@@ -239,13 +249,6 @@ public class ArtNetMonitorWindow extends JFrame
 			m_lastDmxMsg.add(new AtomicReference<DmxMsgTS>());
 			m_numDmxMsgs.add(new AtomicLong());
     	}
-    	
-		StringBuilder title = new StringBuilder();
-		title.append("Art-Net Monitor Node, IP ports");
-		for (int p: m_ipPorts) {
-			title.append(" " + p);
-		}
-		setTitle(title.toString());
 		return true;
 	}
 	
@@ -265,7 +268,6 @@ public class ArtNetMonitorWindow extends JFrame
 			disp.m_chanBoxes[i] = new ChanBox(num, value);
 			if (m_chanBoxSize != null) {
 				disp.m_chanBoxes[i].setPreferredSize(m_chanBoxSize);
-				// disp.m_chanBoxes[i].setMaximumSize(m_chanBoxSize);
 			}
 			if (i < disp.m_numActiveChannels) {
 				disp.m_chanPanel.add(disp.m_chanBoxes[i]);
@@ -275,7 +277,7 @@ public class ArtNetMonitorWindow extends JFrame
 		if (true) {
 			JScrollPane scrollPane = new JScrollPane(disp.m_chanPanel);
 			disp.m_scrollPane = scrollPane;
-			scrollPane.setWheelScrollingEnabled(true);
+			// scrollPane.setWheelScrollingEnabled(true);
 			final JViewport viewport = scrollPane.getViewport();
 			viewport.setBackground(BACKGROUND_COLOR);
 			viewport.addComponentListener(new ComponentAdapter() {
@@ -283,19 +285,40 @@ public class ArtNetMonitorWindow extends JFrame
 					resizeChanBoxPanel(disp);
 				}
 			});
-			// scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-			// scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-			disp.m_tabPane.add(scrollPane);
+			scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+			scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+			m_tabPane.add(scrollPane);
 		} else {
-			disp.m_tabPane.add(disp.m_chanPanel);
+			m_tabPane.add(disp.m_chanPanel);
 			disp.m_scrollPane = null;
 		}
-		setTabTitle(disp.m_tabPane, disp.m_tabIndex, disp.m_anPort, 0);
+		setTabTitle(disp.m_tabIndex, disp.m_anPort, 0);
+	}
+	
+	private void makeAlertTab(JTabbedPane tabPane)
+	{
+		if (m_logger instanceof JTextAreaErrorLogger) {
+			tabPane.add(TABNAME__ALERTS,
+					((JTextAreaErrorLogger)m_logger).getScrollPane("", ""));
+		}
+		StringBuilder initMsg = new StringBuilder();
+		initMsg.append("\n");
+		initMsg.append("    IP Ports:");
+		for (int p: m_ipPorts) {
+			initMsg.append("  " + p);
+		}
+		initMsg.append("\n");
+		initMsg.append("    Art-Net Ports:");
+		for (ArtNetPort p: m_anPorts) {
+			initMsg.append("  " + p.toString());
+		}
+		initMsg.append("\n");
+        m_logger.logError("ArtNetMonitorWindow config", 0, initMsg.toString());
 	}
     
-    private static void setTabTitle(JTabbedPane tabPane, int tabIndex, ArtNetPort anPort, long numMsgs)
+    private void setTabTitle(int tabIndex, ArtNetPort anPort, long numMsgs)
     {
-    	tabPane.setTitleAt(tabIndex, "Port: " + anPort + "  #DMX: " + numMsgs);
+    	m_tabPane.setTitleAt(tabIndex, "Port: " + anPort + "  #DMX: " + numMsgs);
     }
     
     private void resizeChanBoxPanel(AnPortDisplay disp)
@@ -303,21 +326,245 @@ public class ArtNetMonitorWindow extends JFrame
     	if (disp.m_scrollPane != null) {
 	    	int vpwid = disp.m_scrollPane.getViewport().getSize().width;
 	    	int ncols = (vpwid - 16)/(m_chanBoxSize.width + CHANBOX_HSEP);
+			int nrows = (disp.m_numActiveChannels + ncols - 1) / ncols;
 	    	LayoutManager layoutMgr = disp.m_chanPanel.getLayout();
 	    	if (layoutMgr instanceof GridLayout) {
 	    		((GridLayout)layoutMgr).setColumns(ncols);
+	    	} else if (layoutMgr instanceof FlowLayout) {
+	    		disp.m_chanPanel.setPreferredSize(new Dimension(
+	    				4 + CHANBOX_HSEP + ncols*(m_chanBoxSize.width + CHANBOX_HSEP),
+	    				4 + CHANBOX_VSEP + nrows*(m_chanBoxSize.height + CHANBOX_VSEP)));
 	    	}
 	    	
 			if (false) {
-				System.out.println("XXX Resized " + disp.m_tabIndex + " " + disp.m_scrollPane.getViewport().getSize()
-						+ " " + ncols);
+				System.out.println("XXX Resized " + disp.m_tabIndex
+						+ " " + disp.m_scrollPane.getViewport().getSize()
+						+ " " + ncols + " " + disp.m_scrollPane.getVerticalScrollBar().getSize());
 			}
 			if (false) {
-				int nrows = (disp.m_numActiveChannels + 1) / ncols;
 				disp.m_chanPanel.setMaximumSize(
 						new Dimension(vpwid - 2, CHANBOX_VSEP + nrows * (m_chanBoxSize.height + CHANBOX_VSEP)));
 				disp.m_chanPanel.repaint();
 			}
     	}
     }
+    
+    private class Monitor extends Thread
+    {
+    	public Monitor()
+    	{
+    		setDaemon(true);
+    		setName("ArtNetMonitorWindow.Monitor");
+    		start();
+    	}
+
+    	@Override
+    	public void run()
+    	{
+    		Updater updater = new Updater();
+    		while (m_running.get()) {
+    			try {Thread.sleep(200);} catch(Exception e) {}
+    			SwingUtilities.invokeLater(updater);
+    		}
+    	}
+    }
+    	
+    private class Updater implements Runnable
+    {
+    	@Override
+    	public void run()
+    	{
+    		for (int i = 0; i < m_anPortDisplays.length; i++) {
+    			AnPortDisplay disp = m_anPortDisplays[i];
+    			setTabTitle(disp.m_tabIndex, disp.m_anPort, m_numDmxMsgs.get(i).get());
+    			DmxMsgTS dmx = m_lastDmxMsg.get(i).get();
+    			if (dmx != null && dmx.m_msg != null) {
+    				for (int c = 0; c < dmx.m_msg.m_dataLen; c++) {
+    					disp.m_chanValues[c].setText(String.format("%3d", 0xff & dmx.m_msg.m_data[c]));
+    				}
+    				if (disp.m_numActiveChannels < dmx.m_msg.m_dataLen) {
+    					for (int c = disp.m_numActiveChannels; c < dmx.m_msg.m_dataLen; c++) {
+    						disp.m_chanPanel.add(disp.m_chanBoxes[c]);
+    					}
+    					disp.m_numActiveChannels = dmx.m_msg.m_dataLen;
+    					resizeChanBoxPanel(disp);
+    				}
+    			}
+    		}
+    	}
+    }
+    
+	/**
+	 * Handle incoming Art-Net messages.
+	 */
+	private class Receiver implements ArtNetChannel.Receiver
+	{
+		private final List<InetInterface> m_inetInterfaces = InetInterface.getAllInterfaces();
+		private final ArtNetPollReply m_reply;
+		private InetSocketAddress m_lastDmxSender = null;
+		private InetSocketAddress m_lastDmxReceiver = null;
+		
+		public Receiver()
+		{
+			m_reply = new ArtNetPollReply();
+			m_reply.m_shortName = "ArtNetMonitorWindow";
+			m_reply.m_longName = m_reply.m_shortName;
+			m_reply.m_style = ArtNetConst.StNode;
+			m_reply.m_status2 = 0x0e;	// Supports 15-bit node addresses & DHCP.
+			m_reply.m_numPorts = m_anPorts.size();
+			for (int i = 0; i < m_anPorts.size(); i++) {
+				m_reply.m_netAddr = m_anPorts.get(i).m_net;
+				m_reply.m_subNetAddr = m_anPorts.get(i).m_subNet;
+				m_reply.m_portTypes[i] = (byte)0x80;
+				m_reply.m_goodInput[i] = (byte)0x00;
+				m_reply.m_goodOutput[i] = (byte)0x80;
+				m_reply.m_swOut[i] = (byte)m_anPorts.get(i).m_universe;
+			}
+		}
+
+		/* (non-Javadoc)
+		 * @see ArtNetChannel.Receiver#msgArrived(ArtNetMsg, InetSocketAddress, InetSocketAddress)
+		 */
+		@Override
+		public void msgArrived(ArtNetChannel chan, ArtNetMsg msg,
+								InetSocketAddress sender, InetSocketAddress receiver)
+		{
+			if (msg instanceof ArtNetPollReply) {
+				m_logger.logError("ArtNetMonitorWindow: PollReply from "
+							+ sender.getAddress().getHostAddress(), 1200000, "Received");
+			} else if (msg instanceof ArtNetPoll) {
+				m_logger.logError("ArtNetMonitorWindow: Poll from "
+							+ sender.getAddress().getHostAddress(), 1200000, "Received");
+				InetSocketAddress bcastAddr = getBcastAddr(sender.getAddress(), ArtNetConst.ARTNET_PORT);
+				if (bcastAddr != null) {
+					setAddrs(m_reply, sender, receiver.getPort());
+					if (m_reply.m_ipAddr != null) {
+						try {
+							chan.send(m_reply, bcastAddr);
+							if (false) {
+								System.out.println("XXX: Send PollRep " + m_reply);
+								System.out.println("XXX: sent poll reply to " + bcastAddr);
+							}
+						} catch (IOException e) {
+							m_logger.logError("ArtNetMonitorWindow: Poll Reply Error",
+												60000, "To " + bcastAddr + " " + e);
+						}
+					} else {
+						m_logger.logError("ArtNetMonitorWindow: No Reply Addr in Poll",
+								60000, "No Iface for " + bcastAddr);
+					}
+				} else {
+					m_logger.logError("ArtNetMonitorWindow: Poll Reply Err", 60000,
+										"No bcast addr for " + sender.getAddress().getHostAddress());
+				}
+				m_numPollMsgs.incrementAndGet();
+				// XXX: record poll request
+			} else if (msg instanceof ArtNetDmx) {
+				if (!sender.equals(m_lastDmxSender) || !receiver.equals(m_lastDmxReceiver)) {
+					m_logger.logError("ArtNetMonitorWindow: New DMX Sender/Receiver", 120000,
+							sender.getAddress().getHostAddress() + ":" + sender.getPort()
+							+ " => " + receiver.getAddress().getHostAddress() + ":" + receiver.getPort());
+					m_lastDmxSender = sender;
+					m_lastDmxReceiver = receiver;
+				}
+				ArtNetDmx dmx = (ArtNetDmx)msg;
+				boolean ours = false;
+				for (int i = 0; i < m_anPorts.size(); i++) {
+					ArtNetPort anPort = m_anPorts.get(i);
+					if (dmx.m_subUni == anPort.subUniv() && dmx.m_net == anPort.m_net) {
+						DmxMsgTS prev = m_lastDmxMsg.get(i).getAndSet(new DmxMsgTS(dmx));
+						m_numDmxMsgs.get(i).incrementAndGet();
+						ours = true;
+						if (prev != null
+								&& dmx.m_sequence != 0
+								&& prev.m_msg.m_sequence != 0
+								&& ((dmx.m_sequence - prev.m_msg.m_sequence + 256) % 256) > 200) {
+							m_logger.logError("ArtNetMonitorWindow: out of sequence dmx msg", 60000,
+										dmx.m_sequence + " " + prev.m_msg.m_sequence);
+						}
+						break;
+					}
+				}
+				if (!ours) {
+					m_numBadDmxMsgs.incrementAndGet();
+					m_logger.logError("ArtNetMonitorWindow: Incorrect ANPort " +
+									new ArtNetPort(dmx.m_net, dmx.m_subUni).toString(), 60000, "");
+				}
+			} else {
+				m_logger.logError("ArtNetMonitorWindow: unexpected msg",
+									0, sender + "->" + receiver + " " + msg);
+			}
+		}
+
+		/* (non-Javadoc)
+		 * @see ArtNetChannel.Receiver#msgArrived(ArtNetOpcode, byte[], int, InetSocketAddress, InetSocketAddress)
+		 */
+		@Override
+		public void msgArrived(ArtNetChannel chan, ArtNetOpcode opcode, byte[] buff, int len,
+								InetSocketAddress sender, InetSocketAddress receiver)
+		{
+			m_logger.logError("ArtNetMonitorWindow: unexpected msg",
+									0, opcode + " " + sender + "->" + receiver);
+		}
+
+		/* (non-Javadoc)
+		 * @see ArtNetChannel.Receiver#msgArrived(byte[], int, InetSocketAddress, InetSocketAddress)
+		 */
+		@Override
+		public void msgArrived(ArtNetChannel chan, byte[] msg, int len,
+								InetSocketAddress sender, InetSocketAddress receiver)
+		{
+			m_logger.logError("ArtNetMonitorWindow: non-art-net msg",
+									0, "len " + len + " " + sender + "->" + receiver);
+		}
+		
+		
+		/**
+		 * Return the broadcast address for the subnet containing a specific address.
+		 * @param addr A non-broadcast address.
+		 * @param port A port number.
+		 * @return The broadcast address for addr's subnet, or null if none is known.
+		 */
+		private InetSocketAddress getBcastAddr(InetAddress addr, int port)
+		{
+			for (InetInterface iface: m_inetInterfaces) {
+				if (iface.m_cidr != null
+						&& iface.m_cidr.contains(addr)
+						&& iface.m_broadcast != null
+						&& iface.m_broadcast instanceof Inet4Address) {
+					return new InetSocketAddress(iface.m_broadcast, port);
+				}
+			}
+			return null;
+		}
+		
+		/**
+		 * Set the ip address & port in an Art-Net Poll Reply
+		 * to the local address on the subnet which contains an address.
+		 * Also copy the local mac address to the reply.
+		 * @param addr An IP address.
+		 * @param port The port on which the Poll message arrived.
+		 */
+		private void setAddrs(ArtNetPollReply reply, InetSocketAddress addr, int port)
+		{
+			for (InetInterface iface: m_inetInterfaces) {
+				if (iface.m_address instanceof Inet4Address
+						&& iface.m_cidr != null
+						&& iface.m_cidr.contains(addr.getAddress())
+						&& iface.m_broadcast != null
+						&& iface.m_broadcast instanceof Inet4Address) {
+					reply.m_ipAddr = (Inet4Address)iface.m_address;
+					reply.m_ipPort = port;
+					if (reply.m_macAddr != null
+							&& iface.m_hardwareAddress != null
+							&& reply.m_macAddr.length == iface.m_hardwareAddress.length) {
+						for (int i = 0; i < iface.m_hardwareAddress.length; i++) {
+							reply.m_macAddr[i] = iface.m_hardwareAddress[i];
+						}
+					}
+					return;
+				}
+			}
+		}
+	}
 }
