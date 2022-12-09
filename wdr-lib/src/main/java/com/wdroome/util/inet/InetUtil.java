@@ -25,11 +25,8 @@ public class InetUtil
 		LIMITED_BCAST_ADDR = bcastAddr;
 	}
 	
-	
 	public byte[] x = new byte[] {(byte)255,(byte)255,(byte)255,(byte)255};
 	
-	
-
 	/**
 	 * Compare two internet addresses based on the raw address bytes.
 	 * Shorter addresses compare less than longer addresses.
@@ -90,6 +87,9 @@ public class InetUtil
 	 */
 	public static String toAddrPort(InetSocketAddress addr)
 	{
+		if (addr == null) {
+			return "[null-addr]";
+		}
 		InetAddress addrPart = addr.getAddress();
 		if (addrPart instanceof Inet6Address) {
 			return "[" + addrPart.getHostAddress() + "]:" + addr.getPort();

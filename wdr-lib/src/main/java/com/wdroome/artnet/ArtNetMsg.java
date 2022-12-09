@@ -1,6 +1,9 @@
 package com.wdroome.artnet;
 
+import java.io.IOException;
 import java.io.PrintStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -353,5 +356,33 @@ public abstract class ArtNetMsg
 			b.append(ipAddr.getHostAddress());
 			b.append(',');
 		}
+	}
+	
+	/**
+	 * Send this message.
+	 * @param args The destination IP address and optional port, as strings.
+	 * @throws IOException
+	 */
+	protected void sendMsg(String[] args) throws IOException
+	{
+		if (args.length == 0) {
+			System.err.println("Usage: to-ipaddr [to-port]");
+		}
+		InetAddress toAddr = InetAddress.getByName(args[0]);
+		int toPort = ArtNetConst.ARTNET_PORT;
+		if (args.length >= 2) {
+			toPort = Integer.parseInt(args[1]);
+		}
+		try (DatagramSocket socket = new DatagramSocket()) {
+			byte[] msgBuff = new byte[ArtNetConst.MAX_MSG_LEN];
+			int msgLen = putData(msgBuff, 0);
+			 
+			DatagramPacket request = new DatagramPacket(msgBuff, msgLen, toAddr, toPort);
+			socket.send(request);
+		} catch (IOException e) {
+			System.out.println("ArtNetMsg.send " + "->" + toAddr.getHostAddress() + ":" + toPort
+								+ " ERR:" + e);
+			throw e;
+		}			
 	}
 }

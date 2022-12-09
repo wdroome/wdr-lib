@@ -1,7 +1,10 @@
 package com.wdroome.artnet.util;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -9,7 +12,7 @@ import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-
+import java.net.UnknownHostException;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.LayoutManager;
@@ -38,6 +41,7 @@ import javax.swing.border.LineBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.CompoundBorder;
 
+import com.wdroome.util.inet.InetUtil;
 import com.wdroome.artnet.ArtNetChannel;
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetDmx;
@@ -46,6 +50,7 @@ import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.artnet.ArtNetPoll;
 import com.wdroome.artnet.ArtNetPollReply;
 import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetChannel.Receiver;
 import com.wdroome.util.swing.JTextAreaErrorLogger;
 import com.wdroome.util.IErrorLogger;
 import com.wdroome.util.SystemErrorLogger;
@@ -154,6 +159,7 @@ public class ArtNetMonitorWindow extends JFrame
 
     private ArrayList<Integer> m_ipPorts = new ArrayList<>();
 	private ArrayList<ArtNetPort> m_anPorts = new ArrayList<>();
+	private HashSet<InetAddress> m_bindAddrs = new HashSet<>();
 	private Dimension m_chanBoxSize;
 	private JTabbedPane m_tabPane;
 	
@@ -218,7 +224,14 @@ public class ArtNetMonitorWindow extends JFrame
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		setVisible(true);
 		
-    	m_channel = new ArtNetChannel(new Receiver(), m_ipPorts);
+    	m_channel = new MyArtNetChannel(new Receiver(), m_ipPorts);
+    	StringBuilder listenSockets = new StringBuilder();
+    	String sep = "";
+    	for (InetSocketAddress addr: m_channel.getListenSockets()) {
+    		listenSockets.append(sep + InetUtil.toAddrPort(addr));
+    		sep = " ";
+    	}
+    	m_logger.logError("Listening on sockets: " + listenSockets.toString());
 		new Monitor();
 	}
 	
@@ -228,6 +241,8 @@ public class ArtNetMonitorWindow extends JFrame
 			for (String arg: args) {
 				if (arg.startsWith("font=")) {
 					g_chanNumValueFont = Font.decode(arg.substring(5));
+				} else if (arg.matches("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+")) {
+					m_bindAddrs.add(InetAddress.getByName(arg));
 				} else if (arg.matches("[0-9]+")) {
 					m_ipPorts.add(Integer.valueOf(arg));
 				} else if (m_anPorts.size() < ArtNetConst.MAX_PORTS_PER_NODE) {
@@ -235,7 +250,7 @@ public class ArtNetMonitorWindow extends JFrame
 				}
 			}
 		} catch (Exception e) {
-			System.err.println("Usage: ArtNetMonitorWindow [font=name-style-size | ip-port-number | an-port] ...");
+			System.err.println("Usage: ArtNetMonitorWindow [font=name-style-size | ip-bind-addr | ip-port-number | an-port] ...");
 			return false;
 		}
     	if (m_ipPorts.isEmpty()) {
@@ -430,11 +445,11 @@ public class ArtNetMonitorWindow extends JFrame
 								InetSocketAddress sender, InetSocketAddress receiver)
 		{
 			if (msg instanceof ArtNetPollReply) {
-				m_logger.logError("ArtNetMonitorWindow: PollReply from "
-							+ sender.getAddress().getHostAddress(), 1200000, "Received");
+				m_logger.logError("ArtNetMonitorWindow: PollReply " + fromToInetAddrs(sender, receiver),
+							1200000, "Received");
 			} else if (msg instanceof ArtNetPoll) {
-				m_logger.logError("ArtNetMonitorWindow: Poll from "
-							+ sender.getAddress().getHostAddress(), 1200000, "Received");
+				m_logger.logError("ArtNetMonitorWindow: Poll " + fromToInetAddrs(sender, receiver),
+							1200000, "Received from port " + sender.getPort());
 				InetSocketAddress bcastAddr = getBcastAddr(sender.getAddress(), ArtNetConst.ARTNET_PORT);
 				if (bcastAddr != null) {
 					setAddrs(m_reply, sender, receiver.getPort());
@@ -455,15 +470,14 @@ public class ArtNetMonitorWindow extends JFrame
 					}
 				} else {
 					m_logger.logError("ArtNetMonitorWindow: Poll Reply Err", 60000,
-										"No bcast addr for " + sender.getAddress().getHostAddress());
+										"No bcast addr for " + InetUtil.toAddrPort(sender));
 				}
 				m_numPollMsgs.incrementAndGet();
 				// XXX: record poll request
 			} else if (msg instanceof ArtNetDmx) {
 				if (!sender.equals(m_lastDmxSender) || !receiver.equals(m_lastDmxReceiver)) {
 					m_logger.logError("ArtNetMonitorWindow: New DMX Sender/Receiver", 120000,
-							sender.getAddress().getHostAddress() + ":" + sender.getPort()
-							+ " => " + receiver.getAddress().getHostAddress() + ":" + receiver.getPort());
+							fromToInetAddrs(sender, receiver));
 					m_lastDmxSender = sender;
 					m_lastDmxReceiver = receiver;
 				}
@@ -492,8 +506,19 @@ public class ArtNetMonitorWindow extends JFrame
 				}
 			} else {
 				m_logger.logError("ArtNetMonitorWindow: unexpected msg",
-									0, sender + "->" + receiver + " " + msg);
+									0, fromToInetAddrs(sender, receiver) + " " + msg);
 			}
+		}
+		
+		/**
+		 * Return a string with the sender and receiver's IP addresses and ports.
+		 * @param sender The sending socket address.
+		 * @param receiver The receiving socket address.
+		 * @return A string of the form "sender-ipaddr -> receiver-ipaddr:port"
+		 */
+		private String fromToInetAddrs(InetSocketAddress sender, InetSocketAddress receiver)
+		{
+			return sender.getAddress().getHostAddress() + "->" + InetUtil.toAddrPort(receiver);
 		}
 
 		/* (non-Javadoc)
@@ -517,7 +542,6 @@ public class ArtNetMonitorWindow extends JFrame
 			m_logger.logError("ArtNetMonitorWindow: non-art-net msg",
 									0, "len " + len + " " + sender + "->" + receiver);
 		}
-		
 		
 		/**
 		 * Return the broadcast address for the subnet containing a specific address.
@@ -565,6 +589,23 @@ public class ArtNetMonitorWindow extends JFrame
 					return;
 				}
 			}
+		}
+	}
+	
+	/**
+	 * Custom version of ArtNetChannel.
+	 */
+	private class MyArtNetChannel extends ArtNetChannel
+	{
+		public MyArtNetChannel(Receiver receiver, Collection<Integer> listenPorts) throws IOException
+		{
+			super(receiver, listenPorts);
+		}
+
+		@Override
+		protected Set<InetAddress> getBindAddrs() throws UnknownHostException
+		{
+			return !m_bindAddrs.isEmpty() ? m_bindAddrs : super.getBindAddrs();
 		}
 	}
 }

@@ -1,5 +1,6 @@
 package com.wdroome.artnet;
 
+import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -85,7 +86,7 @@ public class ArtNetPoll extends ArtNetMsg
 		return b.toString();
 	}
 	
-	public static void main(String[] args) throws UnknownHostException
+	public static void main(String[] args) throws IOException
 	{
 		ArtNetPoll m = new ArtNetPoll();
 		m.m_talkToMe = 0x02;
@@ -98,5 +99,11 @@ public class ArtNetPoll extends ArtNetMsg
 		System.out.println(x);
 		ArtNetPoll m2 = new ArtNetPoll(buff, 0, ArtNetPollReply.size());
 		m2.print(System.out, "");
+		
+		if (args.length > 0) {
+			System.out.println("Sending ...");
+			m.sendMsg(args);
+			System.out.println("Sent");
+		}
 	}
 }

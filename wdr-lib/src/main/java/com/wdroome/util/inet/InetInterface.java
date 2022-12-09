@@ -215,7 +215,9 @@ public class InetInterface
 	{
 		System.out.println("All Interfaces:");
 		for (InetInterface iface: InetInterface.getAllInterfaces()) {
-			System.out.println("  " + iface + " mac: " + MiscUtil.bytesToHex(iface.m_hardwareAddress));
+			System.out.println("  " + iface + " mac: " + MiscUtil.bytesToHex(iface.m_hardwareAddress)
+						+ (iface.m_broadcast != null
+								? (" Bcast: " + iface.m_broadcast.getHostAddress()) : ""));
 		}
 		System.out.println("Broadcast Interfaces:");
 		for (InetInterface iface: InetInterface.getBcastInterfaces()) {

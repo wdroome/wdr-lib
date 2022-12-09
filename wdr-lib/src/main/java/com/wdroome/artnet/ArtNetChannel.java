@@ -144,9 +144,10 @@ public class ArtNetChannel extends Thread
 			listenPorts = new HashSet<>(listenPorts);
 		}
 		ArrayList<ChannelInfo> listenChans = new ArrayList<ChannelInfo>();
-		for (InetSocketAddress addr: getLocalInetAddrMasks(listenPorts)) {
+		for (InetSocketAddress addr: getLocalSocketAddrs(listenPorts)) {
 			DatagramChannel chan = null;
 			try {
+				System.out.println("XXX binding to " + addr);
 				chan = DatagramChannel.open(StandardProtocolFamily.INET);
 				chan.bind(addr);
 				chan.configureBlocking(false);
@@ -183,6 +184,26 @@ public class ArtNetChannel extends Thread
 	public ArtNetChannel(Receiver receiver, int[] ports) throws IOException
 	{
 		this(receiver, ArrayToList.toList(ports));
+	}
+	
+	/**
+	 * Get the list of UDP sockets on which the channel is listening for Art-Net messages.
+	 * @return The UDP sockets on which the channel is listening for Art-Net messages.
+	 */
+	public List<InetSocketAddress> getListenSockets()
+	{
+		ArrayList<InetSocketAddress> sockets = new ArrayList<>();
+		for (ChannelInfo ci: m_listenChans) {
+			try {
+				SocketAddress addr = ci.m_channel.getLocalAddress();
+				if (addr instanceof InetSocketAddress) {
+					sockets.add((InetSocketAddress)addr);
+				}
+			} catch (IOException e) {
+				// Shouldn't happen ...
+			}
+		}
+		return sockets;
 	}
 	
 	/**
@@ -418,15 +439,36 @@ public class ArtNetChannel extends Thread
 		return m_listenChans.get(0);		
 	}
 		
-	private Set<InetSocketAddress> getLocalInetAddrMasks(Collection<Integer> ports) throws UnknownHostException
+	private List<InetSocketAddress> getLocalSocketAddrs(Collection<Integer> ports) throws UnknownHostException
 	{
-		Set<InetSocketAddress> addrs = new HashSet<>();		
-		InetAddress addr = InetAddress.getByName("0.0.0.0");
-		for (int port : ports) {
-			addrs.add(new InetSocketAddress(addr, port));
-			// System.out.println("Listening on " + addr + ":" + port);
-		} 
-		return addrs;		
+		List<InetSocketAddress> sockAddrs = new ArrayList<>();	
+		for (InetAddress inetAddr: getBindAddrs()) {
+			for (int port : ports) {
+				sockAddrs.add(new InetSocketAddress(inetAddr, port));			
+				// System.out.println("Listening on " + addr + ":" + port);
+			}
+		}
+		return sockAddrs;		
+	}
+	
+	/**
+	 * Get the send and receive InetAddresses.
+	 * The base class returns all non-loopback IPV4 regular & local broadcast addresses.
+	 * @return The send and receive InetAddresses..
+	 * @throws UnknownHostException
+	 */
+	protected Set<InetAddress> getBindAddrs() throws UnknownHostException
+	{
+		HashSet<InetAddress> addrs = new HashSet<>();
+		for (InetInterface iface: InetInterface.getAllInterfaces()) {
+			if (iface.m_address instanceof Inet4Address && !iface.m_isLoopback) {
+				addrs.add(iface.m_address);
+				if (iface.m_broadcast != null) {
+					addrs.add(iface.m_broadcast);
+				}
+			}
+		}
+		return addrs;
 	}
 	
 	/**
