@@ -126,7 +126,6 @@ public class ArtNetListener extends Thread
 				m_readSocket.receive(msgPacket);
 				int offset = msgPacket.getOffset();
 				int len = msgPacket.getLength();
-				ArtNetMsg msg = ArtNetMsg.make(msgBuff, offset, len);
 				SocketAddress xsender = msgPacket.getSocketAddress();
 				SocketAddress xreceiver = m_readSocket.getLocalSocketAddress();
 				if (!(xsender instanceof InetSocketAddress && xreceiver instanceof InetSocketAddress)) {
@@ -135,6 +134,7 @@ public class ArtNetListener extends Thread
 				}
 				InetSocketAddress sender = (InetSocketAddress)xsender;
 				InetSocketAddress receiver = (InetSocketAddress)xreceiver;
+				ArtNetMsg msg = ArtNetMsg.make(msgBuff, offset, len, sender);
 				if (msg != null) {
 					if (m_receiver != null) {
 						m_receiver.msgArrived(this, msg, sender, receiver);

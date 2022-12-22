@@ -1,17 +1,9 @@
 package com.wdroome.artnet.util;
 
 import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.List;
 
-import com.wdroome.util.MiscUtil;
-import com.wdroome.util.inet.InetInterface;
-
-import com.wdroome.artnet.ArtNetConst;
-import com.wdroome.artnet.ArtNetMsg;
-import com.wdroome.artnet.ArtNetPollReply;
 import com.wdroome.artnet.ArtNetChannel;
 
 /**
@@ -27,13 +19,21 @@ public class ArtNetMonitor extends ArtNetChannel.MsgPrinter
 	
 	public ArtNetMonitor() throws IOException
 	{
-		this(null);
+		this((List<Integer>)null);
 	}
 	
 	/**
 	 * @throws IOException 
 	 */
 	public ArtNetMonitor(int[] ports) throws IOException
+	{
+		m_chan = new ArtNetChannel(this, ports);
+	}
+	
+	/**
+	 * @throws IOException 
+	 */
+	public ArtNetMonitor(List<Integer> ports) throws IOException
 	{
 		m_chan = new ArtNetChannel(this, ports);
 	}
@@ -51,7 +51,7 @@ public class ArtNetMonitor extends ArtNetChannel.MsgPrinter
 
 	/**
 	 * Print all Art-Net messages on a set of ports.
-	 * @param args The ports. If no ports specified, listen on the defaults Art-Net port.
+	 * @param args The ports. If empty, listen on the default Art-Net port.
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws IOException
@@ -60,11 +60,6 @@ public class ArtNetMonitor extends ArtNetChannel.MsgPrinter
 		for (String s: args) {
 			ports.add(Integer.parseInt(s));
 		}
-		int[] arr = new int[ports.size()];
-		int i = 0;
-		for (int p: ports) {
-			arr[i++] = p;
-		}
-		new ArtNetMonitor(arr);
+		new ArtNetMonitor(ports);
 	}
 }

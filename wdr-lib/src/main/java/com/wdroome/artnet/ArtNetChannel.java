@@ -123,6 +123,10 @@ public class ArtNetChannel extends Thread
 
 	// True if the thread is running.
 	private final AtomicBoolean m_running = new AtomicBoolean(true);
+	
+	// If true, listen on the wildcard address.
+	// If false, listen on all local IP addresses.
+	private boolean m_useWildcardAddr = true;
 
 	/**
 	 * Create a new channel for sending and receiving Art-Net messages.
@@ -147,7 +151,7 @@ public class ArtNetChannel extends Thread
 		for (InetSocketAddress addr: getLocalSocketAddrs(listenPorts)) {
 			DatagramChannel chan = null;
 			try {
-				System.out.println("XXX binding to " + addr);
+				// System.out.println("XXX binding to " + addr);
 				chan = DatagramChannel.open(StandardProtocolFamily.INET);
 				chan.bind(addr);
 				chan.configureBlocking(false);
@@ -246,7 +250,6 @@ public class ArtNetChannel extends Thread
 								int msgLen = rcvBuff.remaining();
 								rcvBuff.get(msgBuff, 0, msgLen);
 								rcvBuff.clear();
-								ArtNetMsg msg = ArtNetMsg.make(msgBuff, 0, msgLen);
 								xreceiver = chanInfo.m_channel.getLocalAddress();
 								if (!(xsender instanceof InetSocketAddress && xreceiver instanceof InetSocketAddress)) {
 									// Ignore non-ipv4 messages.
@@ -254,6 +257,7 @@ public class ArtNetChannel extends Thread
 								}
 								InetSocketAddress sender = (InetSocketAddress)xsender;
 								InetSocketAddress receiver = (InetSocketAddress)xreceiver;
+								ArtNetMsg msg = ArtNetMsg.make(msgBuff, 0, msgLen, sender);
 								if (msg != null) {
 									if (m_receiver != null) {
 										m_receiver.msgArrived(this, msg, sender, receiver);
@@ -442,11 +446,17 @@ public class ArtNetChannel extends Thread
 	private List<InetSocketAddress> getLocalSocketAddrs(Collection<Integer> ports) throws UnknownHostException
 	{
 		List<InetSocketAddress> sockAddrs = new ArrayList<>();	
-		for (InetAddress inetAddr: getBindAddrs()) {
-			for (int port : ports) {
-				sockAddrs.add(new InetSocketAddress(inetAddr, port));			
-				// System.out.println("Listening on " + addr + ":" + port);
+		if (m_useWildcardAddr) {
+			for (int port: ports) {
+				sockAddrs.add(new InetSocketAddress(port));
 			}
+		} else {
+			for (InetAddress inetAddr : getBindAddrs()) {
+				for (int port : ports) {
+					sockAddrs.add(new InetSocketAddress(inetAddr, port));
+					// System.out.println("Listening on " + addr + ":" + port);
+				}
+			} 
 		}
 		return sockAddrs;		
 	}
@@ -454,7 +464,7 @@ public class ArtNetChannel extends Thread
 	/**
 	 * Get the send and receive InetAddresses.
 	 * The base class returns all non-loopback IPV4 regular & local broadcast addresses.
-	 * @return The send and receive InetAddresses..
+	 * @return The send and receive InetAddresses.
 	 * @throws UnknownHostException
 	 */
 	protected Set<InetAddress> getBindAddrs() throws UnknownHostException

@@ -2,10 +2,13 @@ package com.wdroome.artnet.util;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.wdroome.util.MiscUtil;
@@ -17,6 +20,7 @@ import com.wdroome.util.inet.InetUtil;
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetPort;
 import com.wdroome.artnet.ArtNetMsg;
+import com.wdroome.artnet.ArtNetNodeAddr;
 import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.artnet.ArtNetPoll;
 import com.wdroome.artnet.ArtNetPollReply;
@@ -45,10 +49,12 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 	/**
 	 * Information about a discovered node.
 	 */
-	public static class NodeInfo
+	public static class NodeInfo implements Comparable<NodeInfo>
 	{
 		/** The node's ArtNetPoll reply message. */
 		public final ArtNetPollReply m_reply;
+		
+		public final ArtNetNodeAddr m_nodeAddr;
 		
 		/** Node's response time, in milliseconds. */
 		public final long m_responseMS;
@@ -73,6 +79,9 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 			m_responseMS = responseMS;
 			m_reply = reply;
 			m_receiver = receiver;
+			m_nodeAddr = new ArtNetNodeAddr(
+						m_reply.m_bindIpAddr, m_reply.m_bindIndex,
+						m_reply.m_ipAddr, m_reply.m_ipPort, reply.m_fromAddr);
 		}
 		
 		/**
@@ -84,6 +93,48 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 			StringBuilder b = new StringBuilder();
 			b.append("Reply src: " + InetUtil.toAddrPort(m_sender) + " time: " + m_responseMS + "ms\n");
 			return m_reply.toFmtString(b, "  ");
+		}
+
+		/**
+		 * Compare based on source IP address, then port. If either has more than one port,
+		 * compare on number of ports. If both have 1 port, compare on Art-Net port number.
+		 */
+		@Override
+		public int compareTo(NodeInfo o)
+		{
+			if (o == null) {
+				return -1;
+			}
+			int cmp = m_nodeAddr.compareTo(o.m_nodeAddr);
+			if (cmp != 0) {
+				return cmp;
+			}
+			if (m_reply.m_numPorts > 1 || o.m_reply.m_numPorts > 1) {
+				return Integer.compare(m_reply.m_numPorts, o.m_reply.m_numPorts);
+			}
+			cmp = m_reply.m_outPorts[0].compareTo(o.m_reply.m_outPorts[0]);
+			if (cmp != 0) {
+				return cmp;
+			}
+			return m_reply.m_inPorts[0].compareTo(o.m_reply.m_inPorts[0]);
+		}
+		
+		@Override
+		public int hashCode() 
+		{
+			return m_nodeAddr.hashCode();
+		}
+		
+		@Override
+		public boolean equals(Object obj)
+		{
+			if (this == obj) {
+				return true;
+			}
+			if (obj == null || !(obj instanceof NodeInfo)) {
+				return false;
+			}
+			return m_nodeAddr.equals(((NodeInfo)obj).m_nodeAddr);
 		}
 	}
 
@@ -124,7 +175,6 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 				m_sendSockAddrs.add(new InetSocketAddress(addr, port));
 			}
 		}
-		MiscUtil.sleep(ArtNetConst.MAX_POLL_REPLY_MS);
 	}
 	
 	/**
@@ -292,11 +342,23 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 				System.out.print(" " + InetUtil.toAddrPort(sockAddr));
 			}
 			System.out.println(" ....");
+			System.out.flush();
 			replies = poller.poll();
+			Collections.sort(replies);
 			System.out.println(replies.size() + " replies:");
 			for (NodeInfo ni : replies) {
 				System.out.println(ni.toString());
 				// ni.m_reply.print(System.out, "");
+			}
+			System.out.println();
+			
+			TreeSet<NodeInfo> uniqueNodes = new TreeSet<>();
+			for (NodeInfo ni : replies) {
+				uniqueNodes.add(ni);
+			}
+			System.out.println(uniqueNodes.size() + " unique nodes:");
+			for (NodeInfo ni: uniqueNodes) {
+				System.out.println(ni.toString());
 			}
 		}
 		System.out.println("DONE");

@@ -108,16 +108,17 @@ public abstract class ArtNetMsg
 	 * @param buff The message buffer.
 	 * @param off The offset of the message within buff.
 	 * @param length The length of the message.
+	 * @param sender The sender's IP address. May be null.
 	 * @return The message, or null if it is not a valid ArtNet message.
 	 */
-	public static ArtNetMsg make(byte[] buff, int off, int length)
+	public static ArtNetMsg make(byte[] buff, int off, int length, InetSocketAddress sender)
 	{
 		try {
 			switch (getOpcode(buff, off, length)) {
 			case OpPoll:
 				return new ArtNetPoll(buff, off, length);
 			case OpPollReply:
-				return new ArtNetPollReply(buff, off, length);
+				return new ArtNetPollReply(buff, off, length, sender);
 			case OpDmx:
 				return new ArtNetDmx(buff, off, length);
 			case OpDiagData:
@@ -264,6 +265,28 @@ public abstract class ArtNetMsg
 		}
 	}
 	
+	public static Inet4Address getZeroIpAddr()
+	{
+		byte[] addr = new byte[4];
+		try {
+			return (Inet4Address)(InetAddress.getByAddress(addr));
+		} catch (Exception e) {
+			return null;	// Should not happen.
+		}		
+	}
+	
+	public static boolean isZeroIpAddr(Inet4Address addr)
+	{
+		if (addr != null) {
+			for (byte b: addr.getAddress()) {
+				if (b != 0) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	
 	protected static int putIpAddr(byte[] buff, int off, Inet4Address ipaddr)
 	{
 		if (ipaddr == null) {
@@ -363,7 +386,7 @@ public abstract class ArtNetMsg
 	 * @param args The destination IP address and optional port, as strings.
 	 * @throws IOException
 	 */
-	protected void sendMsg(String[] args) throws IOException
+	public void sendMsg(String[] args) throws IOException
 	{
 		if (args.length == 0) {
 			System.err.println("Usage: to-ipaddr [to-port]");
@@ -373,6 +396,17 @@ public abstract class ArtNetMsg
 		if (args.length >= 2) {
 			toPort = Integer.parseInt(args[1]);
 		}
+		sendMsg(toAddr, toPort);
+	}
+	
+	/**
+	 * Send this message.
+	 * @param toAddr The destination address.
+	 * @param toPort The destination port.
+	 * @throws IOException
+	 */
+	public void sendMsg(InetAddress toAddr, int toPort) throws IOException
+	{
 		try (DatagramSocket socket = new DatagramSocket()) {
 			byte[] msgBuff = new byte[ArtNetConst.MAX_MSG_LEN];
 			int msgLen = putData(msgBuff, 0);

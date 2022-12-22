@@ -36,6 +36,15 @@ public class InetUtil
 	 */
 	public static int compare(InetAddress a, InetAddress b)
 	{
+		if (a == null || b == null) {
+			if (a != null) {
+				return 1;
+			} else if (b != null) {
+				return -1;
+			} else {
+				return 0;
+			}
+		}
 		byte[] ab = a.getAddress();
 		byte[] bb = b.getAddress();
 		if (ab.length < bb.length) {
@@ -64,6 +73,15 @@ public class InetUtil
 	 */
 	public static int compare(InetSocketAddress a, InetSocketAddress b)
 	{
+		if (a == null || b == null) {
+			if (a != null) {
+				return 1;
+			} else if (b != null) {
+				return -1;
+			} else {
+				return 0;
+			}
+		}
 		int c = compare(a.getAddress(), b.getAddress());
 		if (c != 0) {
 			return c;

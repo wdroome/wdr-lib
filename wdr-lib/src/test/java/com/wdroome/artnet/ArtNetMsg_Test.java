@@ -152,7 +152,7 @@ public class ArtNetMsg_Test
 		
 		byte[] buff = new byte[ArtNetConst.MAX_MSG_LEN];
 		int len = m.putData(buff, 0);
-		ArtNetMsg m2 = ArtNetMsg.make(buff, 0, len);
+		ArtNetMsg m2 = ArtNetMsg.make(buff, 0, len, null);
 
 		ByteArrayOutputStream m2PrtBuff = new ByteArrayOutputStream();
 		PrintStream m2Prt = new PrintStream(m2PrtBuff);

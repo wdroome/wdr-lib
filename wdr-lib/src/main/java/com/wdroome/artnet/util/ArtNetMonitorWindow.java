@@ -50,13 +50,18 @@ import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.artnet.ArtNetPoll;
 import com.wdroome.artnet.ArtNetPollReply;
 import com.wdroome.artnet.ArtNetPort;
-import com.wdroome.artnet.ArtNetChannel.Receiver;
 import com.wdroome.util.swing.JTextAreaErrorLogger;
 import com.wdroome.util.IErrorLogger;
 import com.wdroome.util.SystemErrorLogger;
 import com.wdroome.util.inet.InetInterface;
 import com.wdroome.util.swing.SwingAppUtils;
 
+/**
+ * Listen for Art-Net DMX messages, and display the levels in a Swing window.
+ * This process is an Art-Net node, and responds to ArtNetPolls.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
+ * @author wdr
+ */
 public class ArtNetMonitorWindow extends JFrame
 {
 	public static final String TABNAME__ALERTS = "Alerts";
@@ -435,6 +440,7 @@ public class ArtNetMonitorWindow extends JFrame
 				m_reply.m_goodOutput[i] = (byte)0x80;
 				m_reply.m_swOut[i] = (byte)m_anPorts.get(i).m_universe;
 			}
+			sendStartupPollReply();
 		}
 
 		/* (non-Javadoc)
@@ -461,7 +467,7 @@ public class ArtNetMonitorWindow extends JFrame
 								System.out.println("XXX: sent poll reply to " + bcastAddr);
 							}
 						} catch (IOException e) {
-							m_logger.logError("ArtNetMonitorWindow: Poll Reply Error",
+							m_logger.logError("ArtNetMonitorWindow: Poll Reply Send Error",
 												60000, "To " + bcastAddr + " " + e);
 						}
 					} else {
@@ -475,13 +481,14 @@ public class ArtNetMonitorWindow extends JFrame
 				m_numPollMsgs.incrementAndGet();
 				// XXX: record poll request
 			} else if (msg instanceof ArtNetDmx) {
+				ArtNetDmx dmx = (ArtNetDmx)msg;
 				if (!sender.equals(m_lastDmxSender) || !receiver.equals(m_lastDmxReceiver)) {
-					m_logger.logError("ArtNetMonitorWindow: New DMX Sender/Receiver", 120000,
-							fromToInetAddrs(sender, receiver));
+					m_logger.logError("ArtNetMonitorWindow: DMX Sender/" + dmx.getPortString()
+							+ " " + fromToInetAddrs(sender, receiver),
+							120000, "");
 					m_lastDmxSender = sender;
 					m_lastDmxReceiver = receiver;
 				}
-				ArtNetDmx dmx = (ArtNetDmx)msg;
 				boolean ours = false;
 				for (int i = 0; i < m_anPorts.size(); i++) {
 					ArtNetPort anPort = m_anPorts.get(i);
@@ -514,11 +521,15 @@ public class ArtNetMonitorWindow extends JFrame
 		 * Return a string with the sender and receiver's IP addresses and ports.
 		 * @param sender The sending socket address.
 		 * @param receiver The receiving socket address.
-		 * @return A string of the form "sender-ipaddr -> receiver-ipaddr:port"
+		 * @return A string of the form "sender-ipaddr:port -> receiver-ipaddr:port"
+		 * Replace sender-port with "*" if it's not the default Art-Net port.
 		 */
 		private String fromToInetAddrs(InetSocketAddress sender, InetSocketAddress receiver)
 		{
-			return sender.getAddress().getHostAddress() + "->" + InetUtil.toAddrPort(receiver);
+			int senderPort = sender.getPort();
+			return sender.getAddress().getHostAddress() + ":" 
+						+ (senderPort == ArtNetConst.ARTNET_PORT ? senderPort : "*")
+					+ "->" + InetUtil.toAddrPort(receiver);
 		}
 
 		/* (non-Javadoc)
@@ -579,14 +590,45 @@ public class ArtNetMonitorWindow extends JFrame
 						&& iface.m_broadcast instanceof Inet4Address) {
 					reply.m_ipAddr = (Inet4Address)iface.m_address;
 					reply.m_ipPort = port;
-					if (reply.m_macAddr != null
-							&& iface.m_hardwareAddress != null
+					if (iface.m_hardwareAddress != null
 							&& reply.m_macAddr.length == iface.m_hardwareAddress.length) {
 						for (int i = 0; i < iface.m_hardwareAddress.length; i++) {
 							reply.m_macAddr[i] = iface.m_hardwareAddress[i];
 						}
 					}
 					return;
+				}
+			}
+		}
+		
+		/**
+		 * At startup, send ArtNetPollReply messages to all broadcast interfaces.
+		 */
+		private void sendStartupPollReply()
+		{
+			for (InetInterface iface: m_inetInterfaces) {
+				if (iface.m_address instanceof Inet4Address
+						&& !iface.m_isLoopback
+						&& iface.m_broadcast != null
+						&& iface.m_broadcast instanceof Inet4Address) {
+					m_reply.m_ipAddr = (Inet4Address)iface.m_address;
+					m_reply.m_ipPort = ArtNetConst.ARTNET_PORT;
+					if (iface.m_hardwareAddress != null
+							&& m_reply.m_macAddr.length == iface.m_hardwareAddress.length) {
+						for (int i = 0; i < iface.m_hardwareAddress.length; i++) {
+							m_reply.m_macAddr[i] = iface.m_hardwareAddress[i];
+						}
+					}
+					try {
+						m_reply.sendMsg(iface.m_broadcast, ArtNetConst.ARTNET_PORT);
+						if (false) {
+							System.out.println("XXX: Send init PollRep " + m_reply);
+							System.out.println("XXX: sent poll reply to " + iface.m_broadcast);
+						}
+					} catch (IOException e) {
+						m_logger.logError("ArtNetMonitorWindow: Poll Reply Init Send Error",
+											60000, "To " + iface.m_broadcast + " " + e);
+					}
 				}
 			}
 		}

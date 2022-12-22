@@ -36,7 +36,7 @@ public class TestArtNetSender
 					System.out.println("Rcv: rmt: " + pack.getSocketAddress()
 								+ " lcl: " + sock.getLocalSocketAddress()
 								+ " len: " + pack.getLength());
-					ArtNetMsg m = ArtNetMsg.make(buff, 0, pack.getLength());
+					ArtNetMsg m = ArtNetMsg.make(buff, 0, pack.getLength(), null);
 					if (m != null) {
 						System.out.println(m.toString().replace(",", "\n  "));
 						if (m instanceof ArtNetPollReply) {

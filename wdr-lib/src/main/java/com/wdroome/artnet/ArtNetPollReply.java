@@ -2,6 +2,7 @@ package com.wdroome.artnet;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -29,17 +30,34 @@ public class ArtNetPollReply extends ArtNetMsg
 	public static final int PORT_TYPE_PROTO_ARTNET = 0x05;
 
 	public static final int STATUS1_RDM = 0x02;
+	
+	public static final int STATUS2_RDM_SWITCH = 0x80;		// ArtNet 4
+	public static final int STATUS2_STYLE_SWITCH = 0x40;	// ArtNet 4
+	public static final int STATUS2_SQUAWKING = 0x20;		// ArtNet 4
 	public static final int STATUS2_SADN_SWITCH = 0x10;
 	public static final int STATUS2_ARTNET_3OR4 = 0x08;
 	public static final int STATUS2_DHCP_CAPABLE = 0x04;
 	public static final int STATUS2_SET_BY_DHCP = 0x02;
 	public static final int STATUS2_BROWSER_CONFIG = 0x01;
+	
+			// Art-Net 4
+	public static final int STATUS3_FAILSAFE_MASK = 0xc0;
+	public static final int STATUS3_FAILSAFE_HOLD = 0x00;
+	public static final int STATUS3_FAILSAFE_ZERO = 0x40;
+	public static final int STATUS3_FAILSAFE_FULL = 0x80;
+	public static final int STATUS3_FAILOVER = 0x20;
+	public static final int STATUS3_LLRP = 0x10;
+	public static final int STATUS3_IN_OUT_SWITCHING = 0x80;
 
 	public static final int GOOD_INPUT_ACTIVE = 0x80;
+	
 	public static final int GOOD_OUTPUT_ACTIVE = 0x80;
 	public static final int GOOD_OUTPUT_MERGE = 0x08;
 	public static final int GOOD_OUTPUT_LTP = 0x02;
 	public static final int GOOD_OUTPUT_SACN = 0x01;
+	
+	public static final int GOOD_OUTPUTB_RDM = 0x80;
+	public static final int GOOD_OUTPUTB_CONTINUOUS = 0x40;
 
 	public Inet4Address m_ipAddr = null;
 	public int m_ipPort = 0;
@@ -59,18 +77,24 @@ public class ArtNetPollReply extends ArtNetMsg
 	public byte[] m_goodOutput = new byte[ArtNetConst.MAX_PORTS_PER_NODE];
 	public byte[] m_swIn = new byte[ArtNetConst.MAX_PORTS_PER_NODE];
 	public byte[] m_swOut = new byte[ArtNetConst.MAX_PORTS_PER_NODE];
-	public int m_swVideo = 0;
+	public int m_acnPriority = 0;	// Art-Net 4; was SwVideo in Art-Net 3
 	public int m_swMacro = 0;
 	public int m_swRemote = 0;
 	public int m_style = 0;
 	public byte[] m_macAddr = new byte[6];
-	public Inet4Address m_bindIpAddr = null;
+	public Inet4Address m_bindIpAddr = getZeroIpAddr();
 	public int m_bindIndex = 0;
 	public int m_status2 = 0;
+		// Added in Art-Net 4
+	public byte[] m_goodOutputB = new byte[ArtNetConst.MAX_PORTS_PER_NODE];
+	public int m_status3 = 0;
+	public ACN_UID m_defRespUID = new ACN_UID();
 	
 		/** Output and input ArtNet ports for this device's ports. */
 	public ArtNetPort[] m_inPorts = new ArtNetPort[4];
 	public ArtNetPort[] m_outPorts = new ArtNetPort[4];
+	
+	public InetSocketAddress m_fromAddr = null;
 
 	/**
 	 * Create a message with the default field values.
@@ -86,12 +110,13 @@ public class ArtNetPollReply extends ArtNetMsg
 	 * @param off The starting offset of the data within buff.
 	 * @param length The length of the data.
 	 */
-	public ArtNetPollReply(byte[] buff, int off, int length)
+	public ArtNetPollReply(byte[] buff, int off, int length, InetSocketAddress sender)
 	{
 		super(ArtNetOpcode.OpPollReply);
 		if (length < minSize()) {
 			throw new IllegalArgumentException("ArtNetPollReply: short msg " + length);
 		}
+		m_fromAddr = sender;
 		ArtNetOpcode opcode = getOpcode(buff, off, length);
 		if (opcode != ArtNetOpcode.OpPollReply) {
 			throw new IllegalArgumentException("ArtNetPollReply: wrong opcode " + opcode);
@@ -129,7 +154,7 @@ public class ArtNetPollReply extends ArtNetMsg
 		off += 4;
 		copyBytes(m_swOut, 0, buff, off, 4);
 		off += 4;
-		m_swVideo = buff[off++] & 0xff;
+		m_acnPriority = buff[off++] & 0xff;
 		m_swMacro = buff[off++] & 0xff;
 		m_swRemote = buff[off++] & 0xff;
 		off += 3;	// spare
@@ -141,7 +166,11 @@ public class ArtNetPollReply extends ArtNetMsg
 			off += 4;
 			m_bindIndex = buff[off++] & 0xff;		
 			m_status2 = buff[off++] & 0xff;
-			off += 26;	// filler
+			copyBytes(m_goodOutputB, 0, buff, off, 4);
+			off += 4;
+			m_status3 = buff[off++] & 0xff;
+			m_defRespUID = new ACN_UID(buff, off);
+			off += 15;	// filler
 		}
 		
 		ArtNetPort defPort = new ArtNetPort(0,0,0);
@@ -166,7 +195,10 @@ public class ArtNetPollReply extends ArtNetMsg
 				+ 4		// bindIpAddr
 				+ 1		// bindIndex
 				+ 1		// status2
-				+ 26	// filler
+				+ 4		// goodOutputB
+				+ 1		// status3
+				+ 6		// defaultRespUID
+				+ 15	// filler
 			;
 	}
 	
@@ -247,7 +279,7 @@ public class ArtNetPollReply extends ArtNetMsg
 		off += 4;
 		copyBytes(buff, off, m_swOut, 0, 4);
 		off += 4;
-		buff[off++] = (byte)m_swVideo;
+		buff[off++] = (byte)m_acnPriority;
 		buff[off++]= (byte)m_swMacro;
 		buff[off++]= (byte)m_swRemote;
 		zeroBytes(buff, off, 3);	// spare
@@ -331,7 +363,7 @@ public class ArtNetPollReply extends ArtNetMsg
 		append(b, "goodOutput", m_goodOutput);
 		append(b, "swIn", m_swIn);
 		append(b, "swOut", m_swOut);
-		appendHex(b, "swVideo", m_swVideo);
+		appendHex(b, "acnPrty", m_acnPriority);
 		appendHex(b, "swMacro", m_swMacro);
 		appendHex(b, "swRemote", m_swRemote);
 		appendHex(b, "style", m_style);
@@ -339,6 +371,9 @@ public class ArtNetPollReply extends ArtNetMsg
 		append(b, "bindIpAddr", m_bindIpAddr);
 		append(b, "bindIndex", m_bindIndex);
 		appendHex(b, "status2", m_status2);
+		append(b, "goodOutputB", m_goodOutputB);
+		appendHex(b, "status3", m_status3);
+		append(b, "defUID", m_defRespUID.toString());
 		b.append('}');
 		return b.toString();
 	}
@@ -362,8 +397,10 @@ public class ArtNetPollReply extends ArtNetMsg
 		String indent = "   ";
 		buff.append(linePrefix
 				+ "ipaddr: " + m_ipAddr.getHostAddress() + ":" + m_ipPort
+				+ " bind: " + getNodeAddr()
 				+ " names: " + m_shortName
-				+ (m_longName.isBlank() ? "" : ("/" + m_longName)) + "\n");
+				+ (m_longName.isBlank() ? "" : ("/" + m_longName))
+				+ "\n");
 		buff.append(linePrefix
 				+ (((m_status2 & STATUS2_BROWSER_CONFIG) != 0) ? "web-configurable: yes " : "")
 				+ "ArtNet-version: " + (((m_status2 & STATUS2_ARTNET_3OR4) != 0) ? "3/4 " : "1/2 ")
@@ -397,9 +434,7 @@ public class ArtNetPollReply extends ArtNetMsg
 				if ((m_goodOutput[i] & GOOD_OUTPUT_MERGE) != 0) {
 					buff.append("/merge");
 				}
-				if ((m_goodOutput[i] & GOOD_OUTPUT_LTP) != 0) {
-					buff.append("/ltp");
-				}
+				buff.append((m_goodOutput[i] & GOOD_OUTPUT_LTP) != 0 ? "/ltp" : "/htp");
 			}
 			if ((m_portTypes[i] & PORT_TYPE_INPUT) != 0) {
 				buff.append("\n");
@@ -410,6 +445,11 @@ public class ArtNetPollReply extends ArtNetMsg
 			}
 		}
 		return buff.toString();
+	}
+	
+	public ArtNetNodeAddr getNodeAddr()
+	{
+		return new ArtNetNodeAddr(m_bindIpAddr, m_bindIndex, m_ipAddr, m_ipPort, m_fromAddr); 
 	}
 	
 	public void printCommon(PrintStream out, String linePrefix)

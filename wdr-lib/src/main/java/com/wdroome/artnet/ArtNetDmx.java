@@ -95,8 +95,8 @@ public class ArtNetDmx extends ArtNetMsg
 	}
 	
 	/**
-	 * Return the minimum length of an ArtNetDiagData message.
-	 * @return The minimum length of an ArtNetDiagData message.
+	 * Return the minimum length of an ArtNetDMX message.
+	 * @return The minimum length of an ArtNetDMX message.
 	 */
 	public static int minSize()
 	{
@@ -119,6 +119,15 @@ public class ArtNetDmx extends ArtNetMsg
 		} else {
 			m_sequence++;
 		}
+	}
+	
+	/**
+	 * Return a string representation of the Art-Net port.
+	 * @return A string representation of the Art-Net port.
+	 */
+	public String getPortString()
+	{
+		return toPortString(m_net, m_subUni);
 	}
 	
 	/**
