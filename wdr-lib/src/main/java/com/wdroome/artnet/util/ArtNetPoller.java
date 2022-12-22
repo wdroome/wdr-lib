@@ -19,6 +19,7 @@ import com.wdroome.util.inet.InetUtil;
 
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetNode;
 import com.wdroome.artnet.ArtNetMsg;
 import com.wdroome.artnet.ArtNetNodeAddr;
 import com.wdroome.artnet.ArtNetOpcode;
@@ -46,100 +47,8 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 	private List<InetAddress> m_sendInetAddrs = null;
 	private List<InetSocketAddress> m_sendSockAddrs = null;
 	
-	/**
-	 * Information about a discovered node.
-	 */
-	public static class NodeInfo implements Comparable<NodeInfo>
-	{
-		/** The node's ArtNetPoll reply message. */
-		public final ArtNetPollReply m_reply;
-		
-		public final ArtNetNodeAddr m_nodeAddr;
-		
-		/** Node's response time, in milliseconds. */
-		public final long m_responseMS;
-		
-		/** Remote node's address and port. */
-		public final InetSocketAddress m_sender;
-		
-		/** Address and port to which the remote node sent the reply. Note the address may be 0.0.0.0. */
-		public final InetSocketAddress m_receiver;
-		
-		/**
-		 * Create a NodeInfo.
-		 * @param reply The poll reply.
-		 * @param responseMS The node's response time, in millisec.
-		 * @param sender The node's socket address.
-		 * @param receiver The local socket address to which the response was sent.
-		 */
-		public NodeInfo(ArtNetPollReply reply, long responseMS,
-						InetSocketAddress sender, InetSocketAddress receiver)
-		{
-			m_sender = sender;
-			m_responseMS = responseMS;
-			m_reply = reply;
-			m_receiver = receiver;
-			m_nodeAddr = new ArtNetNodeAddr(
-						m_reply.m_bindIpAddr, m_reply.m_bindIndex,
-						m_reply.m_ipAddr, m_reply.m_ipPort, reply.m_fromAddr);
-		}
-		
-		/**
-		 * Return a nicely formatted multi-line summary of this node.
-		 */
-		@Override
-		public String toString()
-		{
-			StringBuilder b = new StringBuilder();
-			b.append("Reply src: " + InetUtil.toAddrPort(m_sender) + " time: " + m_responseMS + "ms\n");
-			return m_reply.toFmtString(b, "  ");
-		}
-
-		/**
-		 * Compare based on source IP address, then port. If either has more than one port,
-		 * compare on number of ports. If both have 1 port, compare on Art-Net port number.
-		 */
-		@Override
-		public int compareTo(NodeInfo o)
-		{
-			if (o == null) {
-				return -1;
-			}
-			int cmp = m_nodeAddr.compareTo(o.m_nodeAddr);
-			if (cmp != 0) {
-				return cmp;
-			}
-			if (m_reply.m_numPorts > 1 || o.m_reply.m_numPorts > 1) {
-				return Integer.compare(m_reply.m_numPorts, o.m_reply.m_numPorts);
-			}
-			cmp = m_reply.m_outPorts[0].compareTo(o.m_reply.m_outPorts[0]);
-			if (cmp != 0) {
-				return cmp;
-			}
-			return m_reply.m_inPorts[0].compareTo(o.m_reply.m_inPorts[0]);
-		}
-		
-		@Override
-		public int hashCode() 
-		{
-			return m_nodeAddr.hashCode();
-		}
-		
-		@Override
-		public boolean equals(Object obj)
-		{
-			if (this == obj) {
-				return true;
-			}
-			if (obj == null || !(obj instanceof NodeInfo)) {
-				return false;
-			}
-			return m_nodeAddr.equals(((NodeInfo)obj).m_nodeAddr);
-		}
-	}
-
 	// Shared between poll() and Receiver methods.
-	private final AtomicReference<List<NodeInfo>> m_pollReplies = new AtomicReference<>();
+	private final AtomicReference<List<ArtNetNode>> m_pollReplies = new AtomicReference<>();
 
 	/**
 	 * Create the poller. The c'tor doesn't do anything, but I like to define them anyway.
@@ -253,9 +162,9 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 	 * wait for the replies, and return all of them.
 	 * @return The replies, or null if there was an error.
 	 */
-	public List<NodeInfo> poll()
+	public List<ArtNetNode> poll()
 	{
-		m_pollReplies.set(new ArrayList<NodeInfo>());
+		m_pollReplies.set(new ArrayList<ArtNetNode>());
 		setupParam();
 		ArtNetChannel chan = null;
 		try {
@@ -269,6 +178,8 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 			m_sendTS = System.currentTimeMillis();
 			for (InetSocketAddress addr : m_sendSockAddrs) {
 				ArtNetPoll msg = new ArtNetPoll();
+				msg.m_talkToMe |= ArtNetPoll.FLAGS_SEND_REPLY_ON_CHANGE;
+				// System.out.println("XXX: poll msg: " + msg);
 				try {
 					if (!chan.send(msg, addr)) {
 						m_errorLogger.logError("ArtNetPoller/" + addr + ": send failed.");
@@ -288,12 +199,13 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 
 	@Override
 	public void msgArrived(ArtNetChannel chan, ArtNetMsg msg,
-					InetSocketAddress sender, InetSocketAddress receiver) {
+					InetSocketAddress sender, InetSocketAddress receiver)
+	{
 		if (msg instanceof ArtNetPollReply) {
 			// System.out.println("XXX: msg from " + sender);
-			NodeInfo nodeInfo = new NodeInfo((ArtNetPollReply)msg, System.currentTimeMillis() - m_sendTS,
-								sender, receiver);
-			List<NodeInfo> replies = m_pollReplies.get();
+			ArtNetNode nodeInfo = new ArtNetNode((ArtNetPollReply)msg, System.currentTimeMillis() - m_sendTS,
+								sender);
+			List<ArtNetNode> replies = m_pollReplies.get();
 			if (replies != null) {
 				replies.add(nodeInfo);
 			}
@@ -302,13 +214,15 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 
 	@Override
 	public void msgArrived(ArtNetChannel chan, ArtNetOpcode opcode, byte[] buff, int len, InetSocketAddress sender,
-			InetSocketAddress receiver) {
+			InetSocketAddress receiver)
+	{
 		// ignore
 	}
 
 	@Override
 	public void msgArrived(ArtNetChannel chan, byte[] msg, int len, InetSocketAddress sender,
-			InetSocketAddress receiver) {
+			InetSocketAddress receiver)
+	{
 		// ignore
 	}
 	
@@ -324,7 +238,7 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 	{
 		int nRepeats = 1;	// repeats are useful for testing.
 		ArtNetPoller poller = new ArtNetPoller();
-		List<NodeInfo> replies;
+		List<ArtNetNode> replies;
 		if (args.length > 0) {
 			List<InetSocketAddress> sockAddrs = new ArrayList<>();
 			for (String arg: args) {
@@ -346,18 +260,18 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 			replies = poller.poll();
 			Collections.sort(replies);
 			System.out.println(replies.size() + " replies:");
-			for (NodeInfo ni : replies) {
+			for (ArtNetNode ni : replies) {
 				System.out.println(ni.toString());
 				// ni.m_reply.print(System.out, "");
 			}
 			System.out.println();
 			
-			TreeSet<NodeInfo> uniqueNodes = new TreeSet<>();
-			for (NodeInfo ni : replies) {
+			TreeSet<ArtNetNode> uniqueNodes = new TreeSet<>();
+			for (ArtNetNode ni : replies) {
 				uniqueNodes.add(ni);
 			}
 			System.out.println(uniqueNodes.size() + " unique nodes:");
-			for (NodeInfo ni: uniqueNodes) {
+			for (ArtNetNode ni: uniqueNodes) {
 				System.out.println(ni.toString());
 			}
 		}

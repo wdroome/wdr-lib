@@ -1,6 +1,7 @@
 package com.wdroome.artnet;
 
 import java.io.PrintStream;
+import java.net.Inet4Address;
 
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.StringUtils;
@@ -26,7 +27,7 @@ public class ArtNetDmx extends ArtNetMsg
 	 */
 	public ArtNetDmx()
 	{
-		super(ArtNetOpcode.OpDmx);
+		super(ArtNetOpcode.OpDmx, null);
 	}
 	
 	/**
@@ -34,12 +35,13 @@ public class ArtNetDmx extends ArtNetMsg
 	 * @param buff The message buffer.
 	 * @param off The starting offset of the data within buff.
 	 * @param length The length of the data.
+	 * @param fromAddr The sender's IP address.
 	 * @throws IllegalArgumentException
 	 * 		If the message is too short or it does not have the correct op code.
 	 */
-	public ArtNetDmx(byte[] buff, int off, int length)
+	public ArtNetDmx(byte[] buff, int off, int length, Inet4Address fromAddr)
 	{
-		super(ArtNetOpcode.OpDmx);
+		super(ArtNetOpcode.OpDmx, fromAddr);
 		update(buff, off, length);
 	}
 	

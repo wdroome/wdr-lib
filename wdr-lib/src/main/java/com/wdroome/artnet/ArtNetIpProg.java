@@ -24,7 +24,7 @@ public class ArtNetIpProg extends ArtNetMsg
 	 */
 	public ArtNetIpProg()
 	{
-		super(ArtNetOpcode.OpIpProg);
+		super(ArtNetOpcode.OpIpProg, null);
 	}
 	
 	/**
@@ -32,10 +32,11 @@ public class ArtNetIpProg extends ArtNetMsg
 	 * @param buff The message buffer.
 	 * @param off The starting offset of the data within buff.
 	 * @param length The length of the data.
+	 * @param fromAddr The sender's IP address.
 	 */
-	public ArtNetIpProg(byte[] buff, int off, int length)
+	public ArtNetIpProg(byte[] buff, int off, int length, Inet4Address fromAddr)
 	{
-		super(ArtNetOpcode.OpIpProg);
+		super(ArtNetOpcode.OpIpProg, fromAddr);
 		if (length < size()) {
 			throw new IllegalArgumentException("ArtNetIpProg: short msg " + length);
 		}

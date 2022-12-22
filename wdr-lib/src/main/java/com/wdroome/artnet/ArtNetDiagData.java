@@ -1,5 +1,7 @@
 package com.wdroome.artnet;
 
+import java.net.Inet4Address;
+
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.StringUtils;
 
@@ -18,7 +20,7 @@ public class ArtNetDiagData extends ArtNetMsg
 	 */
 	public ArtNetDiagData()
 	{
-		super(ArtNetOpcode.OpDiagData);
+		super(ArtNetOpcode.OpDiagData, null);
 	}
 	
 	/**
@@ -26,10 +28,11 @@ public class ArtNetDiagData extends ArtNetMsg
 	 * @param buff The message buffer.
 	 * @param off The starting offset of the data within buff.
 	 * @param length The length of the data.
+	 * @param fromAddr The sender's IP address.
 	 */
-	public ArtNetDiagData(byte[] buff, int off, int length)
+	public ArtNetDiagData(byte[] buff, int off, int length, Inet4Address fromAddr)
 	{
-		super(ArtNetOpcode.OpDiagData);
+		super(ArtNetOpcode.OpDiagData, fromAddr);
 		if (length < minSize()) {
 			throw new IllegalArgumentException("ArtNetDiagData: short msg " + length);
 		}

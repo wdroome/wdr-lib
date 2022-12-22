@@ -7,6 +7,9 @@ package com.wdroome.artnet;
  */
 public class ArtNetPort implements Comparable<ArtNetPort>
 {
+	public static final ArtNetPort LOW_PORT = new ArtNetPort(0,0,0);
+	public static final ArtNetPort HIGH_PORT = new ArtNetPort(127,15,15);
+	
 	/** The network number. */
 	public final int m_net;
 	
@@ -84,6 +87,23 @@ public class ArtNetPort implements Comparable<ArtNetPort>
 	}
 	
 	/**
+	 * Create an ArtNetPort from 2 bytes in a buffer. First byte is the network,
+	 * second is the subNet and universe.
+	 * @param buff The byte buffer.
+	 * @param offset The offset of the first byte of the port address.
+	 */
+	public ArtNetPort(byte[] buff, int offset)
+	{
+		if (offset + 2 > buff.length) {
+			throw new IllegalArgumentException("ArtNetPort(byte[]): bad offset="
+								+ offset + " len=" + buff.length);
+		}
+		m_net = buff[offset] & 0x7f;
+		m_subNet = (buff[offset+1] & 0xf0) >> 4;
+		m_universe = buff[offset+1] & 0x0f;
+	}
+	
+	/**
 	 * Return the bottom 8 bits of the port adddress.
 	 * That is, the sub-net and universe parts.
 	 * @return The sub-net and universe in the top and bottom nibble
@@ -92,6 +112,19 @@ public class ArtNetPort implements Comparable<ArtNetPort>
 	public int subUniv()
 	{
 		return (m_subNet << 4) + (m_universe);
+	}
+	
+	/**
+	 * Put the ArtNetPort into a byte buffer as a 16-bit int.
+	 * @param buff The buffer.
+	 * @param off The offset in buff.
+	 * @return The offset of the next byte after the port address.
+	 */
+	public int put(byte[] buff, int off)
+	{
+		buff[off] = (byte)m_net;
+		buff[off+1] = (byte) ((m_subNet << 4) | m_universe);
+		return off+2;
 	}
 	
 	/**

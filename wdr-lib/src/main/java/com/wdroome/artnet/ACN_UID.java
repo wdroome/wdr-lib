@@ -3,7 +3,7 @@ package com.wdroome.artnet;
 import java.util.Arrays;
 
 /*
- * Represent a ACN UID.
+ * Represent an ACN UID.
  */
 public class ACN_UID
 {

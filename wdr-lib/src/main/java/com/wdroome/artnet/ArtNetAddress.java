@@ -30,7 +30,7 @@ public class ArtNetAddress extends ArtNetMsg
 	 */
 	public ArtNetAddress()
 	{
-		super(ArtNetOpcode.OpAddress);
+		super(ArtNetOpcode.OpAddress, null);
 	}
 	
 	/**
@@ -38,10 +38,11 @@ public class ArtNetAddress extends ArtNetMsg
 	 * @param buff The message buffer.
 	 * @param off The starting offset of the data within buff.
 	 * @param length The length of the data.
+	 * @param fromAddr The sender's IP address.
 	 */
-	public ArtNetAddress(byte[] buff, int off, int length)
+	public ArtNetAddress(byte[] buff, int off, int length, Inet4Address fromAddr)
 	{
-		super(ArtNetOpcode.OpAddress);
+		super(ArtNetOpcode.OpAddress, fromAddr);
 		if (length < size()) {
 			throw new IllegalArgumentException("ArtNetAddress: short msg " + length);
 		}

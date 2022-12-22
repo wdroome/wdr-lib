@@ -17,14 +17,29 @@ import com.wdroome.util.inet.InetUtil;
  * @author wdr
  */
 public abstract class ArtNetMsg
-{	
+{
+	/** The Art-Net op code. Required. */
 	public final ArtNetOpcode m_opcode;
+	
+	/** The address of the device that sent this message. May be null. */
+	private final Inet4Address m_fromAddr;
 
 	/**
 	 * Create a new message.
 	 * @param opcode The opcode for the message.
+	 * @param fromAddr For incoming messages, the address of the sender. Null for outgoing messages.
 	 */
-	public ArtNetMsg(ArtNetOpcode opcode) { m_opcode = opcode; }
+	public ArtNetMsg(ArtNetOpcode opcode, Inet4Address fromAddr)
+	{
+		m_opcode = opcode;
+		m_fromAddr = fromAddr;
+	}
+	
+	/**
+	 * Get the sender's address.
+	 * @return The sender's address, or null for locally created messages.
+	 */
+	public Inet4Address getFromAddr() { return m_fromAddr; }
 	
 	/**
 	 * Copy the data for the message into a buffer.
@@ -114,21 +129,22 @@ public abstract class ArtNetMsg
 	public static ArtNetMsg make(byte[] buff, int off, int length, InetSocketAddress sender)
 	{
 		try {
+			Inet4Address fromAddr = getInet4Address(sender);
 			switch (getOpcode(buff, off, length)) {
 			case OpPoll:
-				return new ArtNetPoll(buff, off, length);
+				return new ArtNetPoll(buff, off, length, fromAddr);
 			case OpPollReply:
-				return new ArtNetPollReply(buff, off, length, sender);
+				return new ArtNetPollReply(buff, off, length, fromAddr);
 			case OpDmx:
-				return new ArtNetDmx(buff, off, length);
+				return new ArtNetDmx(buff, off, length, fromAddr);
 			case OpDiagData:
-				return new ArtNetDiagData(buff, off, length);
+				return new ArtNetDiagData(buff, off, length, fromAddr);
 			case OpIpProg:
-				return new ArtNetIpProg(buff, off, length);
+				return new ArtNetIpProg(buff, off, length, fromAddr);
 			case OpIpProgReply:
-				return new ArtNetIpProgReply(buff, off, length);
+				return new ArtNetIpProgReply(buff, off, length, fromAddr);
 			case OpAddress:
-				return new ArtNetAddress(buff, off, length);
+				return new ArtNetAddress(buff, off, length, fromAddr);
 			case Invalid:
 				return null;
 			default:
@@ -136,6 +152,19 @@ public abstract class ArtNetMsg
 			}
 		} catch (Exception e) {
 			// Message was too short or other error.
+			return null;
+		}
+	}
+	
+	private static Inet4Address getInet4Address(InetSocketAddress sockAddr)
+	{
+		if (sockAddr == null) {
+			return null;
+		}
+		InetAddress addr = sockAddr.getAddress();
+		if (addr instanceof Inet4Address) {
+			return (Inet4Address)addr;
+		} else {
 			return null;
 		}
 	}
@@ -379,6 +408,16 @@ public abstract class ArtNetMsg
 			b.append(ipAddr.getHostAddress());
 			b.append(',');
 		}
+	}
+	
+	protected static void append(StringBuilder b, String name, ArtNetPort port)
+	{
+		if (port != null) {
+			b.append(name);
+			b.append(':');
+			b.append(port.toString());
+			b.append(',');
+		}		
 	}
 	
 	/**

@@ -10,6 +10,7 @@ import java.io.PrintWriter;
 import com.wdroome.util.StringUtils;
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.HexDump;
+import com.wdroome.util.inet.InetUtil;
 
 /**
  * An Art-Net Poll Reply message.
@@ -94,14 +95,16 @@ public class ArtNetPollReply extends ArtNetMsg
 	public ArtNetPort[] m_inPorts = new ArtNetPort[4];
 	public ArtNetPort[] m_outPorts = new ArtNetPort[4];
 	
-	public InetSocketAddress m_fromAddr = null;
+	/** For incoming messages, the node's unique address. null for outgoing messages. */
+	public final ArtNetNodeAddr m_nodeAddr;
 
 	/**
 	 * Create a message with the default field values.
 	 */
 	public ArtNetPollReply()
 	{
-		super(ArtNetOpcode.OpPollReply);
+		super(ArtNetOpcode.OpPollReply, null);
+		m_nodeAddr = null;
 	}
 	
 	/**
@@ -109,14 +112,14 @@ public class ArtNetPollReply extends ArtNetMsg
 	 * @param buff The message buffer.
 	 * @param off The starting offset of the data within buff.
 	 * @param length The length of the data.
+	 * @param fromAddr The sender's IP address.
 	 */
-	public ArtNetPollReply(byte[] buff, int off, int length, InetSocketAddress sender)
+	public ArtNetPollReply(byte[] buff, int off, int length, Inet4Address fromAddr)
 	{
-		super(ArtNetOpcode.OpPollReply);
+		super(ArtNetOpcode.OpPollReply, fromAddr);
 		if (length < minSize()) {
 			throw new IllegalArgumentException("ArtNetPollReply: short msg " + length);
 		}
-		m_fromAddr = sender;
 		ArtNetOpcode opcode = getOpcode(buff, off, length);
 		if (opcode != ArtNetOpcode.OpPollReply) {
 			throw new IllegalArgumentException("ArtNetPollReply: wrong opcode " + opcode);
@@ -183,6 +186,8 @@ public class ArtNetPollReply extends ArtNetMsg
 				m_outPorts[i] = defPort;
 			}
 		}
+		
+		m_nodeAddr = new ArtNetNodeAddr(m_bindIpAddr, m_bindIndex, m_ipAddr, m_ipPort, getFromAddr());
 	}
 	
 	/**
@@ -396,10 +401,10 @@ public class ArtNetPollReply extends ArtNetMsg
 		}
 		String indent = "   ";
 		buff.append(linePrefix
-				+ "ipaddr: " + m_ipAddr.getHostAddress() + ":" + m_ipPort
-				+ " bind: " + getNodeAddr()
-				+ " names: " + m_shortName
-				+ (m_longName.isBlank() ? "" : ("/" + m_longName))
+				+ "names: \"" + m_shortName + "\""
+				+ (m_longName.isBlank() ? "" : (" \"" + m_longName + "\""))
+				+ " addr: "
+					+ (m_nodeAddr != null ? InetUtil.toAddrPort(m_nodeAddr.m_nodeAddr) : "(none)")
 				+ "\n");
 		buff.append(linePrefix
 				+ (((m_status2 & STATUS2_BROWSER_CONFIG) != 0) ? "web-configurable: yes " : "")
@@ -445,11 +450,6 @@ public class ArtNetPollReply extends ArtNetMsg
 			}
 		}
 		return buff.toString();
-	}
-	
-	public ArtNetNodeAddr getNodeAddr()
-	{
-		return new ArtNetNodeAddr(m_bindIpAddr, m_bindIndex, m_ipAddr, m_ipPort, m_fromAddr); 
 	}
 	
 	public void printCommon(PrintStream out, String linePrefix)

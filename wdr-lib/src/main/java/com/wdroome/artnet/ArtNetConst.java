@@ -2,7 +2,7 @@ package com.wdroome.artnet;
 
 /**
  * Common constants for the Art-Net Protocol (version 4).
- * Art-Net (TM) Designed by and Copyright Artistic Licence Holdings Ltd.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
 public class ArtNetConst
@@ -92,6 +92,9 @@ public class ArtNetConst
 	// User changed switch settings when address locked
 	// by remote programming. User changes ignored.
 	public static final int RcUserFail = 0x000f;
+	
+	// Factory reset has occurred.
+	public static final int RcFactoryRes = 0x0010;
 	
 	/**
 	 * Table 4: Style codes.

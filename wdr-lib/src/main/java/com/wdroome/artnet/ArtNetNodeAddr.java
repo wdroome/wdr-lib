@@ -9,43 +9,40 @@ import com.wdroome.util.inet.InetUtil;
  * The logical identifier for a node: the bind IP address, bind index
  * and UDP address to send requests to. The unique key is the combination
  * of "bind address" and "bind index."
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  */
 public class ArtNetNodeAddr implements Comparable<ArtNetNodeAddr>
 {
 	public final Inet4Address m_rootAddr;	// Address of root node.
 	public final int m_index;				// Index of this node. Starts with 1. Never 0.
-	public final InetSocketAddress m_nodeAddr;	// IP address of this node. Never null.	
+	public final InetSocketAddress m_nodeAddr;	// IP address of this node, for sending messages.
+												// Never null.	
 	
 	/**
 	 * Create a new logical node address.
-	 * @param bindAddr The node's "bind" address. If 0 or null, use srcAddr.
+	 * @param bindAddr The node's "bind" address. If 0 or null, use pollAddr or fromAddr.
 	 * @param index The node's "bind" index. If 0, use 1.
 	 * @param pollIpAddr The address in the ArtNetPollReply msg. May be all zero.
 	 * @param port The port on which the sender listens. If 0, use the Art-Net port.
-	 * @param sender The node's "send" socket address. Never null.
+	 * @param fromAddr The node's "send" socket address. Never null.
 	 */
 	public ArtNetNodeAddr(Inet4Address bindAddr, int index, Inet4Address pollIpAddr,
-							int port, InetSocketAddress sender)
+							int port, Inet4Address fromAddr)
 	{
 		if (ArtNetMsg.isZeroIpAddr(bindAddr)) {
 			bindAddr = pollIpAddr;
 			if (ArtNetMsg.isZeroIpAddr(bindAddr)) {
-				if (sender == null) {
-					throw new IllegalArgumentException("ArtNetNodeAddr(): No sender address.");
-				}
-				InetAddress addr = sender.getAddress();
-				if (addr instanceof Inet4Address) {
-					bindAddr = (Inet4Address)addr;
-				} else {
-					throw new IllegalArgumentException("ArtNetNodeAddr(): sender not IPv4");
-				}
+				bindAddr = fromAddr;
 			}
+		}
+		if (ArtNetMsg.isZeroIpAddr(bindAddr)) {
+			throw new IllegalArgumentException("ArtNetNodeAddr(): No 'bind' address.");			
 		}
 		m_rootAddr = bindAddr;
 		m_index = index > 0 ? index : 1;
 		InetAddress sendAddr = pollIpAddr;
 		if (ArtNetMsg.isZeroIpAddr(pollIpAddr)) {
-			sendAddr = sender.getAddress();
+			sendAddr = fromAddr;
 		}
 		m_nodeAddr = new InetSocketAddress(sendAddr, port != 0 ? port : ArtNetConst.ARTNET_PORT);
 	}
@@ -66,7 +63,7 @@ public class ArtNetNodeAddr implements Comparable<ArtNetNodeAddr>
 	@Override
 	public String toString()
 	{
-		return m_rootAddr.getHostAddress() + ":" + m_nodeAddr.getPort() + "[" + m_index + "]";
+		return m_rootAddr.getHostAddress() + "[" + m_index + "]";
 	}
 
 	@Override

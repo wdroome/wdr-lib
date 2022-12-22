@@ -24,7 +24,7 @@ public class ArtNetIpProgReply extends ArtNetMsg
 	 */
 	public ArtNetIpProgReply()
 	{
-		super(ArtNetOpcode.OpIpProgReply);
+		super(ArtNetOpcode.OpIpProgReply, null);
 	}
 	
 	/**
@@ -32,10 +32,11 @@ public class ArtNetIpProgReply extends ArtNetMsg
 	 * @param buff The message buffer.
 	 * @param off The starting offset of the data within buff.
 	 * @param length The length of the data.
+	 * @param fromAddr The sender's IP address.
 	 */
-	public ArtNetIpProgReply(byte[] buff, int off, int length)
+	public ArtNetIpProgReply(byte[] buff, int off, int length, Inet4Address fromAddr)
 	{
-		super(ArtNetOpcode.OpIpProgReply);
+		super(ArtNetOpcode.OpIpProgReply, fromAddr);
 		if (length < size()) {
 			throw new IllegalArgumentException("ArtNetIpProgReply: short msg " + length);
 		}
