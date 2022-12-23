@@ -15,6 +15,7 @@ public class ArtNetDiagData extends ArtNetMsg
 {	
 	public int m_protoVers = ArtNetConst.PROTO_VERS;
 	public int m_priority = 0;
+	public int m_logicalPort = 0;
 	public String m_data = "";
 
 	/**
@@ -47,7 +48,8 @@ public class ArtNetDiagData extends ArtNetMsg
 		off += ArtNetConst.PROTO_VERS_LENGTH;
 		off += 1;		// filler
 		m_priority = buff[off++] & 0xff;
-		off += 2;		// filler
+		m_logicalPort = buff[off++] & 0xff;
+		off += 1;		// filler
 		int dataLen = getBigEndInt16(buff, off);
 		off += 2;
 		if (dataLen > length - off) {
@@ -78,7 +80,8 @@ public class ArtNetDiagData extends ArtNetMsg
 				+ ArtNetConst.PROTO_VERS_LENGTH		// protoVers
 				+ 1			// filler
 				+ 1			// priority
-				+ 2			// filler
+				+ 1			// logicalPort
+				+ 1			// filler
 				+ 2;		// dataLen		
 	}
 	
@@ -93,7 +96,7 @@ public class ArtNetDiagData extends ArtNetMsg
 		off += putHeader(buff, off, m_protoVers);
 		buff[off++] = 0;	// filler
 		buff[off++] = (byte)m_priority;
-		buff[off++] = 0;	// filler
+		buff[off++] = (byte)m_logicalPort;
 		buff[off++] = 0;	// filler
 		int dataLen = (m_data != null) ? m_data.length() : 0;
 		putBigEndInt16(buff, off, dataLen + 1);	// +1 is for the null term.

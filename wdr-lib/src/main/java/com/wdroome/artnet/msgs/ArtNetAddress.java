@@ -1,14 +1,13 @@
 package com.wdroome.artnet.msgs;
 
 import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 
 import com.wdroome.util.StringUtils;
-import com.wdroome.artnet.ArtNetConst;
-import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.HexDump;
+
+import com.wdroome.artnet.ArtNetConst;
+import com.wdroome.artnet.ArtNetOpcode;
 
 /**
  * An Art-Net Address message.
@@ -25,7 +24,7 @@ public class ArtNetAddress extends ArtNetMsg
 	public String m_longName = "";
 	public byte[] m_swIn = new byte[4];
 	public byte[] m_swOut = new byte[4];
-	public int m_swVideo = 0;
+	public int m_acnPriority = 0;		// ArtNet 4. Was swVideo before.
 	public int m_command = 0;
 
 	/**
@@ -67,7 +66,7 @@ public class ArtNetAddress extends ArtNetMsg
 		copyBytes(m_swOut, 0, buff, off, 4);
 		off += 4;
 		m_subNetAddr = buff[off++] & 0xff;
-		m_swVideo = buff[off++] & 0xff;
+		m_acnPriority = buff[off++] & 0xff;
 		m_command = buff[off++] & 0xff;
 	}
 	
@@ -86,7 +85,7 @@ public class ArtNetAddress extends ArtNetMsg
 				+ 4		// swIn
 				+ 4		// swOut
 				+ 1		// subNetAddr
-				+ 1		// swVideo
+				+ 1		// acnPriority
 				+ 1;	// command
 	}
 	
@@ -110,7 +109,7 @@ public class ArtNetAddress extends ArtNetMsg
 		copyBytes(buff, off, m_swOut, 0, 4);
 		off += 4;
 		buff[off++] = (byte)m_subNetAddr;
-		buff[off++] = (byte)m_swVideo;
+		buff[off++] = (byte)m_acnPriority;
 		buff[off++]= (byte)m_command;
 		return off;
 	}
@@ -128,7 +127,7 @@ public class ArtNetAddress extends ArtNetMsg
 		append(b, "longName", m_longName);
 		append(b, "swIn", m_swIn);
 		append(b, "swOut", m_swOut);
-		appendHex(b, "swVideo", m_swVideo);
+		appendHex(b, "acnPriority", m_acnPriority);
 		append(b, "bindIndex", m_bindIndex);
 		b.append('}');
 		return b.toString();

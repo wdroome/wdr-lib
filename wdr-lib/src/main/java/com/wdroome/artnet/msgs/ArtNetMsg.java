@@ -21,6 +21,21 @@ import com.wdroome.artnet.ArtNetPort;
  */
 public abstract class ArtNetMsg
 {
+	/**
+	 * Decode an incoming message and return the appropriate message subtype.
+	 * @param buff The message buffer.
+	 * @param off The offset of the message within buff.
+	 * @param length The length of the message.
+	 * @param fromAddr The sender's IP address. May be null.
+	 * @return The message, or null if it is not a valid ArtNet message.
+	 */
+	@FunctionalInterface
+	public interface MsgMaker
+	{
+		public ArtNetMsg make(byte[] buff, int off, int length, Inet4Address fromAddr);
+	}
+
+	
 	/** The Art-Net op code. Required. */
 	public final ArtNetOpcode m_opcode;
 	
@@ -132,27 +147,8 @@ public abstract class ArtNetMsg
 	public static ArtNetMsg make(byte[] buff, int off, int length, InetSocketAddress sender)
 	{
 		try {
-			Inet4Address fromAddr = getInet4Address(sender);
-			switch (getOpcode(buff, off, length)) {
-			case OpPoll:
-				return new ArtNetPoll(buff, off, length, fromAddr);
-			case OpPollReply:
-				return new ArtNetPollReply(buff, off, length, fromAddr);
-			case OpDmx:
-				return new ArtNetDmx(buff, off, length, fromAddr);
-			case OpDiagData:
-				return new ArtNetDiagData(buff, off, length, fromAddr);
-			case OpIpProg:
-				return new ArtNetIpProg(buff, off, length, fromAddr);
-			case OpIpProgReply:
-				return new ArtNetIpProgReply(buff, off, length, fromAddr);
-			case OpAddress:
-				return new ArtNetAddress(buff, off, length, fromAddr);
-			case Invalid:
-				return null;
-			default:
-				return null;
-			}
+			ArtNetOpcode opcode = getOpcode(buff, off, length);
+			return opcode.makeMsg(buff, off, length, getInet4Address(sender));
 		} catch (Exception e) {
 			// Message was too short or other error.
 			return null;

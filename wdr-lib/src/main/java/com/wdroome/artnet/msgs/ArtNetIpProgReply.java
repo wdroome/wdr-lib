@@ -22,6 +22,7 @@ public class ArtNetIpProgReply extends ArtNetMsg
 	public Inet4Address m_ipMask = null;
 	public int m_ipPort = 0;
 	public int m_status = 0;
+	public Inet4Address m_defGateway = null;
 
 	/**
 	 * Create a message with the default field values.
@@ -59,24 +60,27 @@ public class ArtNetIpProgReply extends ArtNetMsg
 		m_ipPort = getBigEndInt16(buff, off);
 		off += 2;
 		m_status = buff[off++] & 0xff;
+		off += 1;		// spare
+		m_defGateway = getIpAddr(buff, off);
+		off += 4;
 	}
 	
 	/**
-	 * Return the length of an ArtNetIpProg message.
-	 * @return The length of an ArtNetIpProg message.
+	 * Return the length of an ArtNetIpProgReply message.
+	 * @return The length of an ArtNetIpProgReply message.
 	 */
 	public static int size()
 	{
 		return ArtNetConst.HDR_OPCODE_LENGTH
 				+ ArtNetConst.PROTO_VERS_LENGTH		// protoVers
-				+ 2			// filler
-				+ 1			// command
-				+ 1			// filler
+				+ 4			// filler
 				+ 4			// ipAddr
 				+ 4			// ipMask
-				+ 2			// ipPort
+				+ 2			// port
 				+ 1			// status
-				+ 7;		// spare
+				+ 1			// spare
+				+ 4			// defGateway
+				+ 2;		// spare
 	}
 	
 	/**
@@ -97,8 +101,11 @@ public class ArtNetIpProgReply extends ArtNetMsg
 		putBigEndInt16(buff, off, m_ipPort);
 		off += 2;
 		buff[off++] = (byte)m_status;
-		zeroBytes(buff, off, 7);
-		off += 7;
+		buff[off++] = 0;
+		putIpAddr(buff, off, m_defGateway);
+		off += 4;
+		zeroBytes(buff, off, 2);
+		off += 2;
 		return off;
 	}
 	
@@ -112,6 +119,7 @@ public class ArtNetIpProgReply extends ArtNetMsg
 		append(b, "ipMask", m_ipMask);
 		append(b, "ipPort", m_ipPort);
 		appendHex(b, "status", m_status);
+		append(b, "defGateway", m_defGateway);
 		b.append('}');
 		return b.toString();
 	}

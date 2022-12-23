@@ -22,6 +22,7 @@ public class ArtNetIpProg extends ArtNetMsg
 	public Inet4Address m_ipAddr = null;
 	public Inet4Address m_ipMask = null;
 	public int m_ipPort = 0;
+	public Inet4Address m_defGateway = null;
 
 	/**
 	 * Create a message with the default field values.
@@ -60,6 +61,8 @@ public class ArtNetIpProg extends ArtNetMsg
 		off += 4;
 		m_ipPort = getBigEndInt16(buff, off);
 		off += 2;
+		m_defGateway = getIpAddr(buff, off);
+		off += 4;
 	}
 	
 	/**
@@ -76,7 +79,8 @@ public class ArtNetIpProg extends ArtNetMsg
 				+ 4			// ipAddr
 				+ 4			// ipMask
 				+ 2			// ipPort
-				+ 8;		// spare
+				+ 4			// defaultGateway
+				+ 4;		// spare
 	}
 	
 	/**
@@ -98,8 +102,10 @@ public class ArtNetIpProg extends ArtNetMsg
 		off += 4;
 		putBigEndInt16(buff, off, m_ipPort);
 		off += 2;
-		zeroBytes(buff, off, 8);
-		off += 8;
+		putIpAddr(buff, off, m_defGateway);
+		off += 4;
+		zeroBytes(buff, off, 4);
+		off += 4;
 		return off;
 	}
 	
