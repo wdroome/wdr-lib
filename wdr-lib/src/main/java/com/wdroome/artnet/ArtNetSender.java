@@ -9,6 +9,8 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.wdroome.artnet.msgs.ArtNetMsg;
+import com.wdroome.artnet.msgs.ArtNetPoll;
 import com.wdroome.util.inet.InetInterface;
 
 /**

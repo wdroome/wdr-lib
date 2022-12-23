@@ -12,10 +12,10 @@ import com.wdroome.util.inet.InetInterface;
 
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetPort;
-import com.wdroome.artnet.ArtNetMsg;
-import com.wdroome.artnet.ArtNetPoll;
+import com.wdroome.artnet.msgs.ArtNetDmx;
+import com.wdroome.artnet.msgs.ArtNetMsg;
+import com.wdroome.artnet.msgs.ArtNetPoll;
 import com.wdroome.artnet.ArtNetChannel;
-import com.wdroome.artnet.ArtNetDmx;
 
 /**
  * Send ArtNet messages (for testing).

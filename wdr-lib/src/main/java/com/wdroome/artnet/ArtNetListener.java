@@ -10,6 +10,7 @@ import java.net.InetSocketAddress;
 import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 
+import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.util.HexDump;
 import com.wdroome.util.inet.InetInterface;
 import com.wdroome.util.inet.InetUtil;

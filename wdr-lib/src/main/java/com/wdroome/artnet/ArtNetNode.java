@@ -1,6 +1,15 @@
 package com.wdroome.artnet;
 
 import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.TreeSet;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Collection;
+
+import com.wdroome.artnet.msgs.ArtNetPollReply;
 
 /**
  * Information about an Art-Net node, as discovered by polling.
@@ -72,5 +81,51 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 		}
 		return m_reply.m_nodeAddr.equals(((ArtNetNode)obj).m_reply.m_nodeAddr);
 	}
-
+	
+	/**
+	 * Given a list of possibly duplicate nodes, return the unique nodes as a sorted set.
+	 * @param nodes The nodes.
+	 * @return A sorted set with the unique nodes.
+	 */
+	public static Set<ArtNetNode> getUniqueNodes(Collection<ArtNetNode> nodes)
+	{
+		TreeSet<ArtNetNode> uniqueNodes = new TreeSet<>();
+		if (nodes != null) {
+			for (ArtNetNode ni : nodes) {
+				uniqueNodes.add(ni);
+			} 
+		}
+		return uniqueNodes;
+	}
+	
+	/**
+	 * Given a list of discovered nodes, return a map from each distinct ArtNet port
+	 * to the set of the nodes which can output DMX on that port.
+	 * @param nodes The nodes.
+	 * @return A map from each ArtNetPort to a set of nodes that can output DMX on that port.
+	 * 		The map is only defined for ports supported by some node.
+	 */
+	public static Map<ArtNetPort, Set<ArtNetNode>> getDmxPort2NodeMap(Collection<ArtNetNode> nodes)
+	{
+		Map<ArtNetPort, Set<ArtNetNode>> map = new HashMap<>();
+		if (nodes != null) {
+			for (ArtNetNode ni: nodes) {
+				for (int i = 0; i < ni.m_reply.m_numPorts; i++) {
+					int portType = ni.m_reply.m_portTypes[i];
+					ArtNetPort port = ni.m_reply.getOutputPort(i);
+					if (((portType & ArtNetPollReply.PORT_TYPE_OUTPUT) != 0)
+							&& ((portType & ArtNetPollReply.PORT_TYPE_PROTO_MASK)
+											== ArtNetPollReply.PORT_TYPE_PROTO_DMX512)) {
+						Set<ArtNetNode> portNodes = map.get(port);
+						if (portNodes == null) {
+							portNodes = new HashSet<ArtNetNode>();
+							map.put(port, portNodes);
+						}
+						portNodes.add(ni);
+					}
+				}
+			}
+		}
+		return map;
+	}
 }

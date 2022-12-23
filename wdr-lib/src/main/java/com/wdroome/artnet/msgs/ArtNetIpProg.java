@@ -1,30 +1,34 @@
-package com.wdroome.artnet;
+package com.wdroome.artnet.msgs;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import com.wdroome.artnet.ArtNetConst;
+import com.wdroome.artnet.ArtNetOpcode;
+
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.StringUtils;
 
 /**
- * An Art-Net IP Prog Reply message.
+ * An Art-Net IP Prog message.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
-public class ArtNetIpProgReply extends ArtNetMsg
+public class ArtNetIpProg extends ArtNetMsg
 {	
 	public int m_protoVers = ArtNetConst.PROTO_VERS;
+	public int m_command = 0;
 	public Inet4Address m_ipAddr = null;
 	public Inet4Address m_ipMask = null;
 	public int m_ipPort = 0;
-	public int m_status = 0;
 
 	/**
 	 * Create a message with the default field values.
 	 */
-	public ArtNetIpProgReply()
+	public ArtNetIpProg()
 	{
-		super(ArtNetOpcode.OpIpProgReply, null);
+		super(ArtNetOpcode.OpIpProg, null);
 	}
 	
 	/**
@@ -34,27 +38,28 @@ public class ArtNetIpProgReply extends ArtNetMsg
 	 * @param length The length of the data.
 	 * @param fromAddr The sender's IP address.
 	 */
-	public ArtNetIpProgReply(byte[] buff, int off, int length, Inet4Address fromAddr)
+	public ArtNetIpProg(byte[] buff, int off, int length, Inet4Address fromAddr)
 	{
-		super(ArtNetOpcode.OpIpProgReply, fromAddr);
+		super(ArtNetOpcode.OpIpProg, fromAddr);
 		if (length < size()) {
-			throw new IllegalArgumentException("ArtNetIpProgReply: short msg " + length);
+			throw new IllegalArgumentException("ArtNetIpProg: short msg " + length);
 		}
 		ArtNetOpcode opcode = getOpcode(buff, off, length);
-		if (opcode != ArtNetOpcode.OpIpProgReply) {
-			throw new IllegalArgumentException("ArtNetIpProgReply: wrong opcode " + opcode);
+		if (opcode != ArtNetOpcode.OpIpProg) {
+			throw new IllegalArgumentException("ArtNetIpProg: wrong opcode " + opcode);
 		}
 		off += ArtNetConst.HDR_OPCODE_LENGTH;
 		m_protoVers = getProtoVers(buff, off);
 		off += ArtNetConst.PROTO_VERS_LENGTH;
-		off += 4;		// filler
+		off += 2;		// filler
+		m_command = buff[off++] & 0xff;
+		off += 1;		// filler
 		m_ipAddr = getIpAddr(buff, off);
 		off += 4;
 		m_ipMask = getIpAddr(buff, off);
 		off += 4;
 		m_ipPort = getBigEndInt16(buff, off);
 		off += 2;
-		m_status = buff[off++] & 0xff;
 	}
 	
 	/**
@@ -71,8 +76,7 @@ public class ArtNetIpProgReply extends ArtNetMsg
 				+ 4			// ipAddr
 				+ 4			// ipMask
 				+ 2			// ipPort
-				+ 1			// status
-				+ 7;		// spare
+				+ 8;		// spare
 	}
 	
 	/**
@@ -84,17 +88,18 @@ public class ArtNetIpProgReply extends ArtNetMsg
 	public int putData(byte[] buff, int off)
 	{
 		off += putHeader(buff, off, m_protoVers);
-		zeroBytes(buff, off, 4);
-		off += 4;
+		buff[off++] = 0;	// filler
+		buff[off++] = 0;	// filler
+		buff[off++] = (byte)m_command;
+		buff[off++] = 0;	// filler
 		putIpAddr(buff, off, m_ipAddr);
 		off += 4;
 		putIpAddr(buff, off, m_ipMask);
 		off += 4;
 		putBigEndInt16(buff, off, m_ipPort);
 		off += 2;
-		buff[off++] = (byte)m_status;
-		zeroBytes(buff, off, 7);
-		off += 7;
+		zeroBytes(buff, off, 8);
+		off += 8;
 		return off;
 	}
 	
@@ -102,12 +107,12 @@ public class ArtNetIpProgReply extends ArtNetMsg
 	public String toString()
 	{
 		StringBuilder b = new StringBuilder(300);
-		b.append("OpIpProgReply{");
+		b.append("ArtNetIpProg{");
 		append(b, "protoVers", m_protoVers);
+		appendHex(b, "command", m_command);
 		append(b, "ipAddr", m_ipAddr);
 		append(b, "ipMask", m_ipMask);
 		append(b, "ipPort", m_ipPort);
-		appendHex(b, "status", m_status);
 		b.append('}');
 		return b.toString();
 	}

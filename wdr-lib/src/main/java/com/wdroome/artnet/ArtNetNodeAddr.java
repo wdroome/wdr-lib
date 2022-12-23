@@ -3,6 +3,8 @@ package com.wdroome.artnet;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+
+import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.util.inet.InetUtil;
 
 /*

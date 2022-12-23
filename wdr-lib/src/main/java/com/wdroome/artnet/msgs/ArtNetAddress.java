@@ -1,15 +1,18 @@
-package com.wdroome.artnet;
+package com.wdroome.artnet.msgs;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import com.wdroome.util.StringUtils;
+import com.wdroome.artnet.ArtNetConst;
+import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.HexDump;
 
 /**
  * An Art-Net Address message.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
 public class ArtNetAddress extends ArtNetMsg

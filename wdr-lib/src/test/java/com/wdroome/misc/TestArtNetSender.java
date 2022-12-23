@@ -5,6 +5,10 @@ import java.net.*;
 import java.util.*;
 
 import com.wdroome.artnet.*;
+import com.wdroome.artnet.msgs.ArtNetDmx;
+import com.wdroome.artnet.msgs.ArtNetMsg;
+import com.wdroome.artnet.msgs.ArtNetPoll;
+import com.wdroome.artnet.msgs.ArtNetPollReply;
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.HexDump;
 import com.wdroome.util.inet.CIDRAddress;

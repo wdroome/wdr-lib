@@ -12,6 +12,14 @@ import java.io.*;
 import org.junit.Test;
 
 import com.wdroome.artnet.*;
+import com.wdroome.artnet.msgs.ArtNetAddress;
+import com.wdroome.artnet.msgs.ArtNetDiagData;
+import com.wdroome.artnet.msgs.ArtNetDmx;
+import com.wdroome.artnet.msgs.ArtNetIpProg;
+import com.wdroome.artnet.msgs.ArtNetIpProgReply;
+import com.wdroome.artnet.msgs.ArtNetMsg;
+import com.wdroome.artnet.msgs.ArtNetPoll;
+import com.wdroome.artnet.msgs.ArtNetPollReply;
 import com.wdroome.util.HexDump;
 
 /**

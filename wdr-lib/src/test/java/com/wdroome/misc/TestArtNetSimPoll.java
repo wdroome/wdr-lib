@@ -9,10 +9,10 @@ import java.net.InetAddress;
 import java.net.Inet4Address;
 
 import com.wdroome.artnet.ArtNetConst;
-import com.wdroome.artnet.ArtNetMsg;
 import com.wdroome.artnet.ArtNetOpcode;
-import com.wdroome.artnet.ArtNetPoll;
-import com.wdroome.artnet.ArtNetPollReply;
+import com.wdroome.artnet.msgs.ArtNetMsg;
+import com.wdroome.artnet.msgs.ArtNetPoll;
+import com.wdroome.artnet.msgs.ArtNetPollReply;
 import com.wdroome.artnet.ArtNetChannel;
 
 /**

@@ -8,7 +8,8 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.TreeSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.wdroome.util.MiscUtil;
@@ -19,12 +20,12 @@ import com.wdroome.util.inet.InetUtil;
 
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.msgs.ArtNetMsg;
+import com.wdroome.artnet.msgs.ArtNetPoll;
+import com.wdroome.artnet.msgs.ArtNetPollReply;
 import com.wdroome.artnet.ArtNetNode;
-import com.wdroome.artnet.ArtNetMsg;
 import com.wdroome.artnet.ArtNetNodeAddr;
 import com.wdroome.artnet.ArtNetOpcode;
-import com.wdroome.artnet.ArtNetPoll;
-import com.wdroome.artnet.ArtNetPollReply;
 import com.wdroome.artnet.ArtNetChannel;
 
 /**
@@ -237,12 +238,20 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 	public static void main(String[] args) throws IOException
 	{
 		int nRepeats = 1;	// repeats are useful for testing.
+		boolean prtAllReplies = false;
 		ArtNetPoller poller = new ArtNetPoller();
 		List<ArtNetNode> replies;
+		for (String arg: args) {
+			if (arg.startsWith("-a")) {
+				prtAllReplies = true;
+			}
+		}
 		if (args.length > 0) {
 			List<InetSocketAddress> sockAddrs = new ArrayList<>();
 			for (String arg: args) {
-				sockAddrs.add(InetUtil.parseAddrPort(arg, ArtNetConst.ARTNET_PORT));
+				if (!arg.startsWith("-")) {
+					sockAddrs.add(InetUtil.parseAddrPort(arg, ArtNetConst.ARTNET_PORT));
+				}
 			}
 			poller.setSockAddrs(sockAddrs);
 		}
@@ -263,16 +272,27 @@ public class ArtNetPoller implements ArtNetChannel.Receiver
 			for (ArtNetNode ni : replies) {
 				System.out.println(ni.toString());
 				// ni.m_reply.print(System.out, "");
+				if (prtAllReplies) {
+					System.out.println("  " + ni.m_reply.toString());
+				}
 			}
 			System.out.println();
 			
-			TreeSet<ArtNetNode> uniqueNodes = new TreeSet<>();
-			for (ArtNetNode ni : replies) {
-				uniqueNodes.add(ni);
-			}
+			Set<ArtNetNode> uniqueNodes = ArtNetNode.getUniqueNodes(replies);
 			System.out.println(uniqueNodes.size() + " unique nodes:");
 			for (ArtNetNode ni: uniqueNodes) {
 				System.out.println(ni.toString());
+			}
+			System.out.println();
+			
+			Map<ArtNetPort, Set<ArtNetNode>> outMap = ArtNetNode.getDmxPort2NodeMap(replies);
+			System.out.println(outMap.keySet().size() + " DMX Output Ports: ");
+			for (Map.Entry<ArtNetPort, Set<ArtNetNode>> ent: outMap.entrySet()) {
+				System.out.print("  " + ent.getKey() + ":");
+				for (ArtNetNode ni: ent.getValue()) {
+					System.out.print(" " + ni.m_reply.m_nodeAddr);
+				}
+				System.out.println();
 			}
 		}
 		System.out.println("DONE");

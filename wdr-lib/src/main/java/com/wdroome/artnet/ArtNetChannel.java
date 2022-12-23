@@ -28,6 +28,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 
+import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.util.ArrayToList;
 import com.wdroome.util.HexDump;
 import com.wdroome.util.inet.CIDRAddress;

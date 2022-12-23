@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.*;
 
 import com.wdroome.artnet.*;
+import com.wdroome.artnet.msgs.ArtNetMsg;
 
 /**
  * @author wdr

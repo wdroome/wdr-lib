@@ -1,4 +1,4 @@
-package com.wdroome.artnet;
+package com.wdroome.artnet.msgs;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -12,10 +12,17 @@ import com.wdroome.util.ByteAOL;
 import com.wdroome.util.HexDump;
 import com.wdroome.util.inet.InetUtil;
 
+import com.wdroome.artnet.ArtNetConst;
+import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetOpcode;
+import com.wdroome.artnet.ACN_UID;
+import com.wdroome.artnet.ArtNetNodeAddr;
+
 /**
  * An Art-Net Poll Reply message.
  * Note: In early versions of the protocol, the sub-net number
  * was in the high nibble of swIn and swOut.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
 public class ArtNetPollReply extends ArtNetMsg
@@ -57,7 +64,7 @@ public class ArtNetPollReply extends ArtNetMsg
 	public static final int GOOD_OUTPUT_LTP = 0x02;
 	public static final int GOOD_OUTPUT_SACN = 0x01;
 	
-	public static final int GOOD_OUTPUTB_RDM = 0x80;
+	public static final int GOOD_OUTPUTB_RDM_DISABLED = 0x80;
 	public static final int GOOD_OUTPUTB_CONTINUOUS = 0x40;
 
 	public Inet4Address m_ipAddr = null;
@@ -433,13 +440,19 @@ public class ArtNetPollReply extends ArtNetMsg
 				if ((m_goodOutput[i] & GOOD_OUTPUT_ACTIVE) != 0) {
 					buff.append("/active");
 				}
-				if ((m_goodOutput[i] & GOOD_OUTPUT_SACN) != 0) {
-					buff.append("/sACN");
-				}
 				if ((m_goodOutput[i] & GOOD_OUTPUT_MERGE) != 0) {
 					buff.append("/merge");
 				}
 				buff.append((m_goodOutput[i] & GOOD_OUTPUT_LTP) != 0 ? "/ltp" : "/htp");
+				if ((m_status2 & STATUS2_ARTNET_3OR4) != 0) {
+					if ((m_goodOutputB[i] & GOOD_OUTPUTB_RDM_DISABLED) == 0) {
+						buff.append((m_goodOutputB[i] & GOOD_OUTPUTB_CONTINUOUS) != 0
+										? "/rdm-contin" : "/rdm-delta");
+					}
+				}
+				if ((m_goodOutput[i] & GOOD_OUTPUT_SACN) != 0) {
+					buff.append("/sACN");
+				}
 			}
 			if ((m_portTypes[i] & PORT_TYPE_INPUT) != 0) {
 				buff.append("\n");

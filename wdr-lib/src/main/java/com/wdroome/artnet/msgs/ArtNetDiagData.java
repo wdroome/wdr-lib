@@ -1,12 +1,14 @@
-package com.wdroome.artnet;
+package com.wdroome.artnet.msgs;
 
 import java.net.Inet4Address;
 
-import com.wdroome.util.ByteAOL;
+import com.wdroome.artnet.ArtNetConst;
+import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.util.StringUtils;
 
 /**
  * An Art-Net Diagnostic Data message.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
 public class ArtNetDiagData extends ArtNetMsg

@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import com.wdroome.artnet.ArtNetConst;
-import com.wdroome.artnet.ArtNetPoll;
+import com.wdroome.artnet.msgs.ArtNetPoll;
 import com.wdroome.artnet.ArtNetChannel;
 
 import com.wdroome.util.inet.InetInterface;

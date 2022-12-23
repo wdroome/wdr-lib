@@ -1,13 +1,16 @@
-package com.wdroome.artnet;
+package com.wdroome.artnet.msgs;
 
 import java.io.PrintStream;
 import java.net.Inet4Address;
 
+import com.wdroome.artnet.ArtNetConst;
+import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.StringUtils;
 
 /**
  * An Art-Net DMX data message.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
 public class ArtNetDmx extends ArtNetMsg
