@@ -120,7 +120,7 @@ public class ArtNetPoll extends ArtNetMsg
 		m.putData(buff, 0);
 		String x = new ByteAOL(buff, 0, buff.length).toHex();
 		System.out.println(x);
-		ArtNetPoll m2 = new ArtNetPoll(buff, 0, ArtNetPollReply.size(), null);
+		ArtNetPoll m2 = new ArtNetPoll(buff, 0, ArtNetPoll.size(), null);
 		m2.print(System.out, "");
 		
 		if (args.length > 0) {

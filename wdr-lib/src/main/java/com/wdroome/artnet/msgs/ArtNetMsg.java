@@ -142,7 +142,8 @@ public abstract class ArtNetMsg
 	 * @param off The offset of the message within buff.
 	 * @param length The length of the message.
 	 * @param sender The sender's IP address. May be null.
-	 * @return The message, or null if it is not a valid ArtNet message.
+	 * @return The message, or null if it is not a valid or supported ArtNet message.
+	 * @see ArtNetOpcode#makeMsg(byte[], int, int, Inet4Address)
 	 */
 	public static ArtNetMsg make(byte[] buff, int off, int length, InetSocketAddress sender)
 	{
@@ -405,6 +406,32 @@ public abstract class ArtNetMsg
 			b.append(name);
 			b.append(':');
 			b.append(ipAddr.getHostAddress());
+			b.append(',');
+		}
+	}
+	
+	protected static void appendHex(StringBuilder b, String name, byte[] data, int dataLen)
+	{
+		if (data != null && dataLen > 0) {
+			b.append(name);
+			b.append(':');
+			for (int i = 0; i < dataLen; i++) {
+				b.append(Integer.toHexString(data[i] & 0xff));
+				b.append(',');
+			}
+			b.append(',');
+		}
+	}
+	
+	protected static void appendUInt(StringBuilder b, String name, byte[] data, int dataLen)
+	{
+		if (data != null && dataLen > 0) {
+			b.append(name);
+			b.append(':');
+			for (int i = 0; i < dataLen; i++) {
+				b.append(data[i] & 0xff);
+				b.append(',');
+			}
 			b.append(',');
 		}
 	}
