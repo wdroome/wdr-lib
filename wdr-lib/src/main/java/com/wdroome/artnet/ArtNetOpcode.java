@@ -24,7 +24,7 @@ public enum ArtNetOpcode
 	OpTodRequest(0x8000, (buff, off, len, addr) -> new ArtNetTodRequest(buff, off, len, addr)),
 	OpTodData(0x8100, (buff, off, len, addr) -> new ArtNetTodData(buff, off, len, addr)),
 	OpTodControl(0x8200, (buff, off, len, addr) -> new ArtNetTodControl(buff, off, len, addr)),
-	OpRdm(0x8300),
+	OpRdm(0x8300, (buff, off, len, addr) -> new ArtNetRdm(buff, off, len, addr)),
 	OpRdmSub(0x8400),
 	OpVideoSetup(0xa010),
 	OpVideoPalette(0xa020),

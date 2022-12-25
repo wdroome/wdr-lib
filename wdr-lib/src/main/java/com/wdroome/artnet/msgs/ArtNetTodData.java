@@ -221,7 +221,7 @@ public class ArtNetTodData extends ArtNetMsg
 		int msgLen = m.putData(buff, 0);
 		String x = new ByteAOL(buff, 0, msgLen).toHex();
 		System.out.println(x);
-		ArtNetTodData m2 = new ArtNetTodData(buff, 0, buff.length, loopback);
+		ArtNetTodData m2 = new ArtNetTodData(buff, 0, msgLen, loopback);
 		m2.print(System.out, "");
 		m2.fmtPrint(System.out, null);
 		

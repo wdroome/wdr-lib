@@ -416,10 +416,11 @@ public abstract class ArtNetMsg
 			b.append(name);
 			b.append(':');
 			for (int i = 0; i < dataLen; i++) {
+				if (i > 0) {
+					b.append(',');
+				}
 				b.append(Integer.toHexString(data[i] & 0xff));
-				b.append(',');
 			}
-			b.append(',');
 		}
 	}
 	
