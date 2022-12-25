@@ -116,7 +116,7 @@ public class ArtNetChannel extends Thread
 	
 	private final List<ChannelInfo> m_listenChans;
 	private final Selector m_selector;
-	private final Receiver m_receiver;
+	private final Set<Receiver> m_receivers = new HashSet<>();
 	
 	// Pre-allocated stack of free send buffers.
 	// Synch on m_freeSendBuffs when accessing.
@@ -142,7 +142,9 @@ public class ArtNetChannel extends Thread
 	public ArtNetChannel(Receiver receiver, Collection<Integer> listenPorts) throws IOException
 	{
 		m_selector = Selector.open();
-		m_receiver = receiver;
+		if (receiver != null) {
+			m_receivers.add(receiver);
+		}
 		if (listenPorts == null || listenPorts.isEmpty()) {
 			listenPorts = ArrayToList.toList(new int[] {ArtNetConst.ARTNET_PORT});
 		} else if (!(listenPorts instanceof Set)) {
@@ -189,6 +191,31 @@ public class ArtNetChannel extends Thread
 	public ArtNetChannel(Receiver receiver, int[] ports) throws IOException
 	{
 		this(receiver, ArrayToList.toList(ports));
+	}
+	
+	/**
+	 * Add a receiver.
+	 * @param receiver The new receiver. Ignore if null.
+	 */
+	public void addReceiver(Receiver receiver)
+	{
+		if (receiver != null) {
+			synchronized (m_receivers) {
+				m_receivers.add(receiver);
+			}
+		}
+	}
+	
+	/**
+	 * Remover a receiver.
+	 * @param receiver The receiver to remove.
+	 * @return True iff receiver was registered as a receiver.
+	 */
+	public boolean dropReceiver(Receiver receiver)
+	{
+		synchronized (m_receivers) {
+			return m_receivers.remove(receiver);
+		}
 	}
 	
 	/**
@@ -260,8 +287,10 @@ public class ArtNetChannel extends Thread
 								InetSocketAddress receiver = (InetSocketAddress)xreceiver;
 								ArtNetMsg msg = ArtNetMsg.make(msgBuff, 0, msgLen, sender);
 								if (msg != null) {
-									if (m_receiver != null) {
-										m_receiver.msgArrived(this, msg, sender, receiver);
+									synchronized (m_receivers) {
+										for (Receiver handler: m_receivers) {
+											handler.msgArrived(this, msg, sender, receiver);
+										}
 									}
 									if (false) {
 										System.out.println("ArtNetChannel RCV op:" + msg.m_opcode
@@ -272,13 +301,17 @@ public class ArtNetChannel extends Thread
 									ArtNetOpcode opcode = ArtNetMsg.getOpcode(msgBuff, 0, msgLen);
 									switch (opcode) {
 									case Invalid:
-										if (m_receiver != null) {
-											m_receiver.msgArrived(this, msgBuff, msgLen, sender, receiver);
+										synchronized (m_receivers) {
+											for (Receiver handler: m_receivers) {
+												handler.msgArrived(this, msgBuff, msgLen, sender, receiver);
+											}
 										}
 										break;
 									default:
-										if (m_receiver != null) {
-											m_receiver.msgArrived(this, opcode, msgBuff, msgLen, sender, receiver);
+										synchronized (m_receivers) {
+											for (Receiver handler: m_receivers) {
+												handler.msgArrived(this, opcode, msgBuff, msgLen, sender, receiver);
+											}
 										}
 										break;
 									}

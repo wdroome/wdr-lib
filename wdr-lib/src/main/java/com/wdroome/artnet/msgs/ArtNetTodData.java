@@ -6,10 +6,12 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import com.wdroome.artnet.ArtNetConst;
+import com.wdroome.artnet.ArtNetNodeAddr;
 import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.artnet.ArtNetPort;
 import com.wdroome.artnet.ACN_UID;
 import com.wdroome.util.ByteAOL;
+import com.wdroome.util.inet.InetUtil;
 
 /**
  * An Art-Net TOD Data message.
@@ -30,12 +32,17 @@ public class ArtNetTodData extends ArtNetMsg
 	public int m_numUids = 0;
 	public ACN_UID[] m_uids = null;
 	
+	/** For incoming messages, the node's unique address. null for outgoing messages. */
+	public final ArtNetNodeAddr m_nodeAddr;
+
+	
 	/**
 	 * Create a message with the default field values.
 	 */
 	public ArtNetTodData()
 	{
 		super(ArtNetOpcode.OpTodData, null);
+		m_nodeAddr = null;
 	}
 	
 	/**
@@ -71,7 +78,6 @@ public class ArtNetTodData extends ArtNetMsg
 		off += 2;
 		m_blockCount = buff[off++] & 0xff;
 		m_numUids = buff[off++] & 0xff;
-		System.out.println("XXX: numUids " + m_numUids);
 		if (m_numUids > 0) {
 			if (m_numUids * ACN_UID.SACN_UID_LENGTH > length - off) {
 				m_numUids = (length - off)/ACN_UID.SACN_UID_LENGTH;
@@ -82,6 +88,10 @@ public class ArtNetTodData extends ArtNetMsg
 			m_uids = ACN_UID.getUids(buff, off, m_numUids);
 			off += m_numUids*ACN_UID.SACN_UID_LENGTH;
 		}
+		
+		m_nodeAddr = fromAddr != null
+				? new ArtNetNodeAddr(null, m_bindIndex, null, ArtNetConst.ARTNET_PORT, fromAddr)
+				: null;
 	}
 	
 	/**
@@ -146,7 +156,10 @@ public class ArtNetTodData extends ArtNetMsg
 			buff = new StringBuilder();
 		}
 		String indent = "   ";
-		buff.append(linePrefix + "cmd:" + Integer.toHexString(m_command)
+		buff.append(linePrefix
+					+" addr: "
+						+ (m_nodeAddr != null ? InetUtil.toAddrPort(m_nodeAddr.m_nodeAddr) : "(none)")
+					+ " cmd:" + Integer.toHexString(m_command)
 					+ " ANPort:" + new ArtNetPort(m_net, m_subnetUniv)
 					+ " bind/port:" + m_bindIndex + "/" + m_port
 					+ " nUids:" + m_numUids + "/" + m_numUidsTotal + "[" + m_blockCount + "]");
@@ -165,7 +178,9 @@ public class ArtNetTodData extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetTodData{");
-		append(b, "protoVers", m_protoVers);
+		if (m_nodeAddr != null) {
+			append(b, "nodeAddr", m_nodeAddr.toString());
+		}
 		append(b, "rdmVers", m_rdmVers);
 		append(b, "port", m_port);
 		append(b, "bindIndex", m_bindIndex);
@@ -187,6 +202,8 @@ public class ArtNetTodData extends ArtNetMsg
 	
 	public static void main(String[] args) throws IOException
 	{
+		Inet4Address loopback = (Inet4Address)InetAddress.getByName("127.0.0.1");
+		
 		ArtNetTodData m = new ArtNetTodData();
 		m.m_command = ArtNetTodRequest.COMMAND_TOD_NAK;
 		m.m_net = 1;
@@ -204,7 +221,7 @@ public class ArtNetTodData extends ArtNetMsg
 		int msgLen = m.putData(buff, 0);
 		String x = new ByteAOL(buff, 0, msgLen).toHex();
 		System.out.println(x);
-		ArtNetTodData m2 = new ArtNetTodData(buff, 0, buff.length, null);
+		ArtNetTodData m2 = new ArtNetTodData(buff, 0, buff.length, loopback);
 		m2.print(System.out, "");
 		m2.fmtPrint(System.out, null);
 		

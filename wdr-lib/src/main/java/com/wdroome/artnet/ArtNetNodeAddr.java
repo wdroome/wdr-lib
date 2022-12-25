@@ -48,6 +48,19 @@ public class ArtNetNodeAddr implements Comparable<ArtNetNodeAddr>
 		}
 		m_nodeAddr = new InetSocketAddress(sendAddr, port != 0 ? port : ArtNetConst.ARTNET_PORT);
 	}
+	
+	/**
+	 * Create a new logical address from just and address and a bind index.
+	 * Use the default ArtNet port.
+	 * @param addr The IP address.
+	 * @param index The bind index. If 0, use 1.
+	 */
+	public ArtNetNodeAddr(Inet4Address addr, int index)
+	{
+		m_rootAddr = addr;
+		m_index = index > 0 ? index : 1;
+		m_nodeAddr = new InetSocketAddress(addr, ArtNetConst.ARTNET_PORT);
+	}
 
 	@Override
 	public int compareTo(ArtNetNodeAddr o)

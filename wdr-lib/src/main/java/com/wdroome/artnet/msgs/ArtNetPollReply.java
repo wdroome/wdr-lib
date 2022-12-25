@@ -194,7 +194,9 @@ public class ArtNetPollReply extends ArtNetMsg
 			}
 		}
 		
-		m_nodeAddr = new ArtNetNodeAddr(m_bindIpAddr, m_bindIndex, m_ipAddr, m_ipPort, getFromAddr());
+		m_nodeAddr = fromAddr != null 
+				? new ArtNetNodeAddr(m_bindIpAddr, m_bindIndex, m_ipAddr, m_ipPort, fromAddr)
+				: null;
 	}
 	
 	/**
@@ -358,6 +360,9 @@ public class ArtNetPollReply extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetPollReply{");
+		if (m_nodeAddr != null) {
+			append(b, "nodeAddr", m_nodeAddr.toString());
+		}
 		append(b, "ipAddr", m_ipAddr);
 		append(b, "ipPort", m_ipPort);
 		append(b, "firmwareVers", m_firmwareVers);
@@ -386,6 +391,7 @@ public class ArtNetPollReply extends ArtNetMsg
 		append(b, "goodOutputB", m_goodOutputB);
 		appendHex(b, "status3", m_status3);
 		append(b, "defUID", m_defRespUID.toString());
+		append(b, "fromAddr", getFromAddr());
 		b.append('}');
 		return b.toString();
 	}
