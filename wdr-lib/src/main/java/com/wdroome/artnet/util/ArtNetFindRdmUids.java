@@ -275,11 +275,10 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 	}
 	
 	/**
-	 * Stand-alone main. Arguments are a list of internet addresses or socket addresses
-	 * to which the method sends poll messages.
-	 * If the port is omitted, we use the ArtNet port.
-	 * A summary of the poll replies is printed on standard output.
-	 * @param args Internet or socket addresses to send polls to.
+	 * Stand-alone main. Arguments are a list of ArtNet ports or internet addresses or socket addresses.
+	 * Send a TODRequest message to each internet address for each of those ArtNet ports.
+	 * Print the UIDs of the discovered RDM devices on standard output.
+	 * @param args ArtNet ports and/or ethernet addresses.
 	 * @throws IOException If an I/O error occurs.
 	 */
 	public static void main(String[] args) throws IOException
