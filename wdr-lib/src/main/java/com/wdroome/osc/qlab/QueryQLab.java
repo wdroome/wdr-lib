@@ -1141,6 +1141,7 @@ public class QueryQLab extends OSCConnection
 	public static void main(String[] args) throws IOException
 	{
 		try (QueryQLab queryQLab = new QueryQLab(args[0])) {
+			long startTS = System.currentTimeMillis();
 			System.out.println("Version: " + queryQLab.getMajorVersion()
 						+ " (" + queryQLab.getVersion() + ")");
 			System.out.println("IsQLab: " + queryQLab.isQLab());
@@ -1148,11 +1149,21 @@ public class QueryQLab extends OSCConnection
 			for (QLabWorkspaceInfo ws: queryQLab.getWorkspaces()) {
 				System.out.println("  " + ws);
 			}
-			System.out.println("Patches:");
-			for (QLabNetworkPatchInfo patch: queryQLab.getNetworkPatches()) {
-				System.out.println("  " + patch);
+			if (queryQLab.isQLab5()) {
+				System.out.println("Patches:");
+				for (QLabNetworkPatchInfo patch : queryQLab.getNetworkPatches()) {
+					System.out.println("  " + patch);
+				} 
 			}
 			List<QLabCuelistCue> allCues = queryQLab.getAllCueLists();
+
+			int nCues = 0;
+			for (QLabCuelistCue cuelist: allCues) {
+				nCues += cuelist.walkCues((cue, path) -> { return true; });
+			}
+			System.out.println("All Cues: Got " + nCues
+							+ " cues in " + (System.currentTimeMillis() - startTS)/1000.0 + " sec");
+
 			for (QLabCue cue: allCues) {
 				System.out.println();
 				cue.printCue(System.out, "", "   ");
