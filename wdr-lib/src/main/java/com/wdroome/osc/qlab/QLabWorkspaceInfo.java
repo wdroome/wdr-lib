@@ -37,4 +37,51 @@ public class QLabWorkspaceInfo
 				+ ", port/udpPort=" + m_port + "/" + m_udpReplyPort
 				+ "]";
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((m_displayName == null) ? 0 : m_displayName.hashCode());
+		result = prime * result + (m_hasPasscode ? 1231 : 1237);
+		result = prime * result + m_port;
+		result = prime * result + m_udpReplyPort;
+		result = prime * result + ((m_uniqueId == null) ? 0 : m_uniqueId.hashCode());
+		result = prime * result + ((m_version == null) ? 0 : m_version.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		QLabWorkspaceInfo other = (QLabWorkspaceInfo) obj;
+		if (m_displayName == null) {
+			if (other.m_displayName != null)
+				return false;
+		} else if (!m_displayName.equals(other.m_displayName))
+			return false;
+		if (m_hasPasscode != other.m_hasPasscode)
+			return false;
+		if (m_port != other.m_port)
+			return false;
+		if (m_udpReplyPort != other.m_udpReplyPort)
+			return false;
+		if (m_uniqueId == null) {
+			if (other.m_uniqueId != null)
+				return false;
+		} else if (!m_uniqueId.equals(other.m_uniqueId))
+			return false;
+		if (m_version == null) {
+			if (other.m_version != null)
+				return false;
+		} else if (!m_version.equals(other.m_version))
+			return false;
+		return true;
+	}
+	
 }

@@ -97,6 +97,7 @@ public class OSCConnection implements Closeable
 	private String m_lastSentMsgMethod = null;
 	private long m_lastSentMsgTS = 0;
 	private long m_minTimeBetweenRepeatMsgs = 0;
+	private boolean m_prtRepeatMsgDelay = false;
 	
 	/**
 	 * Create a new connection to OSC server.
@@ -188,6 +189,14 @@ public class OSCConnection implements Closeable
 		this.m_minTimeBetweenRepeatMsgs = minTimeBetweenRepeatMsgs;
 	}
 
+	public boolean isPrtRepeatMsgDelay() {
+		return m_prtRepeatMsgDelay;
+	}
+
+	public void setPrtRepeatMsgDelay(boolean m_prtRepeatMsgDelay) {
+		this.m_prtRepeatMsgDelay = m_prtRepeatMsgDelay;
+	}
+
 	/**
 	 * Open a TCP connection to the OSC server.
 	 * @throws IOException
@@ -268,7 +277,9 @@ public class OSCConnection implements Closeable
 		if (m_lastSentMsgMethod != null && m_lastSentMsgMethod.equals(msg.getMethod())) {
 			long waitTime = (m_lastSentMsgTS + m_minTimeBetweenRepeatMsgs) - System.currentTimeMillis();
 			if (waitTime > 0) {
-				System.out.println("XXX: OSCConn delay repeat msg " + waitTime);
+				if (m_prtRepeatMsgDelay) {
+					System.out.println("XXX: OSCConn delay repeat msg " + waitTime);
+				}
 				MiscUtil.sleep(waitTime);
 			}
 		}

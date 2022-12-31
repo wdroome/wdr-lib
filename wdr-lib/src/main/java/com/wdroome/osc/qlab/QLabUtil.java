@@ -174,10 +174,27 @@ public class QLabUtil
 				}
 	
 	/*
-	 * Requests for Network cues.
+	 * Requests for Network cues.  QLab4 differs from QLab5.
 	 */
+	
+	// Only in QLab4:
 	public static final String PATCH_CUE_REQ = "/patch";				// number (network patch, 1-16)
 	public static final String CUSTOM_STRING_CUE_REQ = "/customString";	// OSC command string
+	
+	// Only in QLab5:
+	public static final String NETWORK_PATCH_ID_REQ = "/networkPatchID";
+	public static final String NETWORK_PATCH_NAME_REQ = "/networkPatchName";
+	public static final String NETWORK_PATCH_NUMBER_REQ = "/networkPatchNumber";
+	
+	public static final String PARAMETER_VALUES_REQ = "/parameterValues";	// get/set array of param
+	
+	public static final String PARAMETER_VALUE_REQ = "/parameterValue/%d";	// arg is value #
+	public static final int EOS_PARAMETER_TYPE = 0;
+	public static final String EOS_PARAMETER_TYPE_CUE = "cue";
+	public static final String EOS_PARAMETER_TYPE_SUB = "sub";
+	public static final int EOS_PARAMETER_CMD = 2;
+	public static final String EOS_PARAMETER_CMD_FIRE = "fire";
+	public static final int EOS_PARAMETER_CUE = 3;	// value is EOS cue number.
 	
 	//
 	// QLab4 only: Network cue message types.

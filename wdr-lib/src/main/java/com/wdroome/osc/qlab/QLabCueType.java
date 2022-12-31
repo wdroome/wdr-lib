@@ -23,9 +23,11 @@ public enum QLabCueType
 	TEXT("Text"),
 	LIGHT("Light"),
 	FADE("Fade"),
-	NETWORK((jsonCue, parent, parentIndex, isAuto, queryQLab)
-						-> new QLabNetworkCue(jsonCue, parent, parentIndex, isAuto, queryQLab),
-			(id, type, queryQLab) -> new QLabNetworkCue(id, queryQLab),
+	NETWORK((jsonCue, parent, parentIndex, isAuto, queryQLab) -> isQLab5(queryQLab)
+					? new QLabNetworkCue5(jsonCue, parent, parentIndex, isAuto, queryQLab)
+					: new QLabNetworkCue4(jsonCue, parent, parentIndex, isAuto, queryQLab),
+			(id, type, queryQLab) -> isQLab5(queryQLab)
+					? new QLabNetworkCue5(id, queryQLab) : new QLabNetworkCue4(id, queryQLab),
 			"Network", null),
 	MIDI("MIDI"),
 	MIDIFILE("MIDI File"),
@@ -103,6 +105,11 @@ public enum QLabCueType
 	public String toQLab()
 	{
 		return m_toQLab.toLowerCase();
+	}
+	
+	private static boolean isQLab5(QueryQLab queryQLab)
+	{
+		return queryQLab != null ? queryQLab.isQLab5() : false;
 	}
 	
 	@FunctionalInterface

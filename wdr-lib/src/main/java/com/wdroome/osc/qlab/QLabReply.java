@@ -1,10 +1,14 @@
 package com.wdroome.osc.qlab;
 
+import java.util.List;
+import java.util.ArrayList;
+
 import com.wdroome.json.JSONValue;
 import com.wdroome.json.JSONValueTypeException;
 import com.wdroome.json.JSONValue_Object;
 import com.wdroome.json.JSONValue_String;
 import com.wdroome.json.JSONValue_Array;
+import com.wdroome.json.JSONValue_BigInt;
 import com.wdroome.json.JSONValue_ObjectArray;
 import com.wdroome.json.JSONValue_Boolean;
 import com.wdroome.json.JSONValue_Number;
@@ -225,6 +229,34 @@ public class QLabReply
 			catch (Exception e) { return def; }
 		} else if (m_data instanceof JSONValue_Boolean) {
 			return ((JSONValue_Boolean)m_data).m_value ? 1 : 0;
+		} else {
+			return def;
+		}
+	}
+	
+	/**
+	 * Return the reply data as a List of Strings.
+	 * @param def The default value.
+	 * @return The reply data as a String List, or def.
+	 */
+	public List<String> getStringList(List<String> def)
+	{
+		if (m_data == null) {
+			return def;
+		} else if (m_data instanceof JSONValue_String) {
+			return List.of(((JSONValue_String)m_data).m_value);
+		} else if (m_data instanceof JSONValue_Array) {
+			List<String> list = new ArrayList<>();
+			for (JSONValue val: (JSONValue_Array)m_data) {
+				if (val instanceof JSONValue_String) {
+					list.add(((JSONValue_String)val).m_value);
+				} else if (val instanceof JSONValue_Number) {
+					list.add(Double.toString(((JSONValue_Number)val).m_value));
+				} else if (val instanceof JSONValue_Boolean) {
+					list.add(((JSONValue_Boolean)val).m_value ? "true" : "false");
+				}
+			}
+			return list;
 		} else {
 			return def;
 		}

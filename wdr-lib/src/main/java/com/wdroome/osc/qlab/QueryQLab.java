@@ -40,6 +40,12 @@ public class QueryQLab extends OSCConnection
 	private PrintStream m_errOut = System.err;
 	private String m_version = UNKNOWN_VERSION;
 	private int m_majorVersion = UNKNOWN_MAJOR_VERSION;
+	private String m_targetWorkspace = "";
+
+		// Only valid for QLab 5.
+	private List<QLabNetworkPatchInfo> m_networkPatchList = null;
+	private long m_networkPatchListTS = 0;
+	private static final long NETWORK_PATCH_LIST_REFRESH_MS = 10000;
 
 	/**
 	 * Create connection to query a QLab server.
@@ -315,6 +321,15 @@ public class QueryQLab extends OSCConnection
 	}
 	
 	/**
+	 * Test if this is QLab5 or later.
+	 * @return True if this is QLab 5 or later.
+	 */
+	public boolean isQLab5()
+	{
+		return getMajorVersion() >= 5;
+	}
+	
+	/**
 	 * Get information about the workspaces in QLab.
 	 * @return A list of the workspaces. List is never null, but may be empty.
 	 * @throws IOException If an IO error occurs.
@@ -340,17 +355,41 @@ public class QueryQLab extends OSCConnection
 	 */
 	public List<QLabNetworkPatchInfo> getNetworkPatches() throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.NETWORK_PATCH_LIST_REQ);
-		List<QLabNetworkPatchInfo> networkPatches = new ArrayList<>();
-		JSONValue_ObjectArray arr = reply.getJSONObjectArray(null);
-		if (arr != null) {
-			int patchNumber = 1;
-			for (JSONValue_Object jsonPatch: arr) {
-				networkPatches.add(new QLabNetworkPatchInfo(patchNumber, jsonPatch));
-				patchNumber++;
-			}
+		if (!isQLab5()) {
+			return List.of();
 		}
-		return networkPatches;
+		if (m_networkPatchList == null
+					|| System.currentTimeMillis() - m_networkPatchListTS >= NETWORK_PATCH_LIST_REFRESH_MS) {
+			QLabReply reply = sendQLabReq(addTargetWS(QLabUtil.NETWORK_PATCH_LIST_REQ));
+			List<QLabNetworkPatchInfo> networkPatches = new ArrayList<>();
+			JSONValue_ObjectArray arr = reply.getJSONObjectArray(null);
+			if (arr != null) {
+				int patchNumber = 1;
+				for (JSONValue_Object jsonPatch: arr) {
+					networkPatches.add(new QLabNetworkPatchInfo(patchNumber, jsonPatch));
+					patchNumber++;
+				}
+			}
+			m_networkPatchList = networkPatches;
+		}
+		return m_networkPatchList;
+	}
+	
+	/**
+	 * Get the network patch info for a patch number.
+	 * Only works for QLab5 and up.
+	 * @param patchNumber The patch number (starting with 1).
+	 * @return The patch info, or null if not available.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public QLabNetworkPatchInfo getNetworkPatchInfo(int patchNumber) throws IOException
+	{
+		List<QLabNetworkPatchInfo> patches = getNetworkPatches();
+		if (patchNumber >= 1 && patchNumber <= patches.size()) {
+			return patches.get(patchNumber-1);
+		} else {
+			return null;
+		}
 	}
 	
 	/**
@@ -360,9 +399,9 @@ public class QueryQLab extends OSCConnection
 	 */
 	public void selectCue(String idOrNumber) throws IOException
 	{
-		sendQLabReq(String.format(
+		sendQLabReq(addTargetWS(String.format(
 				QLabUtil.isCueId(idOrNumber) ? QLabUtil.SELECT_CUE_ID : QLabUtil.SELECT_CUE_NUMBER,
-				idOrNumber));
+				idOrNumber)));
 	}
 	
 	/**
@@ -373,7 +412,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean getIsBroken(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.IS_BROKEN_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.IS_BROKEN_CUE_REQ));
 		return reply != null ? reply.getBool(false) : false;
 	}
 	
@@ -385,7 +424,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public QLabCueType getType(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.TYPE_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.TYPE_CUE_REQ));
 		QLabCueType type = reply != null
 				? QLabCueType.fromQLab(reply.getString(""))
 				: QLabCueType.UNKNOWN;
@@ -402,7 +441,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public QLabCueType getType(String idOrNumber, String arg) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.TYPE_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.TYPE_CUE_REQ),
 						(arg != null && !arg.isBlank()) ? new Object[] {arg} : null);
 		QLabCueType type = reply != null
 				? QLabCueType.fromQLab(reply.getString(""))
@@ -418,7 +457,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public String getNumber(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NUMBER_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.NUMBER_CUE_REQ));
 		return reply != null ? reply.getString("") : "";
 	}
 	
@@ -431,7 +470,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setNumber(String idOrNumber, String number) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NUMBER_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.NUMBER_CUE_REQ),
 									new Object[] {number});
 		return reply != null && reply.isOk();
 	}
@@ -444,7 +483,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public String getName(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NAME_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.NAME_CUE_REQ));
 		return reply != null ? reply.getString("") : "";
 	}
 	
@@ -457,7 +496,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setName(String idOrNumber, String name) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NAME_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.NAME_CUE_REQ),
 									new Object[] {name});
 		return reply != null && reply.isOk();
 	}
@@ -470,7 +509,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public String getNotes(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NOTES_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.NOTES_CUE_REQ));
 		return reply != null ? reply.getString("") : "";
 	}
 	
@@ -483,7 +522,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setNotes(String idOrNumber, String notes) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.NOTES_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.NOTES_CUE_REQ),
 									new Object[] {notes});
 		return reply != null && reply.isOk();
 	}
@@ -496,7 +535,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public String getFileTarget(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.FILE_TARGET_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.FILE_TARGET_CUE_REQ));
 		return reply != null ? reply.getString("") : "";
 	}
 	
@@ -508,7 +547,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public String getCueTargetId(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.CUE_TARGET_ID_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.CUE_TARGET_ID_CUE_REQ));
 		return reply != null ? reply.getString("") : "";
 	}
 	
@@ -520,7 +559,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public String getListName(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.LIST_NAME_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.LIST_NAME_CUE_REQ));
 		return reply != null ? reply.getString("") : "";
 	}
 
@@ -532,7 +571,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public double getDuration(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.DURATION_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.DURATION_CUE_REQ));
 		return reply != null ? reply.getDouble(0) : 0;
 	}
 	
@@ -545,7 +584,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setDuration(String idOrNumber, double duration) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.DURATION_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.DURATION_CUE_REQ),
 									new Object[] {Double.valueOf(duration)});
 		return reply != null && reply.isOk();
 	}
@@ -558,7 +597,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public double getPrewait(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.PREWAIT_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.PREWAIT_CUE_REQ));
 		return reply != null ? reply.getDouble(-1) : -1;
 	}
 	
@@ -571,7 +610,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setPrewait(String idOrNumber, double prewait) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.PREWAIT_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.PREWAIT_CUE_REQ),
 									new Object[] {Double.valueOf(prewait)});
 		return reply != null && reply.isOk();
 	}
@@ -584,7 +623,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public double getPostwait(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.POSTWAIT_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.POSTWAIT_CUE_REQ));
 		return reply != null ? reply.getDouble(0) : 0;
 	}
 	
@@ -597,7 +636,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setPostwait(String idOrNumber, double postwait) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.POSTWAIT_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.POSTWAIT_CUE_REQ),
 									new Object[] {Double.valueOf(postwait)});
 		return reply != null && reply.isOk();
 	}
@@ -610,7 +649,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public QLabUtil.ContinueMode getContinueMode(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.CONTINUE_MODE_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.CONTINUE_MODE_CUE_REQ));
 		return reply != null
 				? QLabUtil.ContinueMode.fromQLab((int)reply.getLong(QLabUtil.ContinueMode.NO_CONTINUE.ordinal()))
 				: QLabUtil.ContinueMode.NO_CONTINUE;
@@ -625,7 +664,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setContinueMode(String idOrNumber, QLabUtil.ContinueMode mode) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.CONTINUE_MODE_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.CONTINUE_MODE_CUE_REQ),
 									new Object[] {Integer.valueOf(mode.toQLab())});
 		return reply != null && reply.isOk();
 	}
@@ -638,7 +677,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public QLabUtil.ColorName getColorName(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.COLOR_NAME_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.COLOR_NAME_CUE_REQ));
 		return reply != null
 				? QLabUtil.ColorName.fromQLab(reply.getString(""))
 				: QLabUtil.ColorName.NONE;
@@ -653,7 +692,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setColorName(String idOrNumber, QLabUtil.ColorName colorName) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.COLOR_NAME_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.COLOR_NAME_CUE_REQ),
 									new Object[] {colorName.toQLab()});
 		return reply != null && reply.isOk();
 	}
@@ -666,7 +705,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean getIsFlagged(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.FLAGGED_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.FLAGGED_CUE_REQ));
 		return reply != null ? reply.getBool(false) : false;
 	}
 	
@@ -679,7 +718,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setFlagged(String idOrNumber, boolean flagged) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.FLAGGED_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.FLAGGED_CUE_REQ),
 									new Object[] {Integer.valueOf(flagged ? 1 : 0)});
 		return reply != null && reply.isOk();
 	}
@@ -692,7 +731,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean getArmed(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.ARMED_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.ARMED_CUE_REQ));
 		return reply != null ? reply.getBool(false) : false;
 	}
 	
@@ -705,7 +744,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setArmed(String idOrNumber, boolean flagged) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.ARMED_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.ARMED_CUE_REQ),
 									new Object[] {Integer.valueOf(flagged ? 1 : 0)});
 		return reply != null && reply.isOk();
 	}
@@ -718,26 +757,27 @@ public class QueryQLab extends OSCConnection
 	 */
 	public QLabUtil.GroupMode getGroupMode(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.MODE_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.MODE_CUE_REQ));
 		return reply != null
 				? QLabUtil.GroupMode.fromQLab((int)reply.getLong(QLabUtil.GroupMode.START_AND_ENTER.ordinal()))
 				: QLabUtil.GroupMode.START_AND_ENTER;
 	}
 	
 	/**
-	 * Get the patch number for a cue.
+	 * Get the patch number for a Network cue.
 	 * @param idOrNumber The cue unique id or number.
 	 * @return The patch number for the cue.
 	 * @throws IOException If an IO error occurs.
 	 */
 	public int getPatchNumber(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.PATCH_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber,
+						isQLab5() ? QLabUtil.NETWORK_PATCH_NUMBER_REQ : QLabUtil.PATCH_CUE_REQ));
 		return reply != null ? (int)reply.getLong(1) : 1;
 	}
 	
 	/**
-	 * Set the patch number for a cue.
+	 * Set the network patch number for a cue.
 	 * @param idOrNumber The cue unique id or number.
 	 * @param patch The new patch number.
 	 * @return True if successful.
@@ -745,8 +785,9 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setPatchNumber(String idOrNumber, int patchNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.PATCH_CUE_REQ),
-									new Object[] {Integer.valueOf(patchNumber)});
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber,
+								isQLab5() ? QLabUtil.NETWORK_PATCH_NUMBER_REQ : QLabUtil.PATCH_CUE_REQ),
+								new Object[] {Integer.valueOf(patchNumber)});
 		return reply != null && reply.isOk();
 	}
 	
@@ -758,7 +799,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public QLabUtil.NetworkMessageType getNetworkMessageType(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.MESSAGE_TYPE_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.MESSAGE_TYPE_CUE_REQ));
 		return reply != null
 				? QLabUtil.NetworkMessageType.fromQLab(
 						(int)reply.getLong(QLabUtil.NetworkMessageType.UNKNOWN.ordinal()))
@@ -774,8 +815,41 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setNetworkMessageType(String idOrNumber, QLabUtil.NetworkMessageType type) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.MESSAGE_TYPE_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.MESSAGE_TYPE_CUE_REQ),
 									new Object[] {Integer.valueOf(type.toQLab())});
+		return reply != null && reply.isOk();
+	}
+	
+	/**
+	 * Get the parameter value array for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @return The parameter value array for this cue. Never null, but may be empty.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public List<String> getParameterValues(String idOrNumber) throws IOException
+	{
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.PARAMETER_VALUES_REQ));
+		List<String> list = null;
+		if (reply != null) {
+			list = reply.getStringList(null);
+		}
+		return list != null ? list : List.of();
+	}
+	
+	/**
+	 * Set the parameter value array for a cue.
+	 * @param idOrNumber The cue unique id or number.
+	 * @param values The new parameter value array for this cue.
+	 * @return True if successful.
+	 * @throws IOException If an IO error occurs.
+	 */
+	public boolean setParameterValues(String idOrNumber, List<String> values) throws IOException
+	{
+		if (values == null) {
+			values = List.of();
+		}
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.PARAMETER_VALUES_REQ),
+									values.toArray(new String[values.size()]));
 		return reply != null && reply.isOk();
 	}
 	
@@ -787,7 +861,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public String getCustomString(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.CUSTOM_STRING_CUE_REQ));
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.CUSTOM_STRING_CUE_REQ));
 		return reply != null ? reply.getString("") : "";
 	}
 	
@@ -800,7 +874,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public boolean setCustomString(String idOrNumber, String customString) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.CUSTOM_STRING_CUE_REQ),
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.CUSTOM_STRING_CUE_REQ),
 									new Object[] {customString});
 		return reply != null && reply.isOk();
 	}
@@ -813,7 +887,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public String getParent(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber, QLabUtil.PARENT_CUE_REQ), null);
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber, QLabUtil.PARENT_CUE_REQ), null);
 		String parentId = reply != null ? reply.getString("") : "";
 		if (QLabUtil.CUELIST_CUE_PARENT_ID.equals(parentId)) {
 			parentId = "";
@@ -830,7 +904,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public List<String> getChildrenIds(String idOrNumber) throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.getCueReq(idOrNumber,
+		QLabReply reply = sendQLabReq(getCueReq(idOrNumber,
 										QLabUtil.CHILDREN_UNIQUEIDS_SHALLOW_CUE_REQ), null);
 		ArrayList<String> childIds = new ArrayList<>();
 		JSONValue_ObjectArray data;
@@ -884,7 +958,7 @@ public class QueryQLab extends OSCConnection
 		if (afterCueId != null && !afterCueId.isBlank()) {
 			args.add(afterCueId);
 		}
-		QLabReply reply = sendQLabReq(QLabUtil.NEW_CUE_REQ, args.toArray());
+		QLabReply reply = sendQLabReq(addTargetWS(QLabUtil.NEW_CUE_REQ), args.toArray());
 		if (reply == null || !reply.isOk()) {
 			return null;
 		}
@@ -917,7 +991,7 @@ public class QueryQLab extends OSCConnection
 		if (newParentId != null && !newParentId.isBlank()) {
 			args.add(newParentId);
 		}
-		QLabReply reply = sendQLabReq(String.format(QLabUtil.MOVE_CUE_REQ, cueId),
+		QLabReply reply = sendQLabReq(addTargetWS(String.format(QLabUtil.MOVE_CUE_REQ, cueId)),
 										args.toArray());
 		return reply != null && reply.isOk();
 	}
@@ -929,7 +1003,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public List<QLabCuelistCue> getAllCueLists() throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.CUELISTS_REQ);
+		QLabReply reply = sendQLabReq(addTargetWS(QLabUtil.CUELISTS_REQ));
 		if (reply == null) {
 			return null;
 		}
@@ -953,7 +1027,7 @@ public class QueryQLab extends OSCConnection
 	 */
 	public List<QLabCartCue> getAllCueCarts() throws IOException
 	{
-		QLabReply reply = sendQLabReq(QLabUtil.CUELISTS_REQ);
+		QLabReply reply = sendQLabReq(addTargetWS(QLabUtil.CUELISTS_REQ));
 		if (reply == null) {
 			return null;
 		}
@@ -968,6 +1042,58 @@ public class QueryQLab extends OSCConnection
 			}
 		}
 		return cuecarts;
+	}
+	
+	/**
+	 * Return the method for a request for a specific cue.
+	 * @param numOrId The cue number or cue id. Note that if it's a cue number,
+	 * 		it must be acceptable in an OSC method: no blanks or illegal characters.
+	 * @param request The request part.
+	 * @return The full request, with the appropriate prefix
+	 * 			with the cue number or id.
+	 */
+	public String getCueReq(String numOrId, String request)
+	{
+		return addTargetWS(QLabUtil.getCueReq(numOrId, request));
+	}
+	
+	/**
+	 * Add the target workspace ID to a command.
+	 * @param req A QLab OSC command.
+	 * @return If there is a target workspace, return "/workspace/TARGET-ID/req."
+	 * 		If not, just return "req,"
+	 */
+	public String addTargetWS(String req)
+	{
+		if (m_targetWorkspace != null && !m_targetWorkspace.isBlank()) {
+			return String.format(QLabUtil.WORKSPACE_REQ_PREFIX, m_targetWorkspace) + req;
+		} else {
+			return req;
+		}
+	}
+	
+	/**
+	 * Set the target workspace. If set, add this workspace's prefix to the appropriate commands.
+	 * @param id The ID of the target workspace. If null or blank, remove the target workspace.
+	 * @return The ID of the previous target workspace, or "".
+	 */
+	public String setTargetWorkspace(String id)
+	{
+		if (id == null) {
+			id = "";
+		}
+		String prev = m_targetWorkspace;
+		m_targetWorkspace = id;
+		return prev;
+	}
+	
+	/**
+	 * Get the current target workspace.
+	 * @return The ID of the target workspace, or "".
+	 */
+	public String getTargetWorkspace()
+	{
+		return m_targetWorkspace;
 	}
 	
 	private boolean m_printAllMsgs = false;	// XXX
@@ -1126,6 +1252,5 @@ public class QueryQLab extends OSCConnection
 		} catch (IllegalArgumentException e) {
 			System.err.println(e);
 		}
-		
 	}
 }
