@@ -39,6 +39,7 @@ import com.wdroome.osc.qlab.QLabNetworkCue;
 import com.wdroome.osc.qlab.QLabUtil;
 import com.wdroome.osc.qlab.QLabCueType;
 import com.wdroome.osc.qlab.QLabWorkspaceInfo;
+import com.wdroome.osc.qlab.QLabNetworkPatchInfo;
 
 public class EOS2QLab implements Closeable
 {
@@ -52,6 +53,7 @@ public class EOS2QLab implements Closeable
 	private String m_qlabWorkspaceName = null;
 	private VersionInfo m_versionInfo = null;
 	private QLabWorkspaces m_qlabWorkspaces = null;
+	private String m_selectedWorkspaceID = null;
 	
 	// EOS cuelist number => cuelist information.
 	private TreeMap<Integer, EOSCuelistInfo> m_eosCuelists = null;
@@ -115,6 +117,7 @@ public class EOS2QLab implements Closeable
 		if (m_queryQLab != null) {
 			String id = m_qlabWorkspaces.getSelectedID(m_response);
 			if (id != null) {
+				m_selectedWorkspaceID = id;
 				m_queryQLab.setTargetWorkspace(id);
 			}
 		}
@@ -229,7 +232,8 @@ public class EOS2QLab implements Closeable
 			out.println("  Address: " + m_queryQLab.getIpAddrString());
 			List<QLabWorkspaceInfo> qlabWorkspaces = m_queryQLab.getWorkspaces();
 			for (QLabWorkspaceInfo ws: qlabWorkspaces) {
-				out.println("  \"" + ws.m_displayName + "\"  version: " + ws.m_version);
+				out.println("  \"" + ws.m_displayName + "\"  version: " + ws.m_version
+						+ (ws.m_uniqueId.equals(m_selectedWorkspaceID) ? " *** selected ***" : ""));
 			}
 			int nQLabCues = refreshQLabCuelists();
 			String activeWS = m_queryQLab.getLastReplyWorkspaceId();
@@ -747,6 +751,17 @@ public class EOS2QLab implements Closeable
 		if (networkPatch == null) {
 			return false;
 		}
+		QLabNetworkPatchInfo.PatchType patchType = m_queryQLab.getNetworkPatchType(networkPatch,
+													QLabNetworkPatchInfo.PatchType.OSC_MESSAGE);
+		switch (patchType) {
+		case OSC_MESSAGE: break;
+		case ETC_EOS_FAMILY: break;
+		default:
+			m_out.println("*** WARNING: Network Patch " + networkPatch
+							+ " has an unsupported type " + patchType + ".");
+			// Punt, and pretend it's a vanilla OSC message.
+			patchType = QLabNetworkPatchInfo.PatchType.OSC_MESSAGE;
+		}
 		NewCueMarking newCueMarking = selectNewCueMarking();
 		if (newCueMarking == null) {
 			return false;
@@ -809,12 +824,33 @@ public class EOS2QLab implements Closeable
 					System.out.println("Error: Added EOS cue " + eosNumber
 									+ " but it's type " + newCue.m_type);
 				}
-				m_queryQLab.setNetworkMessageType(qlabCueId, QLabUtil.NetworkMessageType.OSC);
-				m_queryQLab.setCustomString(qlabCueId, EOSUtil.makeCueFireRequest(eosNumber));
 				m_queryQLab.setPatchNumber(qlabCueId, networkPatch);
-				m_queryQLab.setColorName(qlabCueId, newCueMarking.m_color);
-				m_queryQLab.setFlagged(qlabCueId, newCueMarking.m_flag);
-				m_queryQLab.setNotes(qlabCueId, eosCue.getNotes());
+				if (newCueMarking.m_color != QLabUtil.ColorName.NONE) {
+					m_queryQLab.setColorName(qlabCueId, newCueMarking.m_color);					
+				}
+				if (newCueMarking.m_flag) { 
+					m_queryQLab.setFlagged(qlabCueId, newCueMarking.m_flag);
+				}
+				String notes = eosCue.getNotes();
+				if (notes != null && !notes.isBlank()) {
+					m_queryQLab.setNotes(qlabCueId, eosCue.getNotes());
+				}
+				if (!m_queryQLab.isQLab5()) {
+					m_queryQLab.setNetworkMessageType(qlabCueId, QLabUtil.NetworkMessageType.OSC);
+					m_queryQLab.setCustomString(qlabCueId, EOSUtil.makeCueFireRequest(eosNumber));
+				} else {
+					switch (patchType) {
+					case OSC_MESSAGE:
+						m_queryQLab.setCustomString(qlabCueId, EOSUtil.makeCueFireRequest(eosNumber));
+						break;
+					case ETC_EOS_FAMILY:
+						List<String> params = QLabUtil.getEosFireCueParam(eosNumber.toFullString());
+						m_queryQLab.setParameterValues(qlabCueId, params);
+						break;
+					default:
+						break;	// Shouldn't happen; we excluded others earlier in method.
+					}
+				}
 				if (nAdded > 0 && nAdded%60 == 0) {
 					m_out.println();
 				}
@@ -871,6 +907,7 @@ public class EOS2QLab implements Closeable
 		if (insertPoint == null) {
 			return new InsertPoint(cuelistId, false);
 		}
+		insertPoint = insertPoint.getCueSequenceStart();
 		insertPoint = insertPoint.getPrevCue();
 		if (insertPoint == null) {
 			return new InsertPoint(cuelistId, true);
@@ -1041,25 +1078,36 @@ public class EOS2QLab implements Closeable
 		PrintStream out = System.out;
 		InputStream in = System.in;
 
+		String resumeCmdLine = null;
 		while (running) {
 			try (EOS2QLab eos2QLab = new EOS2QLab(args)) {
 				eos2QLab.prtEOSCueSummary();
 				eos2QLab.prtQLabCueSummary();
 				while (true) {
-					out.print("* ");
-					String line = MiscUtil.readLine(in);
-					if (line == null) {
-						running = false;
-						break;
+					String[] cmd;
+					String cmdLine;
+					long lastCmdTS = System.currentTimeMillis();
+					if (resumeCmdLine != null) {
+						cmdLine = resumeCmdLine;
+						out.println();
+						out.println("Resuming " + resumeCmdLine + " ...");
+						resumeCmdLine = null;
+					} else {
+						out.print("* ");
+						cmdLine = MiscUtil.readLine(in);
+						if (cmdLine == null) {
+							running = false;
+							break;
+						}
 					}
-					line = line.trim();
-					if (line.isBlank()) {
+					cmdLine = cmdLine.trim();
+					if (cmdLine.isBlank()) {
 						continue;
 					}
-					String[] cmd = line.split("[ \t]+");
+					cmd = cmdLine.split("[ \t]+");
 					if (cmd.length == 0) {
 						continue;
-					}
+					} 
 					if (Commands.isCmd(cmd[0], Commands.REFRESH_CMD)) {
 						break;
 					} else if (Commands.isCmd(cmd[0], Commands.QUIT_CMD)) {
@@ -1089,6 +1137,14 @@ public class EOS2QLab implements Closeable
 						eos2QLab.prtCuesNotInQLab(true, false);							
 						eos2QLab.prtCuesNotInEOS();					
 					} else if (Commands.isCmd(cmd[0], Commands.ADD_CMD)) {
+						if (System.currentTimeMillis() - lastCmdTS > 5000) {
+							Boolean resp = new ReadResponse(in, out)
+											.getYesNoResponse("Refresh QLab & EOS cue lists? ");
+							if (resp != null && resp) {
+								resumeCmdLine = cmdLine;
+								break;
+							}
+						}
 						eos2QLab.add2QLab();
 					} else if (Commands.isCmd(cmd[0], Commands.SELECT_CMD)) {
 						if (cmd.length >= 2 && Commands.isCmd(cmd[1], Commands.MISSING_ARG)) {
@@ -1133,7 +1189,7 @@ public class EOS2QLab implements Closeable
 						out.println("Get: " + eos2QLab.m_eosCuesByNumber.get(cue));
 						out.println("Get2: " + eos2QLab.getEOSCue(cue));
 					} else {
-						out.println("Unknown command \"" + line + "\"");
+						out.println("Unknown command \"" + cmdLine + "\"");
 					}
 				}
 			} catch (IllegalArgumentException e) {

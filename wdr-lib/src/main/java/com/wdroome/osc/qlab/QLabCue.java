@@ -317,6 +317,32 @@ public class QLabCue
 			return null;
 		}
 	}
+	
+	/**
+	 * If this cue is part of a continue/follow cue sequence,
+	 * return the lead cue in the sequence. If this isn't in a sequence,
+	 * return this cue. 
+	 * @return The start cue of this cue's continue/follow sequence,
+	 * 		or this cue if it's a lead cue.
+	 * 		Never returns null.
+	 */
+	public QLabCue getCueSequenceStart()
+	{
+		QLabCue cue = this;
+		while (true) {
+			if (!cue.isAuto()) {
+				return cue;
+			}
+			QLabCue prev = cue.getPrevCue();
+			if (prev == null) {
+				// Say what?? The cue at the head of this list or group
+				// is "continue from previous." I didn't think that could happen.
+				// Punt and return the cue at the head of the list.
+				return cue;
+			}
+			cue = prev;
+		}
+	}
 
 	/**
 	 * Return a list of the "child cues" contained in this cue,

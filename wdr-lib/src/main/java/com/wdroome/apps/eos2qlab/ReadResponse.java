@@ -75,5 +75,21 @@ public class ReadResponse
 		}
 	}
 
-
+	public Boolean getYesNoResponse(String msg)
+	{
+		while (true) {
+			String respStr = getResponse(msg);
+			if (respStr == null) {
+				return null;
+			} else if (Commands.isCmd(respStr, Commands.QUIT_CMD)) {
+				return null;
+			} else if (respStr.trim().toLowerCase().startsWith("y")) {
+				return true;
+			} else if (respStr.trim().toLowerCase().startsWith("n")) {
+				return false;
+			} else {
+				println("Please asnwer yes [y] or no [n]");
+			}
+		}
+	}
 }

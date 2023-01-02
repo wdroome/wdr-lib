@@ -70,9 +70,9 @@ public class QLabNetworkCue5 extends QLabNetworkCue
 		case ETC_EOS_FAMILY:
 			if (paramEquals(QLabUtil.EOS_PARAMETER_TYPE, QLabUtil.EOS_PARAMETER_TYPE_CUE)
 					&& paramEquals(QLabUtil.EOS_PARAMETER_CMD, QLabUtil.EOS_PARAMETER_CMD_FIRE)
-					&& m_parameterValues.size() > QLabUtil.EOS_PARAMETER_CUE) {
+					&& m_parameterValues.size() > QLabUtil.EOS_PARAMETER_CUE_NUMBER) {
 				try {
-					eosCue = new EOSCueNumber(m_parameterValues.get(QLabUtil.EOS_PARAMETER_CUE));
+					eosCue = new EOSCueNumber(m_parameterValues.get(QLabUtil.EOS_PARAMETER_CUE_NUMBER));
 				} catch (Exception e) {
 					eosCue = null;
 				}

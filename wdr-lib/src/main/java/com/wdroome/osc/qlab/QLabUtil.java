@@ -1,5 +1,7 @@
 package com.wdroome.osc.qlab;
 
+import java.util.List;
+
 import com.wdroome.json.JSONValue;
 import com.wdroome.json.JSONValue_Boolean;
 import com.wdroome.json.JSONValue_Number;
@@ -192,9 +194,25 @@ public class QLabUtil
 	public static final int EOS_PARAMETER_TYPE = 0;
 	public static final String EOS_PARAMETER_TYPE_CUE = "cue";
 	public static final String EOS_PARAMETER_TYPE_SUB = "sub";
+	public static final int EOS_PARAMETER_USER = 1;
 	public static final int EOS_PARAMETER_CMD = 2;
 	public static final String EOS_PARAMETER_CMD_FIRE = "fire";
-	public static final int EOS_PARAMETER_CUE = 3;	// value is EOS cue number.
+	public static final int EOS_PARAMETER_CUE_NUMBER = 3;	// value is EOS cue number.
+	
+	/**
+	 * Return the parameter list for an ETC EOS Family "fire cue" network command.
+	 * @param cueNumber The EOS cue number, possibly with a "cuelist#/" prefix.
+	 * @return
+	 */
+	public static List<String> getEosFireCueParam(String cueNumber)
+	{
+		return List.of(
+				EOS_PARAMETER_TYPE_CUE,	// EOS_PARAMETER_TYPE
+				"no",					// EOS_PARAMETER_USER
+				EOS_PARAMETER_CMD_FIRE,	// EOS_PARAMETER_CMD
+				cueNumber				// EOS_PARAMETER_CUE_NUMBER
+				);
+	}
 	
 	//
 	// QLab4 only: Network cue message types.

@@ -352,6 +352,15 @@ public class QueryQLab extends OSCConnection
 	}
 	
 	/**
+	 * Test if this is QLab 4, but NOT QLab 5 or later.
+	 * @return True if this is QLab 4, but not QLab 5.
+	 */
+	public boolean isQLab4()
+	{
+		return getMajorVersion() == 4;
+	}
+	
+	/**
 	 * Get information about the workspaces in QLab.
 	 * @return A list of the workspaces. List is never null, but may be empty.
 	 * @throws IOException If an IO error occurs.
@@ -412,6 +421,29 @@ public class QueryQLab extends OSCConnection
 		} else {
 			return null;
 		}
+	}
+	
+	/**
+	 * Return the Patch Type for a network patch.
+	 * This only works correctly in QLab5 and up. In QLab 4,
+	 * this always returns "def".
+	 * @param patchNumber The patch number (starting with 1).
+	 * @param def The type to return if patchNumber is invalid,
+	 * 			or we cannot get the patch list.
+	 * @return The patch type for patchNumber, or "def".
+	 */
+	public QLabNetworkPatchInfo.PatchType getNetworkPatchType(int patchNumber,
+															  QLabNetworkPatchInfo.PatchType def)
+	{
+		try {
+			QLabNetworkPatchInfo patchInfo = getNetworkPatchInfo(patchNumber);
+			if (patchInfo != null) {
+				return patchInfo.m_patchType;
+			}
+		} catch (IOException e) {
+			// fall thru
+		}
+		return def;
 	}
 	
 	/**
@@ -815,6 +847,7 @@ public class QueryQLab extends OSCConnection
 	
 	/**
 	 * Get the network message type for a cue.
+	 * This only works in QLab 4; in QLab 5 it returns UNKNOWN.
 	 * @param idOrNumber The cue unique id or number.
 	 * @return The network message type for the cue.
 	 * @throws IOException If an IO error occurs.
@@ -830,6 +863,7 @@ public class QueryQLab extends OSCConnection
 	
 	/**
 	 * Set the network message type field for a network cue.
+	 * This only works in QLab 4.
 	 * @param idOrNumber The cue unique id or number.
 	 * @param type The new message type.
 	 * @return True if successful.
@@ -844,6 +878,7 @@ public class QueryQLab extends OSCConnection
 	
 	/**
 	 * Get the parameter value array for a cue.
+	 * This only works in QLab 5.
 	 * @param idOrNumber The cue unique id or number.
 	 * @return The parameter value array for this cue. Never null, but may be empty.
 	 * @throws IOException If an IO error occurs.
@@ -860,6 +895,7 @@ public class QueryQLab extends OSCConnection
 	
 	/**
 	 * Set the parameter value array for a cue.
+	 * This only works in QLab 5.
 	 * @param idOrNumber The cue unique id or number.
 	 * @param values The new parameter value array for this cue.
 	 * @return True if successful.
@@ -1206,7 +1242,9 @@ public class QueryQLab extends OSCConnection
 				int n = cuelist.walkCues((cue, path) -> {
 										System.out.println(mkIndent(path.size())
 												+ cue.m_type + " \""
-												+ cue.m_number + "\" \"" + cue.getName() + "\"");
+												+ cue.m_number + "\" \"" + cue.getName() + "\" "
+												+ cue.m_uniqueId + " "
+												+ cue.getCueSequenceStart().m_uniqueId);
 										return true;
 									});
 				System.out.println(n + " cues in cuelist");
