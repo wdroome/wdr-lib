@@ -52,15 +52,18 @@ public class QLabWorkspaces
 		return ws != null ? ws.m_uniqueId : null;
 	}
 	
-	public void deselectIfChanged(QueryQLab queryQLab) throws IOException
+	public boolean deselectIfChanged(QueryQLab queryQLab) throws IOException
 	{
+		boolean changed = false;
 		if (queryQLab != null) {
 			List<QLabWorkspaceInfo> newWorkspaces = queryQLab.getWorkspaces();
 			if (!newWorkspaces.equals(m_workspaces)) {
 				m_selected = null;
 				m_workspaces = newWorkspaces;
+				changed = true;
 			}
 		}
+		return changed;
 	}
 	
 	public void deselect()

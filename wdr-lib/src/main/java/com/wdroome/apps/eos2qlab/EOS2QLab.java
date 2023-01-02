@@ -96,7 +96,6 @@ public class EOS2QLab implements Closeable
 				() -> m_queryQLab = QueryQLab.makeQueryQLab(m_config.getQLabAddrPorts(),
 										m_config.getConnectTimeoutMS())),
 				"Connect");
-		
 		m_versionInfo = new VersionInfo(m_queryEOS, m_queryQLab, m_out);
 
 		if (m_queryEOS != null && m_queryQLab != null) {
@@ -730,10 +729,8 @@ public class EOS2QLab implements Closeable
 	{
 		if (m_notInQLab == null) {
 			notInQLab();
-			if (m_notInQLab.isEmpty()) {
-				return false;
-			}
-		} else if (m_notInQLab.isEmpty()) {
+		} 
+		if (m_notInQLab.isEmpty()) {
 			m_out.println("All EOS Cues are in QLab");
 			return false;
 		} else if (m_queryQLab == null) {

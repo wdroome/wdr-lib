@@ -32,7 +32,7 @@ public class VersionInfo
 		refreshVersion(queryQLab);
 		if (out != null) {
 			String warn = untestedVersionWarning();
-			if (out != null) {
+			if (warn != null) {
 				out.println(warn);
 			}
 		}

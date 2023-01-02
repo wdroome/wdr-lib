@@ -1076,7 +1076,8 @@ public class QueryQLab extends OSCConnection
 	 */
 	public String getCueReq(String numOrId, String request)
 	{
-		return addTargetWS(QLabUtil.getCueReq(numOrId, request));
+		// return addTargetWS(QLabUtil.getCueReq(numOrId, request));
+		return QLabUtil.getCueReq(numOrId, request);
 	}
 	
 	/**
