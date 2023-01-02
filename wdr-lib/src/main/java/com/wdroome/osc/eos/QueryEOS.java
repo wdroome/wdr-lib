@@ -8,14 +8,18 @@ import java.util.Map;
 import java.util.ArrayList;
 import java.util.TreeMap;
 
+import java.util.function.Supplier;
+
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.wdroome.osc.OSCConnection;
 import com.wdroome.osc.OSCMessage;
 import com.wdroome.osc.OSCUtil;
-import com.wdroome.osc.qlab.QLabUtil;
+
+import com.wdroome.util.FirstTaskResult;
 
 /**
  * An EOSConnection to get information from an EOS server.
@@ -70,19 +74,29 @@ public class QueryEOS extends OSCConnection implements OSCConnection.MessageHand
 		if (connectTimeoutMS <= 50) {
 			connectTimeoutMS = DEF_TIMEOUT;
 		}
+		final int timeout = connectTimeoutMS; 
+		ArrayList<Supplier<QueryEOS>> tasks = new ArrayList<>();
 		for (String addrPort: addrPorts) {
-			try {
-				QueryEOS queryEOS = new QueryEOS(addrPort);
-				queryEOS.setConnectTimeout(connectTimeoutMS);
-				queryEOS.connect();
-				if (queryEOS.isEos()) {
-					return queryEOS;
+			tasks.add(() -> {
+				QueryEOS queryEOS = null;
+				try {
+					queryEOS = new QueryEOS(addrPort);
+					queryEOS.setConnectTimeout(timeout);
+					queryEOS.connect();
+					return queryEOS.isEos() ? queryEOS : null;
+				} catch (Exception e) {
+					if (queryEOS != null) {
+						queryEOS.close();
+					}
+					return null;
 				}
-			} catch (Exception e) {
-				// skip, try next address.
-			}
+			});
 		}
-		return null;
+		try {
+			return new FirstTaskResult<QueryEOS>().get(tasks, "FindEOS");
+		} catch (InterruptedException e) {
+			return null;
+		}
 	}
 	
 	public long getTimeoutMS() {
@@ -246,36 +260,43 @@ public class QueryEOS extends OSCConnection implements OSCConnection.MessageHand
 	 */
 	public static void main(String[] args) throws IOException
 	{
-		try (QueryEOS queryEOS = new QueryEOS(args[0])) {
-			queryEOS.connect();
-			long startTS = System.currentTimeMillis();
-			System.out.println("Show Name: " + queryEOS.getShowName());
-			System.out.println("Version: " + queryEOS.getVersion());
-			System.out.println("Cuelist count: " + queryEOS.getCuelistCount());
-			TreeMap<Integer,EOSCuelistInfo> cuelists = queryEOS.getCuelists();
-			System.out.println("Cuelists: " + cuelists);
-			TreeMap<Integer, TreeMap<EOSCueNumber, EOSCueInfo>> allcues = new TreeMap<>();
-			for (EOSCuelistInfo cuelist: cuelists.values()) {
-				int cuelistNumber = cuelist.getCuelistNumber();
-				System.out.println("Getting cues for cuelist " + cuelistNumber);
-				allcues.put(cuelistNumber, queryEOS.getCues(cuelistNumber));
-			}
-			long endTS = System.currentTimeMillis();
-		
-			for (EOSCuelistInfo cuelist: cuelists.values()) {
-				int cuelistNumber = cuelist.getCuelistNumber();
-				TreeMap<EOSCueNumber, EOSCueInfo> cues = allcues.get(cuelistNumber);
-				if (cues == null) {
-					System.out.println("OOPS! no cues for cuelist " + cuelistNumber);
+		long startTS = System.currentTimeMillis();
+		long endTS;
+		try (QueryEOS queryEOS = makeQueryEOS(args, 3000)) {
+			if (queryEOS == null) {
+				System.out.println("Cannot connect to EOS");
+				endTS = System.currentTimeMillis();
+			} else {
+				queryEOS.connect();
+				System.out.println("EOS Addr: " + queryEOS.getIpAddrString());
+				System.out.println("Show Name: " + queryEOS.getShowName());
+				System.out.println("Version: " + queryEOS.getVersion());
+				System.out.println("Cuelist count: " + queryEOS.getCuelistCount());
+				TreeMap<Integer,EOSCuelistInfo> cuelists = queryEOS.getCuelists();
+				System.out.println("Cuelists: " + cuelists);
+				TreeMap<Integer, TreeMap<EOSCueNumber, EOSCueInfo>> allcues = new TreeMap<>();
+				for (EOSCuelistInfo cuelist: cuelists.values()) {
+					int cuelistNumber = cuelist.getCuelistNumber();
+					System.out.println("Getting cues for cuelist " + cuelistNumber);
+					allcues.put(cuelistNumber, queryEOS.getCues(cuelistNumber));
 				}
-				System.out.println();
-				System.out.println("Cuelist " + cuelistNumber + ": ncues=" + cues.size());
-				for (EOSCueInfo cue: cues.values()) {
-					if (true) {
-						System.out.println();
-						System.out.println(" " + cue.toString());
-					} else {
-						System.out.println(" " + cue.toShortString());
+				endTS = System.currentTimeMillis();
+			
+				for (EOSCuelistInfo cuelist: cuelists.values()) {
+					int cuelistNumber = cuelist.getCuelistNumber();
+					TreeMap<EOSCueNumber, EOSCueInfo> cues = allcues.get(cuelistNumber);
+					if (cues == null) {
+						System.out.println("OOPS! no cues for cuelist " + cuelistNumber);
+					}
+					System.out.println();
+					System.out.println("Cuelist " + cuelistNumber + ": ncues=" + cues.size());
+					for (EOSCueInfo cue: cues.values()) {
+						if (true) {
+							System.out.println();
+							System.out.println(" " + cue.toString());
+						} else {
+							System.out.println(" " + cue.toShortString());
+						}
 					}
 				}
 			}

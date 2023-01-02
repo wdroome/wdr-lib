@@ -4,12 +4,15 @@ import java.io.IOException;
 import java.io.PrintStream;
 
 import java.net.InetSocketAddress;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import com.wdroome.util.MiscUtil;
+import com.wdroome.util.FirstTaskResult;
 import com.wdroome.osc.OSCConnection;
 import com.wdroome.osc.OSCMessage;
 import com.wdroome.osc.OSCUtil;
@@ -110,19 +113,32 @@ public class QueryQLab extends OSCConnection
 		if (connectTimeoutMS <= 50) {
 			connectTimeoutMS = DEF_TIMEOUT;
 		}
+		final int timeout = connectTimeoutMS;
+		ArrayList<Supplier<QueryQLab>> tasks = new ArrayList<>();
 		for (String addrPortPasscode: addrPortPasscodes) {
-			try {
-				QueryQLab queryQLab = new QueryQLab(addrPortPasscode);
-				queryQLab.setConnectTimeout(connectTimeoutMS);
-				queryQLab.connect();
-				if (queryQLab.isQLab()) {
-					return queryQLab;
+			tasks.add(() -> {
+				QueryQLab queryQLab = null;
+				try {
+					queryQLab = new QueryQLab(addrPortPasscode);
+					queryQLab.setConnectTimeout(timeout);
+					queryQLab.connect();
+					if (queryQLab.isQLab()) {
+						return queryQLab;
+					}
+					return queryQLab.isQLab() ? queryQLab : null;
+				} catch (Exception e) {
+					if (queryQLab != null) {
+						queryQLab.close();
+					}
+					return null;
 				}
-			} catch (Exception e) {
-				// skip, try next address.
-			}
+			});
 		}
-		return null;
+		try {
+			return new FirstTaskResult<QueryQLab>().get(tasks, "FindQLab");
+		} catch (InterruptedException e) {
+			return null;
+		}
 	}
 	
 	/**
@@ -154,8 +170,10 @@ public class QueryQLab extends OSCConnection
 		QLabReply reply;
 
 		// Get & save QLab version.
+		boolean gotVersionReply = false;
 		try {
 			reply = sendQLabReqNoConn(QLabUtil.VERSION_REQ, null);
+			gotVersionReply = reply != null && reply.isOk();
 			m_version = reply != null ? reply.getString(UNKNOWN_VERSION) : UNKNOWN_VERSION;
 		} catch (Exception e) {
 			m_version = UNKNOWN_VERSION;
@@ -169,19 +187,23 @@ public class QueryQLab extends OSCConnection
 		}
 
 		// Connect if passcode is specified.
+		// If we didn't get a version, don't give an error -- this probably isn't QLab.
 		if (!m_passcode.isEmpty()) {
 			reply = sendQLabReqNoConn(QLabUtil.CONNECT_REQ, new Object[] {m_passcode});
 			String connData;
-			if (reply == null || (connData = reply.getString(null)) == null || !connData.startsWith("ok")) {
+			if (gotVersionReply
+					&& (reply == null || (connData = reply.getString(null)) == null
+							|| !connData.startsWith("ok"))) {
 				logError("***** QueryQLab: " + QLabUtil.CONNECT_REQ + " failed. Check passcode.");
 			}
 		}
-		reply = sendQLabReqNoConn(QLabUtil.BASE_PATH_REQ, null);
-		
-		// Check for whether we have permission to access QLab.
-		reply = sendQLabReqNoConn(QLabUtil.BASE_PATH_REQ, null);
-		if (reply == null || !reply.isOk()) {
-			accessDeniedError(QLabUtil.BASE_PATH_REQ);
+
+		if (gotVersionReply) {
+			// Check for whether we have permission to access QLab.
+			reply = sendQLabReqNoConn(QLabUtil.BASE_PATH_REQ, null);
+			if (reply == null || !reply.isOk()) {
+				accessDeniedError(QLabUtil.BASE_PATH_REQ);
+			} 
 		}
 	}
 	
@@ -1140,8 +1162,15 @@ public class QueryQLab extends OSCConnection
 
 	public static void main(String[] args) throws IOException
 	{
-		try (QueryQLab queryQLab = new QueryQLab(args[0])) {
-			long startTS = System.currentTimeMillis();
+		long startTS = System.currentTimeMillis();
+		try (QueryQLab queryQLab = makeQueryQLab(args, 3000)) {
+			if (queryQLab == null) {
+				System.out.println("Cannot connect to QLab.");
+				System.out.println("Elapsed time: "
+							+ (System.currentTimeMillis() - startTS)/1000.0 + " sec.");
+				return;
+			}
+			System.out.println("QLab Addr: " + queryQLab.getIpAddrString());
 			System.out.println("Version: " + queryQLab.getMajorVersion()
 						+ " (" + queryQLab.getVersion() + ")");
 			System.out.println("IsQLab: " + queryQLab.isQLab());
@@ -1156,6 +1185,8 @@ public class QueryQLab extends OSCConnection
 				} 
 			}
 			List<QLabCuelistCue> allCues = queryQLab.getAllCueLists();
+			System.out.println("Elapsed time: "
+					+ (System.currentTimeMillis() - startTS)/1000.0 + " sec.");
 
 			int nCues = 0;
 			for (QLabCuelistCue cuelist: allCues) {

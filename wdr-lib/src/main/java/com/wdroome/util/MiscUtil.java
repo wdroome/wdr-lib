@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CountDownLatch;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -1001,7 +1002,7 @@ public class MiscUtil
 	/**
 	 * Simple method to run a set of tasks in parallel and wait for all to complete.
 	 * The tasks cannot return values, and
-	 * new threads are created for each invocation,
+	 * new threads are created for each invocation.
 	 * If you need more control, or need return values, use the thread pool tools
 	 * in java.util.concurrent.
 	 * @param tasks The tasks to run.
@@ -1011,8 +1012,7 @@ public class MiscUtil
 	{
 		if (tasks == null || tasks.isEmpty()) {
 			return;
-		}
-		if (tasks.size() == 1) {
+		} else if (tasks.size() == 1) {
 			// Optimize if there's only one task.
 			tasks.get(0).run();
 		} else {
@@ -1032,6 +1032,77 @@ public class MiscUtil
 					}		
 				}
 			}
+		}
+	}
+
+	/**
+	 * Simple method to run a set of tasks in parallel, and return when the first one completes.
+	 * When one does, terminate the others by calling interrupt() on them.
+	 * We assume the run() method will promptly return.
+	 * This does not tell the caller which task completed first;
+	 * the caller must determine that by some other means.
+	 * The tasks cannot return values, and
+	 * new threads are created for each invocation.
+	 * If you need more control, or need return values, use the thread pool tools
+	 * in java.util.concurrent.
+	 * @param tasks The tasks to run.
+	 * @param taskName A base name for the threads. Ignored if null or blank.
+	 */
+	public static void runOneTask(List<Runnable> tasks, String taskName)
+	{
+		if (tasks == null || tasks.isEmpty()) {
+			return;
+		} else if (tasks.size() == 1) {
+			// Optimize if there's only one task.
+			tasks.get(0).run();
+		} else {
+			CountDownLatch latch = new CountDownLatch(1);
+			CountDownWorker[] workers = new CountDownWorker[tasks.size()];
+			for (int iTask = 0; iTask < tasks.size(); iTask++) {
+				CountDownWorker t = new CountDownWorker(tasks.get(iTask), latch,
+							(taskName != null && !taskName.isBlank() 
+									? (taskName + "-" + iTask) : null));
+				workers[iTask] = t;
+				t.start();
+			}
+			try {
+				latch.await();
+			} catch (InterruptedException e) {
+				System.out.println("runOneTask(): Interrupt " + e);
+			}
+			for (CountDownWorker worker: workers) {
+				worker.interrupt();
+			}
+		}
+	}
+	
+	/**
+	 * A Thread that counts down a latch when run() returns. Used by runOneTask().
+	 */
+	private static class CountDownWorker extends Thread
+	{
+		private final Runnable m_task;
+		private final CountDownLatch m_latch;
+		
+		/**
+		 * @param task The runnable.
+		 * @param latch Latch to count down when task.run() returns.
+		 * @param name Optional name for the worker.
+		 */
+		public CountDownWorker(Runnable task, CountDownLatch latch, String name)
+		{
+			m_task = task;
+			m_latch = latch;
+			if (name != null && !name.isBlank()) {
+				setName(name);
+			}
+		}
+		
+		@Override
+		public void run()
+		{
+			m_task.run();
+			m_latch.countDown();
 		}
 	}
 
