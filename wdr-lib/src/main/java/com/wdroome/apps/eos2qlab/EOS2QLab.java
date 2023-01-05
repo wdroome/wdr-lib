@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.TreeMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Set;
 import java.util.Stack;
@@ -18,11 +19,6 @@ import java.util.Stack;
 import java.util.function.BiPredicate;
 
 import com.wdroome.util.MiscUtil;
-import com.wdroome.util.StringUtils;
-import com.wdroome.util.HashCounter;
-
-import com.wdroome.json.JSONParseException;
-import com.wdroome.json.JSONValueTypeException;
 
 import com.wdroome.osc.eos.QueryEOS;
 import com.wdroome.osc.eos.EOSCueInfo;
@@ -70,7 +66,7 @@ public class EOS2QLab implements Closeable
 	// QLab network cues with EOS fire commands, as a map from EOS cue number to the QLab cue data.
 	private TreeMap<EOSCueNumber, QLabNetworkCue> m_eosCuesInQLab = null;
 	
-	private NotInQLabResults m_notInQLab = null;
+	private EOSCuesNotInQLab m_notInQLab = null;
 	
 	// QLab network cues with EOS fire commands for cues NOT in EOS.
 	// The key is the name of a QLab cuelist, the value is the invalid cues in that list.
@@ -321,99 +317,17 @@ public class EOS2QLab implements Closeable
 		}
 	}
 	
-	public class EOSCueRange
-	{
-		public final EOSCueNumber m_start;
-		public final EOSCueNumber m_end;
-		public final int m_nCues;
-		
-		public EOSCueRange(EOSCueNumber start, EOSCueNumber end, int nCues)
-		{
-			m_start = start;
-			m_end = end;
-			m_nCues = nCues;
-		}
-	}
-	
-	public class NotInQLabResults
-	{
-		/** EOS cues not in QLab, grouped by EOS cuelist number. */
-		public final TreeMap<Integer, List<EOSCueInfo>> m_missingCuesByList;
-
-		/** EOS cues not in QLab, by EOS cue number. */
-		public final TreeMap<EOSCueNumber,EOSCueInfo> m_missingCuesByNumber;
-	
-		/** EOS cue ranges not in QLab. */
-		public final TreeMap<Integer, List<EOSCueRange>> m_missingCueRanges;
-		
-		public NotInQLabResults(TreeMap<Integer, List<EOSCueInfo>> missingCues,
-								TreeMap<Integer, List<EOSCueRange>> missingCueRanges)
-		{
-			m_missingCuesByList = missingCues;
-			m_missingCueRanges = missingCueRanges;
-			m_missingCuesByNumber = new TreeMap<>();
-			for (List<EOSCueInfo> cuelist: m_missingCuesByList.values()) {
-				for (EOSCueInfo cue: cuelist) {
-					m_missingCuesByNumber.put(cue.getCueNumber(), cue);
-				}
-			}
-		}
-		
-		public boolean isEmpty()
-		{
-			return m_missingCuesByList.isEmpty();
-		}
-	}
-	
 	/**
 	 * Set m_notInQLab to the EOS cues that aren't in QLab.
 	 * @return true if successful, false if we cannot connect to the servers.
 	 */
+
 	public boolean notInQLab()
 	{
 		if (!getEOSAndQLabCues(false)) {
 			return false;
 		}
-		TreeMap<Integer, List<EOSCueInfo>> missingCues = new TreeMap<>();
-		TreeMap<Integer, List<EOSCueRange>> missingRanges = new TreeMap<>();
-		for (Map.Entry<Integer, TreeMap<EOSCueNumber, EOSCueInfo>> ent: m_eosCuesByList.entrySet()) {
-			int cuelistNum = ent.getKey();
-			List<EOSCueInfo> cuesForCuelist = new ArrayList<>();
-			List<EOSCueRange> rangesForCuelist = new ArrayList<>();
-			EOSCueNumber rangeStart = null;
-			EOSCueNumber rangeEnd = null;
-			int rangeCnt = 0;
-			for (EOSCueInfo eosCue: ent.getValue().values()) {
-				EOSCueNumber eosCueNum = eosCue.getCueNumber();
-				if (eosCue.isAutoCue() || eosCueNum.isPart()) {
-					continue;
-				}
-				if (m_eosCuesInQLab.get(eosCueNum) == null) {
-					cuesForCuelist.add(eosCue);
-					if (rangeStart == null) {
-						rangeStart = eosCueNum;
-						rangeCnt = 0;
-					}
-					rangeEnd = eosCueNum;
-					rangeCnt++;
-				} else {
-					if (rangeStart != null) {
-						rangesForCuelist.add(new EOSCueRange(rangeStart, rangeEnd, rangeCnt));
-						rangeStart = null;
-						rangeEnd = null;
-						rangeCnt = 0;
-					}
-				}
-			}
-			if (rangeStart != null) {
-				rangesForCuelist.add(new EOSCueRange(rangeStart, rangeEnd, rangeCnt));
-			}
-			if (!cuesForCuelist.isEmpty()) {
-				missingCues.put(cuelistNum, cuesForCuelist);
-				missingRanges.put(cuelistNum, rangesForCuelist);
-			}
-		}
-		m_notInQLab = new NotInQLabResults(missingCues, missingRanges);
+		m_notInQLab = new EOSCuesNotInQLab(m_eosCuesByList, m_eosCuesInQLab);
 		return true;
 	}
 	
@@ -569,7 +483,8 @@ public class EOS2QLab implements Closeable
 				if (prtRanges) {
 					int nRanges = 0;
 					m_out.print(indent + (prtCues ? "Ranges: ": ""));
-					for (EOSCueRange range : m_notInQLab.m_missingCueRanges.get(ent.getKey())) {
+					for (EOSCuesNotInQLab.EOSCueRange range:
+										m_notInQLab.m_missingCueRanges.get(ent.getKey())) {
 						if ((nRanges % 5) != 0) {
 							m_out.print(",  ");
 						} else if (nRanges > 0) {
@@ -591,6 +506,9 @@ public class EOS2QLab implements Closeable
 	{
 		if (m_notInEOS == null) {
 			notInEOS();
+		}
+		if (m_misorderedNetworkCues != null && !m_misorderedNetworkCues.isEmpty()) {
+			m_out.println(m_misorderedNetworkCues.size() + " QLab Network cues may be out of order.");
 		}
 		if (m_notInEOS.isEmpty()) {
 			m_out.println("All QLab network cues are in EOS.");
@@ -729,7 +647,7 @@ public class EOS2QLab implements Closeable
 		}
 	}
 	
-	public boolean add2QLab()
+	public boolean add2QLab() throws IOException
 	{
 		if (m_notInQLab == null) {
 			notInQLab();
@@ -741,129 +659,14 @@ public class EOS2QLab implements Closeable
 			m_out.println("  Not connected to QLab server.");
 			return false;
 		}
-		QLabCuelistCue targetQLabCuelist = selectQLabCuelist();
-		if (targetQLabCuelist == null) {
-			return false;
-		}
-		Integer networkPatch = m_response.getIntResponse("Enter QLab network patch: (default is "
-						+ m_config.getNewCueNetworkPatch() + ")", m_config.getNewCueNetworkPatch(),
-						1, 16);
-		if (networkPatch == null) {
-			return false;
-		}
-		QLabNetworkPatchInfo.PatchType patchType = m_queryQLab.getNetworkPatchType(networkPatch,
-													QLabNetworkPatchInfo.PatchType.OSC_MESSAGE);
-		switch (patchType) {
-		case OSC_MESSAGE: break;
-		case ETC_EOS_FAMILY: break;
-		default:
-			m_out.println("*** WARNING: Network Patch " + networkPatch
-							+ " has an unsupported type " + patchType + ".");
-			// Punt, and pretend it's a vanilla OSC message.
-			patchType = QLabNetworkPatchInfo.PatchType.OSC_MESSAGE;
-		}
-		NewCueMarking newCueMarking = selectNewCueMarking();
-		if (newCueMarking == null) {
-			return false;
-		}
-		TreeMap<EOSCueNumber, EOSCueInfo> cuesToAdd = selectCuesToAdd();
-		if (cuesToAdd == null) {
-			return false;
-		}
-		m_out.println("Summary:");
-		TreeMap<Integer,ACount> cntByList = cueCountByList(cuesToAdd.keySet());
-		m_out.print(  "  Source:");
-		String sep = " ";
-		for (Map.Entry<Integer,ACount> ent: cntByList.entrySet()) {
-			m_out.print(sep + ent.getValue().count + " cues in list " + ent.getKey());
-			sep = ", ";
-		}
-		m_out.println();
-		m_out.println("  Destination: QLab cuelist \"" + targetQLabCuelist.getName() + "\"");
-		m_out.println("  Cue marking:" + (newCueMarking.m_flag ? " flagged" : "")
-							+ " " + newCueMarking.m_color.toQLab());
-		String prompt = "Ok? [y or n]";
-		while (true) {
-			String resp = m_response.getResponse(prompt);
-			if (resp.toLowerCase().startsWith("y")) {
-				break;
-			} else if (resp.toLowerCase().startsWith("n") || resp.toLowerCase().startsWith("q")) {
-				m_out.println("No changes made.");
-				return false;
-			} else {
-				prompt = "Please enter y or n:";
-			}
-		}
-		int nAdded = 0;
-		String targetCuelistId = targetQLabCuelist.m_uniqueId;	// means add at end
-		for (EOSCueInfo eosCue: cuesToAdd.descendingMap().values()) {
-			try {
-				EOSCueNumber eosNumber = eosCue.getCueNumber();
-				InsertPoint insertPoint = findCueInsertPoint(eosNumber, targetCuelistId);
-				String qlabCueId = m_queryQLab.newCue(QLabCueType.NETWORK,
-										insertPoint.m_afterId,
-										m_config.makeNewCueNumber(eosCue),
-										m_config.makeNewCueName(eosCue));
-				if (qlabCueId == null) {
-					break;
-				}
-				nAdded++;
-				if (insertPoint.m_moveToHead) {
-					if (!m_queryQLab.moveCue(qlabCueId, 0, null)) {
-						m_out.println("Error moving " + eosNumber + " to head.");
-					}
-				}
-				QLabCue newCue = QLabCueType.insertNewCue(qlabCueId, m_qlabCuelists, m_queryQLab);
-				if (newCue == null) {
-					m_out.println("Error adding EOS cue " + eosNumber + ": insertNewCue failed");
-					break;
-				}
-				if (newCue instanceof QLabNetworkCue) {
-					m_eosCuesInQLab.put(eosNumber, (QLabNetworkCue)newCue);
-				} else {
-					System.out.println("Error: Added EOS cue " + eosNumber
-									+ " but it's type " + newCue.m_type);
-				}
-				m_queryQLab.setPatchNumber(qlabCueId, networkPatch);
-				if (newCueMarking.m_color != QLabUtil.ColorName.NONE) {
-					m_queryQLab.setColorName(qlabCueId, newCueMarking.m_color);					
-				}
-				if (newCueMarking.m_flag) { 
-					m_queryQLab.setFlagged(qlabCueId, newCueMarking.m_flag);
-				}
-				String notes = eosCue.getNotes();
-				if (notes != null && !notes.isBlank()) {
-					m_queryQLab.setNotes(qlabCueId, eosCue.getNotes());
-				}
-				if (!m_queryQLab.isQLab5()) {
-					m_queryQLab.setNetworkMessageType(qlabCueId, QLabUtil.NetworkMessageType.OSC);
-					m_queryQLab.setCustomString(qlabCueId, EOSUtil.makeCueFireRequest(eosNumber));
-				} else {
-					switch (patchType) {
-					case OSC_MESSAGE:
-						m_queryQLab.setCustomString(qlabCueId, EOSUtil.makeCueFireRequest(eosNumber));
-						break;
-					case ETC_EOS_FAMILY:
-						List<String> params = QLabUtil.getEosFireCueParam(eosNumber.toFullString());
-						m_queryQLab.setParameterValues(qlabCueId, params);
-						break;
-					default:
-						break;	// Shouldn't happen; we excluded others earlier in method.
-					}
-				}
-				if (nAdded > 0 && nAdded%60 == 0) {
-					m_out.println();
-				}
-				m_out.print(".");
-			} catch (IOException e) {
-				m_out.println("Error adding cue \"" + eosCue.getCueNumber() + "\"");
-				break;
-			}
-		}
-		if (nAdded > 0) {
-			m_out.println();
-		}
-		m_out.println("Added " + nAdded + " cues to QLab.");
+		Add2QLabCommand addCmd = new Add2QLabCommand(m_config,
+													 m_queryQLab,
+													 m_response,
+													 m_qlabCuelists,
+													 m_eosCuesInQLab,
+													 m_notInQLab);
+		int nAdded = addCmd.addCues();
+ 		m_out.println("Added " + nAdded + " cues to QLab.");
 		if (nAdded > 0) {
 			getQLabCues();
 			m_notInQLab = null;
@@ -871,356 +674,15 @@ public class EOS2QLab implements Closeable
 		return nAdded > 0;
 	}
 	
-	private class InsertPoint
-	{
-		private final String m_afterId;
-		private final boolean m_moveToHead;
-		private InsertPoint(String afterId, boolean moveToHead)
-		{
-			m_afterId = afterId;
-			m_moveToHead = moveToHead;
-		}
-	}
-	
-	/**
-	 * Get the ID of the QLab cue after which the network cue for a missing EOS
-	 * should be inserted. This is the cue before the existing network cue
-	 * for the lowest EOS cue after the given cue.  The existing network cue
-	 * must be in the QLab cuelist "cuelistId"; ignore network cues in other cuelists.
-	 * If QLab does not have such a cue, return cuelistId to add the cue at the end
-	 * of that cuelist.
-	 * @param eosNum An EOS cue number.
-	 * @param cuelistId The ID to return if there 
-	 * @return The QLab cue after which the EOS network cue should be added.
-	 */
-	private InsertPoint findCueInsertPoint(EOSCueNumber eosNum, String cuelistId)
-	{
-		Map.Entry<EOSCueNumber, QLabNetworkCue> nextCue;
-		for (nextCue = m_eosCuesInQLab.higherEntry(eosNum);
-				nextCue != null && !nextCue.getValue().getCuelistId().equals(cuelistId);
-				nextCue = m_eosCuesInQLab.higherEntry(nextCue.getKey())) {
-		}
-		if (nextCue == null) {
-			return new InsertPoint(cuelistId, false);
-		}
-		QLabCue insertPoint = nextCue.getValue().getTopLevelCue();
-		if (insertPoint == null) {
-			return new InsertPoint(cuelistId, false);
-		}
-		insertPoint = insertPoint.getCueSequenceStart();
-		insertPoint = insertPoint.getPrevCue();
-		if (insertPoint == null) {
-			return new InsertPoint(cuelistId, true);
-		}
-		return new InsertPoint(insertPoint.m_uniqueId, false);
-	}
-	
-	private QLabCuelistCue selectQLabCuelist()
-	{
-		if (m_qlabCuelists.size() == 0) {
-			m_out.println("Oops -- QLab doesn't have a cuelist!");
-			return null;
-		} else if (m_qlabCuelists.size() == 1) {
-			return m_qlabCuelists.get(0);
-		} else {
-			ArrayList<QLabCuelistCue> cuelists = new ArrayList<>();
-			m_out.println("Select target QLab cue list:");
-			int iCuelist = 0;
-			int iDefault = -1;
-			for (QLabCuelistCue cuelist: m_qlabCuelists) {
-				String defaultLabel = "";
-				if (m_config.getDefaultQLabCuelist().equals(cuelist.getName()) && iDefault < 0) {
-					iDefault = iCuelist;
-					defaultLabel = " (default)";
-				}
-				m_out.println("   " + (iCuelist+1) + ": \"" + cuelist.getName()
-								+ "\""+ defaultLabel);
-				cuelists.add(cuelist);
-				iCuelist++;
-			}
-			Integer iResp = m_response.getIntResponse("Enter cuelist number, " + Commands.QUIT_CMD[0]
-									+ (iDefault >= 0 ? ", or return for default" : "") + ":",
-									iDefault+1, 1, cuelists.size());
-			if (iResp == null) {
-				return null;
-			} else {
-				return cuelists.get(iResp-1);
-			}
-		}
-	}
-	
-	private class NewCueMarking
-	{
-		private boolean m_flag = m_config.getNewCueFlag();
-		private QLabUtil.ColorName m_color = m_config.getNewCueColor();
-	}
-	
-	private NewCueMarking selectNewCueMarking()
-	{
-		NewCueMarking marking = new NewCueMarking();
-		boolean responseOk;
-		do {
-			responseOk = true;
-			m_out.println("New cues will be color " + marking.m_color.toQLab() + " and "
-					+ (marking.m_flag ? "flagged" : "not flagged"));
-			String resp = m_response.getResponse(
-						"Enter return if ok, or flagged, unflagged, and/or a color to change:");
-			if (resp == null || Commands.isCmd(resp, Commands.QUIT_CMD)) {
-				return null;
-			} else if (!resp.isBlank()) {
-				String[] tokens = resp.split("[ \t,;]+");
-				QLabUtil.ColorName newColor = null;
-				for (String token : tokens) {
-					if (token.startsWith("flag")) {
-						marking.m_flag = true;
-					} else if (token.startsWith("unflag")) {
-						marking.m_flag = false;
-					} else if ((newColor = QLabUtil.ColorName.valueOf(resp.toUpperCase(), null))
-												!= null) {
-						marking.m_color = newColor;
-					} else {
-						m_out.println("   \"" + token
-								+ "\" is not flagged, unflagged, or a QLab color.");
-						responseOk = false;
-					}
-				}
-			} 
-		} while (!responseOk);
-		return marking;
-	}
-	
-	private TreeMap<EOSCueNumber, EOSCueInfo> selectCuesToAdd()
-	{
-		prtCuesNotInQLab(true, false);
-		TreeMap<EOSCueNumber, EOSCueInfo> cuesToAdd = new TreeMap<>();
-		m_out.println("Enter the cues, or cue ranges, to add.");
-		m_out.println("Use \"*\" to select all missing cues, or \"" + Commands.QUIT_CMD[0]
-							+ "\" to cancel.");
-		m_out.println("Enter a blank line when done.");
-		while (true) {
-			String resp = m_response.getResponse("> ");
-			if (resp == null || Commands.isCmd(resp, Commands.QUIT_CMD)) {
-				return null;
-			} else if (resp.isBlank()) {
-				break;
-			} else {
-				String[] tokens = resp.split("[ \t,;]+");
-				for (String token: tokens) {
-					if (token.equals("*")) {
-						cuesToAdd.putAll(m_notInQLab.m_missingCuesByNumber);
-					} else if (token.matches("[0-9]+/\\*")) {
-						String[] parts = token.split("/");
-						addCuesInEOSCuelist(cuesToAdd, parts[0]);
-					} else {
-						String[] range = token.split("-");
-						if (range.length == 2) {
-							EOSCueNumber start = parseEOSCueNumber(range[0]);
-							EOSCueNumber end = parseEOSCueNumber(range[1]);
-							if (start != null && end != null) {
-								for (Map.Entry<EOSCueNumber, EOSCueInfo> ent:
-									m_notInQLab.m_missingCuesByNumber.subMap(start, true,
-																			end, true).entrySet()) {
-									cuesToAdd.put(ent.getKey(), ent.getValue());
-								}
-							}
-						} else {
-							EOSCueNumber cueNumber = parseEOSCueNumber(token);
-							if (cueNumber != null) {
-								EOSCueInfo cueInfo = m_notInQLab.m_missingCuesByNumber.get(cueNumber);
-								if (cueInfo != null) {
-									cuesToAdd.put(cueNumber, cueInfo);
-								} else {
-									m_out.println("Cue number \"" + cueNumber.toFullString()
-												+ "\" isn't missing.");
-								}
-							}
-						}
-					}
-				}
-			}	
-		}
-		return cuesToAdd;
-	}
-	
-	private void addCuesInEOSCuelist(TreeMap<EOSCueNumber, EOSCueInfo> cuesToAdd, String cuelistStr)
-	{
-		try {
-			int cuelist = Integer.parseInt(cuelistStr);
-			List<EOSCueInfo> cuesInList = m_notInQLab.m_missingCuesByList.get(cuelist);
-			if (cuesInList != null) {
-				for (EOSCueInfo cue: cuesInList) {
-					cuesToAdd.put(cue.getCueNumber(), cue);
-				}
-			}
-		} catch (Exception e) {
-			// shouldn't happen -- caller should check.
-		}
-	}
-	
-	private EOSCueNumber parseEOSCueNumber(String num)
-	{
-		try {
-			return new EOSCueNumber(num);
-		} catch (Exception e) {
-			m_out.println("Ignoring invalid cue number \"" + num + "\"");
-			return null;
-		}
-	}
-	
 	public void prtConfig(String lineIndent) throws IOException
 	{
 		m_config.prtConfigFile(m_out, lineIndent);
-	}
-		
-	public static void main(String[] args)
-	{
-		boolean running = true;
-		PrintStream out = System.out;
-		InputStream in = System.in;
-
-		String resumeCmdLine = null;
-		while (running) {
-			try (EOS2QLab eos2QLab = new EOS2QLab(args)) {
-				eos2QLab.prtEOSCueSummary();
-				eos2QLab.prtQLabCueSummary();
-				while (true) {
-					String[] cmd;
-					String cmdLine;
-					long lastCmdTS = System.currentTimeMillis();
-					if (resumeCmdLine != null) {
-						cmdLine = resumeCmdLine;
-						out.println();
-						out.println("Resuming " + resumeCmdLine + " ...");
-						resumeCmdLine = null;
-					} else {
-						out.print("* ");
-						cmdLine = MiscUtil.readLine(in);
-						if (cmdLine == null) {
-							running = false;
-							break;
-						}
-					}
-					cmdLine = cmdLine.trim();
-					if (cmdLine.isBlank()) {
-						continue;
-					}
-					cmd = cmdLine.split("[ \t]+");
-					if (cmd.length == 0) {
-						continue;
-					} 
-					if (Commands.isCmd(cmd[0], Commands.REFRESH_CMD)) {
-						break;
-					} else if (Commands.isCmd(cmd[0], Commands.QUIT_CMD)) {
-						running = false;
-						break;
-					} else if (Commands.isCmd(cmd[0], Commands.PRINT_CMD)) {
-						if (cmd.length >= 2 && Commands.isCmd(cmd[1], Commands.EOS_ARG)) {
-							eos2QLab.prtEOSCueSummary();							
-						} else if (cmd.length >= 2 && Commands.isCmd(cmd[1], Commands.QLAB_ARG)) {
-							eos2QLab.prtQLabCueSummary();							
-						} else if (cmd.length >= 2 && Commands.isCmd(cmd[1], Commands.MISSING_ARG)) {
-							eos2QLab.prtCuesNotInQLab(true, true);
-							eos2QLab.prtCuesNotInEOS();
-						} else if (cmd.length == 2 && Commands.isCmd(cmd[1], Commands.CONFIG_ARG)) {
-							eos2QLab.prtConfig("   ");
-						} else if (cmd.length >= 2) {
-							out.print("Unknown print command.");
-						} else {
-							eos2QLab.prtEOSCueSummary();							
-							eos2QLab.prtCuesNotInQLab(true, true);
-							eos2QLab.prtQLabCueSummary();							
-							eos2QLab.prtCuesNotInEOS();
-						}
-					} else if (Commands.isCmd(cmd[0], Commands.CHECK_CMD)) {
-						eos2QLab.notInQLab();
-						eos2QLab.notInEOS();
-						eos2QLab.prtCuesNotInQLab(true, false);							
-						eos2QLab.prtCuesNotInEOS();					
-					} else if (Commands.isCmd(cmd[0], Commands.ADD_CMD)) {
-						if (System.currentTimeMillis() - lastCmdTS > 5000) {
-							Boolean resp = new ReadResponse(in, out)
-											.getYesNoResponse("Refresh QLab & EOS cue lists? ");
-							if (resp != null && resp) {
-								resumeCmdLine = cmdLine;
-								break;
-							}
-						}
-						eos2QLab.add2QLab();
-					} else if (Commands.isCmd(cmd[0], Commands.SELECT_CMD)) {
-						if (cmd.length >= 2 && Commands.isCmd(cmd[1], Commands.MISSING_ARG)) {
-							eos2QLab.selectCuesNotInEOS();							
-						} else if (cmd.length >= 2 && Commands.isCmd(cmd[1], Commands.ORDER_ARG)) {
-							eos2QLab.selectMisorderedCues();							
-						} else {
-							out.println("Usage: " + Commands.SELECT_CMD[0]
-															+ " {" + Commands.MISSING_ARG[0]
-															+ " | " + Commands.ORDER_ARG[0] + "}");
-						}
-					} else if (Commands.isCmd(cmd[0], Commands.HELP_CMD)) {
-						for (String s: Commands.HELP_RESP) {
-							out.println(s);
-						}
-					} else if (Commands.isCmd(cmd[0], new String[] {"test-replace"})) {
-						if (cmd.length < 3) {
-							out.println("Usage: test-var eos-cue-number string");
-						} else {
-							try {
-								EOSCueNumber cueNumber = new EOSCueNumber(cmd[1]);
-								EOSCueInfo cue = eos2QLab.getEOSCue(cueNumber);
-								if (cue == null) {
-									throw new IllegalArgumentException("Invalid cue number");
-								}
-								for (int iTest = 2; iTest < cmd.length; iTest++) {
-									out.println(cmd[iTest] + ": "
-											+ eos2QLab.m_config.replaceVars(cmd[iTest], cue));
-								}
-							} catch (IllegalArgumentException e) {
-								out.println("Invalid cue number '" + cmd[1] + "'");
-								e.printStackTrace();
-							}
-						}
-					} else if (Commands.isCmd(cmd[0], new String[] {"test"})) {
-						EOSCueNumber cue = new EOSCueNumber("1/0.1");
-						for (Map.Entry<EOSCueNumber, EOSCueInfo> ent:
-													eos2QLab.m_eosCuesByNumber.entrySet()) {
-							out.println("Key: " + ent.getKey().toFullString() + " equals: "
-										+ (ent.getKey().equals(cue)));
-						}
-						out.println("Get: " + eos2QLab.m_eosCuesByNumber.get(cue));
-						out.println("Get2: " + eos2QLab.getEOSCue(cue));
-					} else {
-						out.println("Unknown command \"" + cmdLine + "\"");
-					}
-				}
-			} catch (IllegalArgumentException e) {
-				System.err.println(e.getMessage());
-				running = false;
-			} catch (IOException e) {
-				System.err.println(e);
-				running = false;
-			}
-		}
 	}
 	
 	private static class ACount
 	{
 		private int count = 0;
 		private void incr() { count++; }
-	}
-	
-	TreeMap<Integer, ACount> cueCountByList(Collection<EOSCueNumber> cueNumbers)
-	{
-		TreeMap<Integer, ACount> cntByList = new TreeMap<>();
-		for (EOSCueNumber cueNumber: cueNumbers) {
-			int list = cueNumber.getCuelist();
-			ACount cnt = cntByList.get(list);
-			if (cnt == null) {
-				cnt = new ACount();
-				cntByList.put(list, cnt);
-			}
-			cnt.incr();
-		}
-		return cntByList;
 	}
 	
 	private static class QLabCueStats
@@ -1255,5 +717,34 @@ public class EOS2QLab implements Closeable
 			} 
 		}
 		return cueStats;
+	}
+	
+	public void testCueNum()
+	{
+		EOSCueNumber cue = new EOSCueNumber("1/0.1");
+		for (Map.Entry<EOSCueNumber, EOSCueInfo> ent:
+									m_eosCuesByNumber.entrySet()) {
+			m_out.println("Key: " + ent.getKey().toFullString() + " equals: "
+						+ (ent.getKey().equals(cue)));
+		}
+		m_out.println("Get: " + m_eosCuesByNumber.get(cue));
+		m_out.println("Get2: " + getEOSCue(cue));
+	}
+	
+	public void testReplace(String eosCue, String[] testStrs)
+	{
+		try {
+			EOSCueNumber cueNumber = new EOSCueNumber(eosCue);
+			EOSCueInfo cue = getEOSCue(cueNumber);
+			if (cue == null) {
+				throw new IllegalArgumentException("Invalid cue number");
+			}
+			for (String testStr: testStrs) {
+				m_out.println(testStr + ": " + m_config.replaceVars(testStr, cue));
+			}
+		} catch (IllegalArgumentException e) {
+			m_out.println("Invalid cue number '" + eosCue + "'");
+			e.printStackTrace();
+		}
 	}
 }

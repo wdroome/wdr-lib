@@ -72,6 +72,7 @@ public class QLabUtil
 	
 	// New in QLab5: Get Network Patches.
 	public static final String NETWORK_PATCH_LIST_REQ = "/settings/network/patchList";
+	public static final int MAX_NETWORK_PATCHES = 16;
 
 	/*
 	 * Requests whose names end in "_CUE_REQ" apply to a specific cue.
@@ -150,6 +151,22 @@ public class QLabUtil
 						}
 					}
 				}
+	
+	/**
+	 * Return a String with the legal QLab cue colors.
+	 * @param sep The string to separate the color names.
+	 * @return The QLab cue colors.
+	 */
+	public static String allQLabColors(String sep)
+	{
+		StringBuilder buff = new StringBuilder();
+		String prefix = "";
+		for (ColorName color: ColorName.values()) {
+			buff.append(prefix + color.toQLab());
+			prefix = sep; 
+		}
+		return buff.toString();
+	}
 	
 	/*
 	 * Requests for Group cues. Modes CART and PLAYLIST only exist in QLab5.

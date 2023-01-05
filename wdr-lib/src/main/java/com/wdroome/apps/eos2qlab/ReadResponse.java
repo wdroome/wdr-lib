@@ -31,10 +31,18 @@ public class ReadResponse
 		m_out.print(msg);
 	}
 	
+	public void println()
+	{
+		m_out.println();
+	}
+	
 	public void flush()
 	{
 		m_out.flush();
 	}
+	
+	public PrintStream getOut() { return m_out; }
+	public InputStream getIn() { return m_in; }
 	
 	public String getResponse(String msg)
 	{
