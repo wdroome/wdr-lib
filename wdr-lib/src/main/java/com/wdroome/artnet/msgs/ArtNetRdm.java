@@ -28,7 +28,7 @@ public class ArtNetRdm extends ArtNetMsg
 	public int m_net = 0;
 	public int m_command = COMMAND_AT_PROCESS;
 	public int m_subnetUniv = 0;
-	public byte[] m_rdmPacket = null;
+	public RdmPacket m_rdmPacket = null;
 
 	/**
 	 * Create a message with the default field values.
@@ -65,7 +65,7 @@ public class ArtNetRdm extends ArtNetMsg
 		m_net = buff[off++] & 0xff;
 		m_command = buff[off++] & 0xff;
 		m_subnetUniv = buff[off++] & 0xff;
-		m_rdmPacket = Arrays.copyOfRange(buff, off, length);
+		m_rdmPacket = new RdmPacket(buff, off, length);
 		off = length;
 	}
 	
@@ -101,8 +101,9 @@ public class ArtNetRdm extends ArtNetMsg
 		buff[off++] = (byte)m_command;
 		buff[off++] = (byte)m_subnetUniv;
 		if (m_rdmPacket != null) {
-			copyBytes(buff, off, m_rdmPacket, 0, m_rdmPacket.length);
-			off += m_rdmPacket.length;
+			byte[] rdmBytes = m_rdmPacket.getBytes();
+			copyBytes(buff, off, rdmBytes, 0, rdmBytes.length);
+			off += rdmBytes.length;
 		}
 		return off;
 	}
@@ -127,11 +128,10 @@ public class ArtNetRdm extends ArtNetMsg
 		buff.append(linePrefix
 					+ (fromAddr != null ? "from:" + fromAddr.getHostAddress() : "")
 					+ " cmd:" + Integer.toHexString(m_command)
-					+ " ANPort:" + new ArtNetPort(m_net, m_subnetUniv)
-					+ " rdmLen:" + (m_rdmPacket != null ? m_rdmPacket.length : 0)
-					+ "\n");
+					+ " ANPort:" + new ArtNetPort(m_net, m_subnetUniv));
 		if (m_rdmPacket != null) {
-			appendHex(buff, linePrefix + "data", m_rdmPacket, m_rdmPacket.length);
+			// buff.append("\n" + linePrefix);
+			buff.append(m_rdmPacket.toFmtString(null, linePrefix));
 		}
 		buff.append("\n");
 		return buff.toString();
@@ -148,10 +148,7 @@ public class ArtNetRdm extends ArtNetMsg
 		appendHex(b, "command", m_command);
 		appendHex(b, "subnetUniv", m_subnetUniv);
 		if (m_rdmPacket != null) {
-			append(b, "rdmLen", m_rdmPacket.length);
-			if (m_rdmPacket != null) {
-				appendHex(b, "data", m_rdmPacket, m_rdmPacket.length);
-			}
+			b.append("," + m_rdmPacket.toString());
 		}
 		b.append('}');
 		return b.toString();
@@ -163,7 +160,7 @@ public class ArtNetRdm extends ArtNetMsg
 		m.m_command = COMMAND_AT_PROCESS;
 		m.m_net = 1;
 		m.m_subnetUniv = (3 << 4) + 5;
-		m.m_rdmPacket = new byte[] {1, 2, 3, 4, 5, 6, 7, 8};
+		m.m_rdmPacket = new RdmPacket();
 		System.out.println("min size: " + ArtNetRdm.size());
 		m.print(System.out, "");
 		byte[] buff = new byte[1024];

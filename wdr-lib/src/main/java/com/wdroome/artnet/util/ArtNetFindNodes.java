@@ -71,15 +71,26 @@ public class ArtNetFindNodes implements ArtNetChannel.Receiver
 	private List<InetAddress> m_sendInetAddrs = null;
 	private List<InetSocketAddress> m_sendSockAddrs = null;
 	
+	private ArtNetChannel m_sharedChannel = null;
+	
 	// Shared between poll() and Receiver methods.
 	private final AtomicReference<List<ArtNetNode>> m_nodes = new AtomicReference<>();
 
 	/**
-	 * Create the poller. The c'tor doesn't do anything, but I like to define them anyway.
+	 * Create the poller.
 	 */
 	public ArtNetFindNodes()
 	{
-		// Just in case we need something ...
+		this(null);
+	}
+	
+	/**
+	 * Create the poller using the caller's ArtNetChannel.
+	 * @param sharedChannel The channel to use. If null, create and close a channel.
+	 */
+	public ArtNetFindNodes(ArtNetChannel sharedChannel)
+	{
+		m_sharedChannel = sharedChannel;
 	}
 	
 	/**
@@ -99,7 +110,9 @@ public class ArtNetFindNodes implements ArtNetChannel.Receiver
 		if (m_sendInetAddrs == null || m_sendInetAddrs.isEmpty()) {
 			m_sendInetAddrs = new ArrayList<>();
 			for (InetInterface iface: InetInterface.getBcastInterfaces()) {
-				m_sendInetAddrs.add(iface.m_broadcast);
+				if (!iface.m_isLoopback && iface.m_broadcast instanceof Inet4Address) {
+					m_sendInetAddrs.add(iface.m_broadcast);
+				}
 			}
 		}
 		m_sendSockAddrs = new ArrayList<>();
@@ -190,15 +203,23 @@ public class ArtNetFindNodes implements ArtNetChannel.Receiver
 	{
 		m_nodes.set(new ArrayList<ArtNetNode>());
 		setupParam();
-		ArtNetChannel chan = null;
-		try {
+		boolean closeChan;
+		ArtNetChannel chan;
+		if (m_sharedChannel != null) {
+			chan = m_sharedChannel;
+			closeChan = false;
+			chan.addReceiver(this);
+		} else {
 			try {
 				chan = new ArtNetChannel(this, m_listenPorts);
-			} catch (IOException e1) {
+			} catch (IOException e) {
 				m_errorLogger.logError("ArtNetFindNodes: exception creating channel listenPorts="
-									+ m_listenPorts + ": " + e1);
+						+ m_listenPorts + ": " + e);
 				return null;
 			}
+			closeChan = true;
+		}
+		try {
 			m_sendTS = System.currentTimeMillis();
 			for (InetSocketAddress addr : m_sendSockAddrs) {
 				ArtNetPoll msg = new ArtNetPoll();
@@ -215,7 +236,11 @@ public class ArtNetFindNodes implements ArtNetChannel.Receiver
 			MiscUtil.sleep(m_replyWaitMS);
 		} finally {
 			if (chan != null) {
-				chan.shutdown();
+				if (closeChan) {
+					chan.shutdown();
+				} else {
+					chan.dropReceiver(this);
+				}
 			}
 		}
 		return new Results(m_nodes.getAndSet(null));

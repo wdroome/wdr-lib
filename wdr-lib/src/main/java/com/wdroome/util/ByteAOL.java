@@ -796,12 +796,59 @@ public class ByteAOL implements java.io.Serializable, Cloneable, Comparable<Byte
 	}
 
 	/**
+	 *	Append the bytes to "buff" as 2-digit hex numbers.
+	 *	Use lower case digits (a-f).
+	 */
+	public void appendHex(StringBuilder buff)
+	{
+		int endOff = m_off + m_len;
+		for (int i = m_off; i < endOff; i++) {
+		  	byte b = m_arr[i];
+			buff.append(hexDigits[(b >> 4) & 0xf]);
+		   	buff.append(hexDigits[(b     ) & 0xf]);
+		}
+	}
+
+	/**
+	 *	Append the bytes to "buff" as dot-separated decimal numbers.
+	 */
+	public void appendDottedDecimal(StringBuilder buff)
+	{
+		int endOff = m_off + m_len;
+		for (int i = m_off; i < endOff; i++) {
+		  	byte b = m_arr[i];
+		  	if (i != m_off) {
+				buff.append('.');
+		  	}
+		  	buff.append(b & 0xff);
+		}
+	}
+
+	/**
+	 *	Append the bytes to "buff" as colon-separated hexadecimal numbers.
+	 */
+	public void appendColonHex(StringBuilder buff)
+	{
+		int endOff = m_off + m_len;
+		for (int i = m_off; i < endOff; i++) {
+		  	int b = m_arr[i] & 0xff;
+		  	if (i != m_off) {
+				buff.append(':');
+		  	}
+			if (b >= 0x10) {
+				buff.append(hexDigits[b >> 4]);
+			}
+		  	buff.append(hexDigits[b & 0xf]);
+		}
+	}
+
+	/**
 	 *	Return the bytes as a String of 2-digit hex numbers.
 	 *	Use lower case digits (a-f).
 	 */
 	public String toHex()
 	{
-		StringBuffer b = new StringBuffer(2*m_len);
+		StringBuilder b = new StringBuilder(2*m_len);
 		appendHex(b);
 		return b.toString();
 	}
@@ -811,7 +858,7 @@ public class ByteAOL implements java.io.Serializable, Cloneable, Comparable<Byte
 	 */
 	public String toDottedDecimal()
 	{
-		StringBuffer b = new StringBuffer(5*m_len);
+		StringBuilder b = new StringBuilder(5*m_len);
 		appendDottedDecimal(b);
 		return b.toString();
 	}
@@ -821,7 +868,7 @@ public class ByteAOL implements java.io.Serializable, Cloneable, Comparable<Byte
 	 */
 	public String toColonHex()
 	{
-		StringBuffer b = new StringBuffer(3*m_len);
+		StringBuilder b = new StringBuilder(3*m_len);
 		appendColonHex(b);
 		return b.toString();
 	}
@@ -833,7 +880,7 @@ public class ByteAOL implements java.io.Serializable, Cloneable, Comparable<Byte
 	 */
 	public String toIPAddr()
 	{
-		StringBuffer b = new StringBuffer(5*m_len);
+		StringBuilder b = new StringBuilder(5*m_len);
 		if (m_len != 16) {
 			appendDottedDecimal(b);
 		} else {
@@ -888,7 +935,7 @@ public class ByteAOL implements java.io.Serializable, Cloneable, Comparable<Byte
 	@Override
 	public String toString()
 	{
-		StringBuffer b = new StringBuffer(6+ 2*m_len);
+		StringBuilder b = new StringBuilder(6+ 2*m_len);
 		b.append(m_len);
 		b.append('/');
 		if (m_len > 0) {

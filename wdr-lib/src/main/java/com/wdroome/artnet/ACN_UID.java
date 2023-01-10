@@ -32,6 +32,17 @@ public class ACN_UID
 		}
 	}
 	
+	public ACN_UID(int manufacturer, int serial)
+	{
+		m_bytes = new byte[SACN_UID_LENGTH];
+		m_bytes[0] = (byte)((manufacturer >> 8) & 0xff);
+		m_bytes[1] = (byte)((manufacturer     ) & 0xff);
+		m_bytes[2] = (byte)((serial >> 24) & 0xff);
+		m_bytes[3] = (byte)((serial >> 16) & 0xff);
+		m_bytes[4] = (byte)((serial >>  8) & 0xff);
+		m_bytes[5] = (byte)((serial      ) & 0xff);
+	}
+	
 	/**
 	 * Get the manufacturer code.
 	 * @return The manufacturer code.

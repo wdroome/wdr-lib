@@ -44,7 +44,11 @@ public class ArtNetChannel extends Thread
 {
 	/**
 	 * Art-Net message handler.
-	 * These methods are called when  Art-Net messages arrive.
+	 * These methods are called when Art-Net messages arrive.
+	 * Multi-threading note: The message handler is called from a separate thread.
+	 * The handler must synchronize on any shared data,
+	 * and should return as quickly as possible.
+	 * Furthermore, the handler MUST NOT call "send()" or "broadcast()".
 	 * @author wdr
 	 */
 	public interface Receiver
@@ -125,14 +129,17 @@ public class ArtNetChannel extends Thread
 	// True if the thread is running.
 	private final AtomicBoolean m_running = new AtomicBoolean(true);
 	
+	// All directed broadcast IP addresses.
+	private List<InetAddress> m_bcastAddrs = new ArrayList<>();
+	
 	// If true, listen on the wildcard address.
 	// If false, listen on all local IP addresses.
-	private boolean m_useWildcardAddr = true;
+	private boolean m_listentOnWildcardAddr = true;
 
 	/**
 	 * Create a new channel for sending and receiving Art-Net messages.
 	 * @param receiver
-	 * 		Methods of this class will be called when messages arrive.
+	 * 		Call methods of this class when messages arrive. May be null.
 	 * @param listenPorts
 	 * 		The ports to listen to. If null or 0-length, listen to
 	 * 		the default Art-Net port.
@@ -170,6 +177,15 @@ public class ArtNetChannel extends Thread
 		}
 		m_listenChans = listenChans;
 		
+		for (InetInterface iface: InetInterface.getBcastInterfaces()) {
+			if (!iface.m_isLoopback && iface.m_broadcast instanceof Inet4Address) {
+				m_bcastAddrs.add(iface.m_broadcast);
+			}
+		}
+		
+		setName("ArtNetChannel-" + listenPorts);
+		setDaemon(true);
+
 		m_freeSendBuffs = new Stack<ByteBuffer>();
 		for (int i = 0; i < MAX_SEND_BUFFS; i++) {
 			m_freeSendBuffs.push(ByteBuffer.allocate(ArtNetConst.MAX_MSG_LEN));
@@ -181,7 +197,7 @@ public class ArtNetChannel extends Thread
 	/**
 	 * Create a new channel for sending and receiving Art-Net messages.
 	 * @param receiver
-	 * 		Methods of this class will be called when messages arrive.
+	 * 		Call methods of this class when messages arrive. May be null.
 	 * @param ports
 	 * 		The ports to listen to. If null or 0-length, listen to
 	 * 		the default Art-Net port.
@@ -191,6 +207,31 @@ public class ArtNetChannel extends Thread
 	public ArtNetChannel(Receiver receiver, int[] ports) throws IOException
 	{
 		this(receiver, ArrayToList.toList(ports));
+	}
+	
+	/**
+	 * Create a new channel for sending and receiving Art-Net messages.
+	 * Listen on the default Art-Net port.
+	 * @param receiver
+	 * 		Call methods of this class when messages arrive. May be null.
+	 * @throws IOException
+	 * 		As thrown by Selector.open().
+	 */
+	public ArtNetChannel(Receiver receiver) throws IOException
+	{
+		this(receiver, (List<Integer>)null);
+	}
+	
+	/**
+	 * Create a new channel for sending and receiving Art-Net messages.
+	 * The caller must add a receiver later.
+	 * Listen on the default Art-Net port.
+	 * @throws IOException
+	 * 		As thrown by Selector.open().
+	 */
+	public ArtNetChannel() throws IOException
+	{
+		this(null, (List<Integer>)null);
 	}
 	
 	/**
@@ -207,7 +248,7 @@ public class ArtNetChannel extends Thread
 	}
 	
 	/**
-	 * Remover a receiver.
+	 * Remove a receiver.
 	 * @param receiver The receiver to remove.
 	 * @return True iff receiver was registered as a receiver.
 	 */
@@ -236,6 +277,20 @@ public class ArtNetChannel extends Thread
 			}
 		}
 		return sockets;
+	}
+	
+	/**
+	 * Get the broadcast addresses used by @link {@link #broadcast(ArtNetMsg)}.
+	 * @return The broadcast addresses used by @link {@link #broadcast(ArtNetMsg)}.
+	 */
+	public List<InetAddress> getBroadcastAddrs()
+	{
+		 return List.copyOf(m_bcastAddrs);
+	}
+	
+	public void setBroadcastAddrs(List<InetAddress> addrs)
+	{
+		m_bcastAddrs = List.copyOf(addrs);
 	}
 	
 	/**
@@ -448,6 +503,24 @@ public class ArtNetChannel extends Thread
 		return true;
 	}
 	
+	/**
+	 * Broadcast a message to all directed broadcast addresses.
+	 * Send to the default ArtNet port.
+	 * @param msg The message.
+	 * @return True if all broadcasts succeeded.
+	 * @throws IOException If an I/O error occurs.
+	 */
+	public boolean broadcast(ArtNetMsg msg) throws IOException
+	{
+		boolean allOk = true;
+		for (InetAddress inetAddr: m_bcastAddrs) {
+			if (!send(msg, new InetSocketAddress(inetAddr, ArtNetConst.ARTNET_PORT))) {
+				allOk = false;
+			}
+		}
+		return allOk;
+	}
+	
 	private ByteBuffer getSendBuffer()
 	{
 		synchronized (m_freeSendBuffs) {
@@ -480,7 +553,7 @@ public class ArtNetChannel extends Thread
 	private List<InetSocketAddress> getLocalSocketAddrs(Collection<Integer> ports) throws UnknownHostException
 	{
 		List<InetSocketAddress> sockAddrs = new ArrayList<>();	
-		if (m_useWildcardAddr) {
+		if (m_listentOnWildcardAddr) {
 			for (int port: ports) {
 				sockAddrs.add(new InetSocketAddress(port));
 			}
