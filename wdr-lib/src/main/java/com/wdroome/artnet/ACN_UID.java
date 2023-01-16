@@ -11,11 +11,20 @@ public class ACN_UID
 	
 	public final byte[] m_bytes;
 	
+	/**
+	 * Create a blank (all zero) UID.
+	 */
 	public ACN_UID()
 	{
 		this(null, 0);
 	}
 	
+	/**
+	 * Create a UID from bytes in an array.
+	 * @param src The byte array.
+	 * @param offset The offset in the array.
+	 * @throws IllegalArgumentException If src is shorter than offset+6.
+	 */
 	public ACN_UID(byte[] src)
 	{
 		this(src, 0);
@@ -32,6 +41,11 @@ public class ACN_UID
 		}
 	}
 	
+	/**
+	 * Create a UID from a manufacturer code and a device serial number.
+	 * @param manufacturer The manufacturer's code.
+	 * @param serial The device serial number.
+	 */
 	public ACN_UID(int manufacturer, int serial)
 	{
 		m_bytes = new byte[SACN_UID_LENGTH];
@@ -41,6 +55,25 @@ public class ACN_UID
 		m_bytes[3] = (byte)((serial >> 16) & 0xff);
 		m_bytes[4] = (byte)((serial >>  8) & 0xff);
 		m_bytes[5] = (byte)((serial      ) & 0xff);
+	}
+	
+	/**
+	 * Return the "full broadcast" UID.
+	 * @return The "full broadcast" UID.
+	 */
+	public static ACN_UID broadcastUid()
+	{
+		return new ACN_UID(0xffff, 0xffffffff);
+	}
+	
+	/**
+	 * Return a UID to broadcast to all devices from a specific manufacturer.
+	 * @param vendor The manufacture's id.
+	 * @return A UID to broadcast to all devices from that vendor.
+	 */
+	public static ACN_UID vendorcastUid(int vendor)
+	{
+		return new ACN_UID(vendor, 0xffffffff);
 	}
 	
 	/**
@@ -103,7 +136,7 @@ public class ACN_UID
 	}
 	
 	/**
-	 * Append a UID to a byte buffer.
+	 * Append the UID's bytes to a byte buffer.
 	 * @param buff The buffer.
 	 * @param off The offset in the buffer.
 	 * @return The offset of the next byte in the buffer.

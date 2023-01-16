@@ -261,6 +261,14 @@ public abstract class ArtNetMsg
 		return ((buff[off] & 0xff) << 8) | (buff[off+1] & 0xff);
 	}
 	
+	protected static int getBigEndInt32(byte[] buff, int off)
+	{
+		return    ((buff[off  ] & 0xff) << 24)
+				| ((buff[off+1] & 0xff) << 16)
+				| ((buff[off+2] & 0xff) <<  8)
+				| ((buff[off+3] & 0xff)      );
+	}
+	
 	protected static int getLittleEndInt16(byte[] buff, int off)
 	{
 		return ((buff[off+1] & 0xff) << 8) | (buff[off] & 0xff);

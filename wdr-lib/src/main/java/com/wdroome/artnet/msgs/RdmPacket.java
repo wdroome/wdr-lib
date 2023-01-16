@@ -35,7 +35,7 @@ public class RdmPacket
 	public int m_msgCount = 0;
 	public int m_subDevice = 0;
 	public int m_command = CMD_GET;
-	public int m_paramId = 0;
+	public int m_paramIdCode = 0;
 	public int m_paramDataLen = 0;
 	public byte[] m_paramData = null;
 	private int m_checkSum = 0;
@@ -62,7 +62,7 @@ public class RdmPacket
 		m_srcUid = new ACN_UID();
 		m_command = cmd;
 		m_portOrRespType = 1;	// default "port number"
-		m_paramId = paramId;
+		m_paramIdCode = paramId;
 		m_paramDataLen = paramData != null ? paramData.length : 0;
 		m_paramData = paramData;
 		setMsgLen();
@@ -111,7 +111,7 @@ public class RdmPacket
 		m_subDevice = ArtNetMsg.getBigEndInt16(buff, off);
 		off += 2;
 		m_command = buff[off++] & 0xff;
-		m_paramId = ArtNetMsg.getBigEndInt16(buff, off);
+		m_paramIdCode = ArtNetMsg.getBigEndInt16(buff, off);
 		off += 2;
 		m_paramDataLen = buff[off++] & 0xff;
 		if (m_paramDataLen >= length - PACKET_HDR_LEN) {
@@ -133,7 +133,7 @@ public class RdmPacket
 	 */
 	public RdmParamId getParamId()
 	{
-		return RdmParamId.getParamId(m_paramId);
+		return RdmParamId.getParamId(m_paramIdCode);
 	}
 	
 	/**
@@ -142,7 +142,7 @@ public class RdmPacket
 	 */
 	public String getParamName()
 	{
-		return RdmParamId.getName(m_paramId);
+		return RdmParamId.getName(m_paramIdCode);
 	}
 	
 	/**
@@ -151,7 +151,44 @@ public class RdmPacket
 	 */
 	public void setParam(RdmParamId paramId)
 	{
-		m_paramId = paramId != null ? paramId.getCode() : 0;
+		m_paramIdCode = paramId != null ? paramId.getCode() : 0;
+	}
+	
+	/**
+	 * Test if this packet is a response.
+	 * @param reqCmd If CMD_GET or CMD_SET, return true iff this packet
+	 * 			is a CMD_GET_RESP or CMD_SET_RESP, respectively.
+	 * 			If neither, return true iff this packet is either response type.
+	 * @return True iff this packet is a response for a "reqCmd" request.
+	 */
+	public boolean isReply(int reqCmd)
+	{
+		switch (reqCmd) {
+		case CMD_GET:
+			return m_command == CMD_GET_RESP;
+		case CMD_SET:
+			return m_command == CMD_SET_RESP;
+		default:
+			return m_command == CMD_GET_RESP || m_command == CMD_SET_RESP;
+		}
+	}
+	
+	/**
+	 * Test if this packet is a response.
+	 * @return True is this packet is a response.
+	 */
+	public boolean isReply()
+	{
+		return m_command == CMD_GET_RESP || m_command == CMD_SET_RESP;
+	}
+	
+	/**
+	 * Test if this packet is a successful response.
+	 * @return true if this packet is a successful response.
+	 */
+	public boolean isRespAck()
+	{
+		return isReply() && m_portOrRespType == RESP_ACK;
 	}
 	
 	/**
@@ -213,7 +250,7 @@ public class RdmPacket
 		buff[off++] = (byte)m_msgCount;
 		off = ArtNetMsg.putBigEndInt16(buff, off, m_subDevice);
 		buff[off++] = (byte)m_command;
-		off = ArtNetMsg.putBigEndInt16(buff, off, m_paramId);
+		off = ArtNetMsg.putBigEndInt16(buff, off, m_paramIdCode);
 		buff[off++] = (byte)m_paramDataLen;
 		ArtNetMsg.copyBytes(buff, off, m_paramData, 0, m_paramDataLen);
 		off += m_paramDataLen;

@@ -46,8 +46,9 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 {
 	public static final long MIN_REPLY_WAIT_MS = 50;
 	public static final long MAX_REPLY_WAIT_MS = 15000;
+	public static final long DEF_REPLY_WAIT_MS = 5000;
 	
-	private long m_replyWaitMS = MAX_REPLY_WAIT_MS;
+	private long m_replyWaitMS = DEF_REPLY_WAIT_MS;
 	private IErrorLogger m_errorLogger = new SystemErrorLogger();
 	
 	private long m_sendTS = 0;
