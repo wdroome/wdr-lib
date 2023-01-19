@@ -55,6 +55,7 @@ public class RdmParamResp
 					+ "vers=" + m_protoVersMajor + "." + m_protoVersMinor
 					+ ",model=" + m_model
 					+ ",cat=0x" + Integer.toHexString(m_category)
+						+ "/" + RdmProductCategories.getCategoryName(m_category)
 					+ ",swVers=" + m_softwareVersion
 					+ ",addr=" + m_startAddr + "-" + (m_startAddr + m_dmxFootprint - 1)
 					+ (m_numSubDevs > 0 ? (",#sub=" + m_numSubDevs) : "")
@@ -100,6 +101,17 @@ public class RdmParamResp
 			}
 			buff.append("]");
 			return buff.toString();
+		}
+		
+		public boolean isSupported(RdmParamId paramId)
+		{
+			return m_stdPids.contains(paramId);
+		}
+		
+		public boolean isSupported(int code)
+		{
+			return m_otherPids.contains(code)
+					|| m_stdPids.contains(RdmParamId.getParamId(code));
 		}
 	}
 	

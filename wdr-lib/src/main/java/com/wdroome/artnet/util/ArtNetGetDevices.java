@@ -17,100 +17,17 @@ import com.wdroome.artnet.ArtNetNode;
 import com.wdroome.artnet.ArtNetNodePort;
 import com.wdroome.artnet.ArtNetPort;
 import com.wdroome.artnet.ArtNetRdmRequest;
+import com.wdroome.artnet.RdmDevice;
 
 import com.wdroome.artnet.msgs.ArtNetRdm;
 import com.wdroome.artnet.msgs.RdmPacket;
 import com.wdroome.artnet.msgs.RdmParamId;
 import com.wdroome.artnet.msgs.RdmParamData;
 import com.wdroome.artnet.msgs.RdmParamResp;
+import com.wdroome.artnet.msgs.RdmProductCategories;
 
 public class ArtNetGetDevices implements Closeable
 {
-	public static final String UNKNOWN_DESC = "???";
-	
-	public static class DeviceInfo
-	{
-		public final ACN_UID m_uid;
-		public final ArtNetNodePort m_nodePort;
-		public final RdmParamResp.DeviceInfo m_deviceInfo;
-		public final String m_manufacturer;
-		public final String m_model;
-		public final TreeMap<Integer, RdmParamResp.PersonalityDesc> m_personalities;
-		public final List<RdmParamId> m_stdParamIds;
-		public final List<Integer> m_otherParamIds;
-		
-		public DeviceInfo(ACN_UID uid,
-						ArtNetNodePort nodePort,
-						RdmParamResp.DeviceInfo deviceInfo,
-						TreeMap<Integer, RdmParamResp.PersonalityDesc> personalities,
-						String manufacturer,
-						String model,
-						RdmParamResp.PidList supportedPids)
-		{
-			m_uid = uid;
-			m_nodePort = nodePort;
-			m_deviceInfo = deviceInfo;
-			m_personalities = personalities != null ? personalities : new TreeMap<>();
-			m_manufacturer = manufacturer;
-			m_model = model;
-			m_stdParamIds = supportedPids != null ? supportedPids.m_stdPids : List.of();
-			m_otherParamIds = supportedPids != null ? supportedPids.m_otherPids : List.of();
-		}
-		
-		@Override
-		public String toString()
-		{
-			return	"RdmDevice(" + m_uid
-					+ "@" + m_nodePort
-					+ getManModel(",")
-					+ ",dmx=" + m_deviceInfo.m_startAddr + "-"
-							+ (m_deviceInfo.m_startAddr + m_deviceInfo.m_dmxFootprint - 1)
-					+ ",config=" + m_deviceInfo.m_currentPersonality + "/"
-							+ m_deviceInfo.m_nPersonalities
-					+ ",model=" + m_deviceInfo.m_model
-					+ ",cat=0x" + Integer.toHexString(m_deviceInfo.m_category)
-					+ (m_deviceInfo.m_numSubDevs > 0 ? (",#sub=" + m_deviceInfo.m_numSubDevs) : "")
-					+ ",pids=" + m_stdParamIds
-					+ ",personalities=" + m_personalities
-					+ (!m_otherParamIds.isEmpty() ? (",xpids=" + m_otherParamIds) : "")
-					+ ")";
-		}
-		
-		private String getManModel(String prefix)
-		{
-			if (!isUnknownDesc(m_manufacturer) && !isUnknownDesc(m_model)) {
-				return prefix + m_manufacturer + "/" + m_model;
-			} else if (!isUnknownDesc(m_manufacturer) && isUnknownDesc(m_model)) {
-				return prefix + m_manufacturer + "/" + UNKNOWN_DESC;
-			} else if (isUnknownDesc(m_manufacturer) && !isUnknownDesc(m_model)) {
-				return prefix + UNKNOWN_DESC + "/" + m_model;
-			} else {
-				return "";
-			}
-		}
-		
-		public boolean isUnknownDesc(String name)
-		{
-			return name == null || name.isEmpty() || name.equals(UNKNOWN_DESC);
-		}
-		
-		public String supportedPids()
-		{
-			StringBuilder buff = new StringBuilder();
-			String sep = "";
-			for (RdmParamId pid: m_stdParamIds) {
-				buff.append(sep + pid);
-				sep = ",";
-			}
-			for (Integer code: m_otherParamIds) {
-				buff.append(sep + "0x" + Integer.toHexString(code));
-				sep = ",";
-			}
-			buff.append("]");
-			return buff.toString();
-		}
-	}
-	
 	private final ArtNetChannel m_channel;
 	private final boolean m_sharedChannel;
 	private Map<ArtNetNodePort, Set<ACN_UID>> m_uidMap = null;
@@ -141,14 +58,14 @@ public class ArtNetGetDevices implements Closeable
 		}
 	}
 
-	public Map<ACN_UID, DeviceInfo> getDeviceMap(List<String> errors)
+	public Map<ACN_UID, RdmDevice> getDeviceMap(List<String> errors)
 	{
-		Map<ACN_UID, DeviceInfo> deviceInfoMap = new HashMap<>();
+		Map<ACN_UID, RdmDevice> deviceInfoMap = new HashMap<>();
 		
 		for (Set<ACN_UID> uidSet: m_uidMap.values()) {
 			for (ACN_UID uid: uidSet) {
 				try {
-					DeviceInfo info = getDevice(uid);
+					RdmDevice info = getDevice(uid);
 					if (info != null) {
 						deviceInfoMap.put(uid, info);
 					} else if (errors != null) {
@@ -164,7 +81,7 @@ public class ArtNetGetDevices implements Closeable
 		return deviceInfoMap;
 	}
 	
-	public DeviceInfo getDevice(ACN_UID uid) throws IOException
+	public RdmDevice getDevice(ACN_UID uid) throws IOException
 	{
 		ArtNetNodePort nodePort = findNodePort(uid);
 		if (nodePort == null) {
@@ -178,30 +95,41 @@ public class ArtNetGetDevices implements Closeable
 		}
 		RdmParamResp.DeviceInfo devInfo = new RdmParamResp.DeviceInfo(devInfoReply);
 		
-		RdmPacket manufacturerReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
-													nodePort.m_port, uid,
-													false, RdmParamId.MANUFACTURER_LABEL, null);
-		String manufacturer = UNKNOWN_DESC;
-		if (manufacturerReply != null && manufacturerReply.isRespAck()) {
-			manufacturer = new RdmParamResp.StringReply(manufacturerReply).m_string;
-		}
-		
-		RdmPacket modelReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
-													nodePort.m_port, uid,
-													false, RdmParamId.DEVICE_MODEL_DESCRIPTION, null);
-		String model = UNKNOWN_DESC;
-		if (modelReply != null && modelReply.isRespAck()) {
-			model = new RdmParamResp.StringReply(modelReply).m_string;
-		}
-		
 		RdmPacket supportedPidsReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
-													nodePort.m_port, uid,
-													false, RdmParamId.SUPPORTED_PARAMETERS, null);
+												nodePort.m_port, uid,
+												false, RdmParamId.SUPPORTED_PARAMETERS, null);
 		RdmParamResp.PidList supportedPids = new RdmParamResp.PidList(supportedPidsReply);
-				
-		return new DeviceInfo(uid, nodePort, devInfo,
-							getPersonalities(nodePort, uid, devInfo.m_nPersonalities),
-							manufacturer, model, supportedPids);
+		
+		RdmPacket swVerLabelReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
+											nodePort.m_port, uid,
+											false, RdmParamId.SOFTWARE_VERSION_LABEL, null);
+		String swVerLabel = "[" + devInfo.m_softwareVersion + "]";
+		if (swVerLabelReply != null) {
+			swVerLabel = new RdmParamResp.StringReply(swVerLabelReply).m_string;
+		}
+		
+		String manufacturer = String.format("0x%04x", uid.getManufacturer());
+		if (isSupported(RdmParamId.MANUFACTURER_LABEL, supportedPids)) {
+			RdmPacket manufacturerReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port, uid, false,
+					RdmParamId.MANUFACTURER_LABEL, null);
+			if (manufacturerReply != null && manufacturerReply.isRespAck()) {
+				manufacturer = new RdmParamResp.StringReply(manufacturerReply).m_string;
+			} 
+		}
+		
+		String model = String.format("0x%04x", devInfo.m_model);
+		if (isSupported(RdmParamId.DEVICE_MODEL_DESCRIPTION, supportedPids)) {
+			RdmPacket modelReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port, uid, false,
+					RdmParamId.DEVICE_MODEL_DESCRIPTION, null);
+			if (modelReply != null && modelReply.isRespAck()) {
+				model = new RdmParamResp.StringReply(modelReply).m_string;
+			} 
+		}
+		
+		return new RdmDevice(uid, nodePort, devInfo,
+							getPersonalities(nodePort, uid, devInfo.m_nPersonalities, supportedPids),
+							getSlotDescs(nodePort, uid, devInfo.m_dmxFootprint, supportedPids),
+							manufacturer, model, swVerLabel, supportedPids);
 	}
 	
 	private ArtNetNodePort findNodePort(ACN_UID uid)
@@ -212,6 +140,11 @@ public class ArtNetGetDevices implements Closeable
 			}
 		}
 		return null;
+	}
+	
+	private boolean isSupported(RdmParamId paramId, RdmParamResp.PidList supportedPids)
+	{
+		return paramId.isRequired() || (supportedPids != null && supportedPids.isSupported(paramId));
 	}
 	
 	private RdmPacket sendReq(InetSocketAddress ipAddr, ArtNetPort port, ACN_UID destUid,
@@ -225,36 +158,134 @@ public class ArtNetGetDevices implements Closeable
 	}
 	
 	private TreeMap<Integer,RdmParamResp.PersonalityDesc> getPersonalities(ArtNetNodePort nodePort,
-													 ACN_UID uid, int nPersonalities) throws IOException
+													 ACN_UID uid, int nPersonalities,
+													 RdmParamResp.PidList supportedPids) throws IOException
 	{
 		TreeMap<Integer,RdmParamResp.PersonalityDesc> personalities = new TreeMap<>();
-		for (int iPersonality = 1; iPersonality <= nPersonalities; iPersonality++) {
-			RdmPacket personalityDescReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
-													nodePort.m_port, uid,
-													false, RdmParamId.DMX_PERSONALITY_DESCRIPTION,
-													new byte[] {(byte)iPersonality});
-			RdmParamResp.PersonalityDesc desc;
-			if (personalityDescReply != null) {
-				desc = new RdmParamResp.PersonalityDesc(personalityDescReply);
-			} else {
-				desc = new RdmParamResp.PersonalityDesc(iPersonality, 1, UNKNOWN_DESC);
-			}
-			personalities.put(iPersonality, desc);
+		boolean ok = isSupported(RdmParamId.DMX_PERSONALITY_DESCRIPTION, supportedPids);
+		if (ok) {
+			for (int iPersonality = 1; iPersonality <= nPersonalities; iPersonality++) {
+				RdmPacket personalityDescReply = null;
+				if (ok) {
+					personalityDescReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port, uid, false,
+							RdmParamId.DMX_PERSONALITY_DESCRIPTION, new byte[] { (byte) iPersonality });
+					if (personalityDescReply == null) {
+						ok = false;
+					}
+				}
+				RdmParamResp.PersonalityDesc desc;
+				if (personalityDescReply != null && personalityDescReply.isRespAck()) {
+					desc = new RdmParamResp.PersonalityDesc(personalityDescReply);
+				} else {
+					desc = new RdmParamResp.PersonalityDesc(iPersonality, 1, RdmDevice.UNKNOWN_DESC);
+				}
+				personalities.put(iPersonality, desc);
+			} 
 		}
 		return personalities;
+	}
+	
+	private TreeMap<Integer,String> getSlotDescs(ArtNetNodePort nodePort,
+												 ACN_UID uid, int nSlots,
+												 RdmParamResp.PidList supportedPids) throws IOException
+	{
+		TreeMap<Integer,String> slotDescs = new TreeMap<>();
+		boolean ok = isSupported(RdmParamId.SLOT_DESCRIPTION, supportedPids);
+		if (ok) {
+			for (int iSlot = 0; iSlot < nSlots; iSlot++) {
+				String desc = RdmDevice.UNKNOWN_DESC;
+				if (ok) {
+					byte[] iSlotAsBytes = new byte[] { (byte) ((iSlot >> 8) & 0xff), (byte) (iSlot & 0xff) };
+					RdmPacket slotDescReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port, uid, false,
+							RdmParamId.SLOT_DESCRIPTION, iSlotAsBytes);
+					if (slotDescReply != null && slotDescReply.isRespAck()) {
+						desc = new RdmParamResp.StringReply(slotDescReply).m_string;
+					} else {
+						ok = false;
+					}
+				}
+				slotDescs.put(iSlot, desc);
+			} 
+		}
+		return slotDescs;
 	}
 	
 	public static void main(String[] args)
 	{
 		try (ArtNetGetDevices devs = new ArtNetGetDevices(null, null)) {
 			ArrayList<String> errors = new ArrayList<>();
-			Map<ACN_UID, DeviceInfo> deviceMap = devs.getDeviceMap(errors);
+			Map<ACN_UID, RdmDevice> deviceMap = devs.getDeviceMap(errors);
 			if (!errors.isEmpty()) {
 				System.out.println("errors: " + errors);
 			}
 			System.out.println(deviceMap.size() + " devices:");
-			for (DeviceInfo devInfo: deviceMap.values()) {
-				System.out.println(devInfo);
+			int iDev = 0;
+			String indent = "    ";
+			for (RdmDevice devInfo: RdmDevice.sort(deviceMap.values())) {
+				iDev++;
+				System.out.println();
+				System.out.println("Device " + iDev + "  [" + devInfo.m_uid + "]:");
+				System.out.println(indent + devInfo.m_manufacturer + "/" + devInfo.m_model + "  ("
+							+ RdmProductCategories.getCategoryName(devInfo.m_deviceInfo.m_category) + ")");
+				
+				if (devInfo.m_deviceInfo.m_startAddr > 0 || devInfo.m_deviceInfo.m_dmxFootprint > 0) {
+					System.out.println(indent + "dmx addresses: " + devInfo.m_deviceInfo.m_startAddr
+								+ "-" + (devInfo.m_deviceInfo.m_startAddr
+											+ devInfo.m_deviceInfo.m_dmxFootprint - 1)
+								+ " univ: " + devInfo.m_nodePort);
+				} else {
+					System.out.println(indent + "univ: " + devInfo.m_nodePort);
+				}
+				System.out.println(indent + "dmx config " + devInfo.getPersonalityDesc());
+				System.out.println(indent + "version: " + devInfo.m_softwareVersionLabel);
+				if (!devInfo.m_stdParamIds.isEmpty() || !devInfo.m_otherParamIds.isEmpty()) {
+					System.out.print(indent + "parameters:");
+					int lineLen = indent.length() + 11;
+					String sep = " ";
+					for (RdmParamId pid: devInfo.m_stdParamIds) {
+						String s = pid.toString();
+						if (lineLen + s.length() > 75) {
+							System.out.println();
+							System.out.print(indent + indent);
+							lineLen = 2*indent.length();
+							sep = "";
+						}
+						System.out.print(sep + s);
+						lineLen += s.length() + sep.length();
+						sep = " ";
+					}
+					for (int pid: devInfo.m_otherParamIds) {
+						String s = "0x" + Integer.toHexString(pid);
+						if (lineLen + s.length() > 75) {
+							System.out.println();
+							System.out.print(indent + indent);
+							lineLen = 2*indent.length();
+							sep = "";
+						}
+						System.out.print(sep + s);
+						lineLen += s.length() + sep.length();
+						sep = " ";
+					}
+					System.out.println();
+				}
+				if (!devInfo.m_slotDescs.isEmpty()) {
+					System.out.print(indent + "slots: ");
+					int lineLen = indent.length() + 6;
+					String sep = " ";
+					for (Map.Entry<Integer,String> ent: devInfo.m_slotDescs.entrySet()) {
+						String s = ent.getKey() + ": " + ent.getValue();
+						if (lineLen + s.length() > 75) {
+							System.out.println();
+							System.out.print(indent + indent);
+							lineLen = 2*indent.length();
+							sep = "";
+						}
+						System.out.print(sep + s);
+						lineLen += s.length() + sep.length();
+						sep = " ";
+					}
+					System.out.println();
+				}
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

@@ -100,11 +100,17 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		try {
 			replyMsg = replyQueue.poll(m_timeoutMS, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException e) {
-			System.out.println("XXX: ArtNetRdmRequest.sendRequest timeout " + paramId);
+		}
+		if (replyMsg == null) {
+			// System.out.println("XXX: ArtNetRdmRequest.sendRequest timeout " + paramId);
 		}
 		m_channel.dropReceiver(this);
 		m_reqMsg.set(null);
 		m_replyQueue.set(null);
+		if (replyMsg != null  && replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
+			System.out.println("XXX: sendReq/" + paramId + " msgCount="
+								+ replyMsg.m_rdmPacket.m_msgCount);
+		}
 		return replyMsg != null ? replyMsg.m_rdmPacket : null;
 	}
 	

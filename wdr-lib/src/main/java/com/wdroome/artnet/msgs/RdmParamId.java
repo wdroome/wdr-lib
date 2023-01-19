@@ -7,9 +7,9 @@ package com.wdroome.artnet.msgs;
  */
 public enum RdmParamId
 {
-	DISC_UNIQUE_BRANCH(0x0001),
-	DISC_MUTE(0x0002),
-	DISC_UN_MUTE(0x0003),
+	DISC_UNIQUE_BRANCH(0x0001, true),
+	DISC_MUTE(0x0002, true),
+	DISC_UN_MUTE(0x0003, true),
 	PROXIED_DEVICES(0x0010),
 	PROXIED_DEVICE_COUNT(0x0011),
 	COMMS_STATUS(0x0015),
@@ -18,9 +18,9 @@ public enum RdmParamId
 	STATUS_ID_DESCRIPTION(0x0031),
 	CLEAR_STATUS_ID(0x0032),
 	SUB_DEVICE_STATUS_REPORT_THRESHOLD(0x0033),
-	SUPPORTED_PARAMETERS(0x0050),
-	PARAMETER_DESCRIPTION(0x0051),
-	DEVICE_INFO(0x0060),
+	SUPPORTED_PARAMETERS(0x0050, true),
+	PARAMETER_DESCRIPTION(0x0051, true),
+	DEVICE_INFO(0x0060, true),
 	PRODUCT_DETAIL_ID_LIST(0x0070),
 	DEVICE_MODEL_DESCRIPTION(0x0080),
 	MANUFACTURER_LABEL(0x0081),
@@ -28,12 +28,12 @@ public enum RdmParamId
 	FACTORY_DEFAULTS(0x0090),
 	LANGUAGE_CAPABILITIES(0x00A0),
 	LANGUAGE(0x00B0),
-	SOFTWARE_VERSION_LABEL(0x00C0),
+	SOFTWARE_VERSION_LABEL(0x00C0, true),
 	BOOT_SOFTWARE_VERSION_ID(0x00C1),
 	BOOT_SOFTWARE_VERSION_LABEL(0x00C2),
 	DMX_PERSONALITY(0x00E0),
 	DMX_PERSONALITY_DESCRIPTION(0x00E1),
-	DMX_START_ADDRESS(0x00F0),
+	DMX_START_ADDRESS(0x00F0, true),
 	SLOT_INFO(0x0120),
 	SLOT_DESCRIPTION(0x0121),
 	DEFAULT_SLOT_VALUE(0x0122),
@@ -52,7 +52,7 @@ public enum RdmParamId
 	TILT_INVERT(0x0601),
 	PAN_TILT_SWAP(0x0602),
 	REAL_TIME_CLOCK(0x0603),
-	IDENTIFY_DEVICE(0x1000),
+	IDENTIFY_DEVICE(0x1000, true),
 	RESET_DEVICE(0x1001),
 	POWER_STATE(0x1010),
 	PERFORM_SELFTEST(0x1020),
@@ -64,14 +64,21 @@ public enum RdmParamId
 	UNKNOWN_PARAM_ID(0x10000);
 	
 	private final int m_code;
+	private final boolean m_required;
 	
 	/**
 	 * Set the message code for the parameter.
 	 * @param code The code.
 	 */
-	private RdmParamId(int code)
+	private RdmParamId(int code, boolean required)
 	{
 		m_code = code;
+		m_required = required;
+	}
+	
+	private RdmParamId(int code)
+	{
+		this(code, false);
 	}
 	
 	/**
@@ -79,6 +86,12 @@ public enum RdmParamId
 	 * @return The message code for this parameter.
 	 */
 	public int getCode() { return m_code; }
+	
+	/**
+	 * Test if devices are required to implement this parameter.
+	 * @return True iff this is a required RDM parameter.
+	 */
+	public boolean isRequired() { return m_required; }
 	
 	/**
 	 * Get the Parameter ID for a message code.
@@ -107,6 +120,6 @@ public enum RdmParamId
 		RdmParamId paramId = getParamId(code);
 		return paramId != UNKNOWN_PARAM_ID
 				? paramId.toString()
-				: ("UNKNOWN" + "(0x" + Integer.toHexString(code) + ")");
+				: String.format("UNKNOWN(0x%04x)", code);
 	}
 }

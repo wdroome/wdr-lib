@@ -42,6 +42,46 @@ public class ACN_UID
 	}
 	
 	/**
+	 * Create a UID from a hex string. Acceptable formats are manufacturer:serial-number,
+	 * as in "1900:10abc", 6 hex bytes separated by colons, as in "19:0:0:1:a:bc",
+	 * or a string of hex digits without colons, as in "190000010abc".
+	 * @param src The source string.
+	 * @throws IllegalArgumentException If the format can't be recognized.
+	 * @throws NumberFormatException If components aren't hex numbers.
+	 */
+	public ACN_UID(String src)
+	{
+		m_bytes = new byte[SACN_UID_LENGTH];
+		if (src != null && !src.isBlank()) {
+			String[] parts = src.trim().split(":");
+			if (parts.length == 2) {
+				int manufacturer = Integer.parseInt(parts[0], 16);
+				int serial = Integer.parseInt(parts[1], 16);
+				m_bytes[0] = (byte)((manufacturer >> 8) & 0xff);
+				m_bytes[1] = (byte)((manufacturer     ) & 0xff);
+				m_bytes[2] = (byte)((serial >> 24) & 0xff);
+				m_bytes[3] = (byte)((serial >> 16) & 0xff);
+				m_bytes[4] = (byte)((serial >>  8) & 0xff);
+				m_bytes[5] = (byte)((serial      ) & 0xff);				
+			} else if (parts.length == SACN_UID_LENGTH) {
+				for (int i = 0; i < SACN_UID_LENGTH; i++) {
+					m_bytes[i] = (byte)Integer.parseInt(parts[i], 16);
+				}
+			} else if (parts.length == 0) {
+				long val = Long.parseLong(src, 16);
+				m_bytes[0] = (byte)((val >> 40) & 0xff);
+				m_bytes[1] = (byte)((val >> 32) & 0xff);
+				m_bytes[2] = (byte)((val >> 24) & 0xff);
+				m_bytes[3] = (byte)((val >> 16) & 0xff);
+				m_bytes[4] = (byte)((val >>  8) & 0xff);
+				m_bytes[5] = (byte)((val      ) & 0xff);
+			} else {
+				throw new IllegalArgumentException("ACN_UID unknown format '" + src + "'");
+			}
+		}
+	}
+	
+	/**
 	 * Create a UID from a manufacturer code and a device serial number.
 	 * @param manufacturer The manufacturer's code.
 	 * @param serial The device serial number.
@@ -96,21 +136,27 @@ public class ACN_UID
 		return    (((int)(m_bytes[2] & 0xff)) << 24)
 				| (((int)(m_bytes[3] & 0xff)) << 16)
 				| (((int)(m_bytes[4] & 0xff)) <<  8)
-				| (((int)(m_bytes[5]       ))      )
+				| (((int)(m_bytes[5] & 0xff))      )
 				;
 	}
 	
 	@Override
 	public String toString()
 	{
-		StringBuilder buff = new StringBuilder();
-		String sep = "";
-		for (byte b: m_bytes) {
-			buff.append(sep);
-			buff.append(Integer.toHexString(b & 0xff));
-			sep = ":";
-		}
+		return Integer.toHexString(getManufacturer()) + ":" + Integer.toHexString(getDeviceId());
+		
+		/*
+		 * Old style, colon hex.
+		
+			StringBuilder buff = new StringBuilder();
+			String sep = "";
+			for (byte b: m_bytes) {
+				buff.append(sep);
+				buff.append(Integer.toHexString(b & 0xff));
+				sep = ":";
+			}
 		return buff.toString();
+		*/
 	}
 	
 	@Override
