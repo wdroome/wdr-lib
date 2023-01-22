@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Collection;
@@ -27,13 +28,14 @@ import com.wdroome.artnet.ArtNetNode;
 import com.wdroome.artnet.ArtNetNodeAddr;
 import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.artnet.ArtNetChannel;
-import com.wdroome.artnet.ArtNetNodePort;
+import com.wdroome.artnet.ArtNetPortAddr;
 import com.wdroome.artnet.ACN_UID;
 
 import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetTodRequest;
 import com.wdroome.artnet.msgs.ArtNetTodData;
 import com.wdroome.artnet.msgs.ArtNetRdm;
+import com.wdroome.artnet.msgs.ArtNetTodControl;
 import com.wdroome.artnet.msgs.RdmPacket;
 import com.wdroome.artnet.msgs.RdmParamId;
 
@@ -44,9 +46,9 @@ import com.wdroome.artnet.msgs.RdmParamId;
  */
 public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 {
-	public static final long MIN_REPLY_WAIT_MS = 50;
+	public static final long MIN_REPLY_WAIT_MS = 500;
 	public static final long MAX_REPLY_WAIT_MS = 15000;
-	public static final long DEF_REPLY_WAIT_MS = 5000;
+	public static final long DEF_REPLY_WAIT_MS = 3000;
 	
 	private long m_replyWaitMS = DEF_REPLY_WAIT_MS;
 	private IErrorLogger m_errorLogger = new SystemErrorLogger();
@@ -58,7 +60,7 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 	private ArtNetChannel m_sharedChannel = null;
 	
 	// Shared between poll() and Receiver methods.
-	private final AtomicReference<Map<ArtNetNodePort, Set<ACN_UID>>> m_uidMap = new AtomicReference<>();
+	private final AtomicReference<Map<ArtNetPortAddr, Set<ACN_UID>>> m_uidMap = new AtomicReference<>();
 
 	/**
 	 * Create the poller. The c'tor doesn't do anything, but I like to define them anyway.
@@ -122,7 +124,7 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 	 * 		or null of there was an error.
 	 * @see ArtNetFindNodes
 	 */
-	public Map<ArtNetNodePort, Set<ACN_UID>> getUidMap(Collection<ArtNetPort> ports)
+	public Map<ArtNetPortAddr, Set<ACN_UID>> getUidMap(Collection<ArtNetPort> ports)
 	{
 		if (ports == null || ports.isEmpty()) {
 			ports = getAllPorts();
@@ -131,7 +133,8 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 				return new HashMap<>();
 			}
 		}
-		m_uidMap.set(new HashMap<>());
+		// List<ArtNetPortAddr> portAddrs = getAllPortAddrs();
+		m_uidMap.set(new TreeMap<>());
 		boolean closeChan;
 		ArtNetChannel chan;
 		if (m_sharedChannel != null) {
@@ -148,22 +151,46 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 			closeChan = true;
 		}
 		try {
-			m_sendTS = System.currentTimeMillis();
-			for (ArtNetPort port: ports) {
-				ArtNetTodRequest todReq = new ArtNetTodRequest();
-				todReq.m_net = port.m_net;
-				todReq.m_command = ArtNetTodRequest.COMMAND_TOD_FULL;
-				todReq.m_numSubnetUnivs = 1;
-				todReq.m_subnetUnivs[0] = (byte)port.subUniv();
-				try {
-					if (!chan.broadcast(todReq)) {
-						m_errorLogger.logError("ArtNetFindRdmUids: send failed.");					
+			if (true) {
+				m_sendTS = System.currentTimeMillis();
+				for (ArtNetPort port : ports) {
+					ArtNetTodControl todCtlReq = new ArtNetTodControl();
+					todCtlReq.m_net = port.m_net;
+					todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
+					todCtlReq.m_subnetUniv = port.subUniv();
+					try {
+						if (!chan.broadcast(todCtlReq)) {
+							m_errorLogger.logError("ArtNetFindRdmUids: send TODControl failed.");
+						}
+					} catch (IOException e1) {
+						m_errorLogger.logError("ArtNetFindRdmUids: Exception sending TODControl: " + e1);
 					}
-				} catch (IOException e1) {
-					m_errorLogger.logError("ArtNetFindRdmUids: Exception sending Poll: " + e1);
-				}
+				} 
 			}
 			MiscUtil.sleep(m_replyWaitMS);
+			
+			// This was before I realized the node is supposed to send TODData messages
+			// in response to TODControl requests. I've left it in, just in case.
+			if (false) {
+				m_sendTS = System.currentTimeMillis();
+				// For simplicity, send one message per universe, rather than trying to pack
+				// several universes into the request.
+				for (ArtNetPort port : ports) {
+					ArtNetTodRequest todReq = new ArtNetTodRequest();
+					todReq.m_net = port.m_net;
+					todReq.m_command = ArtNetTodRequest.COMMAND_TOD_FULL;
+					todReq.m_numSubnetUnivs = 1;
+					todReq.m_subnetUnivs[0] = (byte) port.subUniv();
+					try {
+						if (!chan.broadcast(todReq)) {
+							m_errorLogger.logError("ArtNetFindRdmUids: send TODReq failed.");
+						}
+					} catch (IOException e1) {
+						m_errorLogger.logError("ArtNetFindRdmUids: Exception sending TODReq: " + e1);
+					}
+				}
+				MiscUtil.sleep(m_replyWaitMS);
+			}
 		} finally {
 			if (chan != null) {
 				if (closeChan) {
@@ -180,6 +207,12 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 	{
 		ArtNetFindNodes.Results results = new ArtNetFindNodes(m_sharedChannel).poll();
 		return results != null ? List.copyOf(results.m_portsToNodes.keySet()) : null;		
+	}
+	
+	private List<ArtNetPortAddr> getAllPortAddrs()
+	{
+		ArtNetFindNodes.Results results = new ArtNetFindNodes(m_sharedChannel).poll();
+		return results != null ? results.m_allNodePorts : null;				
 	}
 
 	@Override
@@ -201,7 +234,7 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 			}
 			ArtNetNodeAddr nodeAddr = new ArtNetNodeAddr((Inet4Address)fromAddr, todData.m_bindIndex);
 			ArtNetPort anPort = new ArtNetPort(todData.m_net, todData.m_subnetUniv);
-			ArtNetNodePort nodePort = new ArtNetNodePort(nodeAddr, anPort);
+			ArtNetPortAddr nodePort = new ArtNetPortAddr(nodeAddr, anPort);
 			if (todData.m_command == ArtNetTodRequest.COMMAND_TOD_NAK) {
 				System.out.println("ArtNetFindRdmUids: NAK from " + nodePort + " #uids=" + todData.m_numUids);
 			}
@@ -210,7 +243,7 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 							+ " time=" + (System.currentTimeMillis() - m_sendTS) + "ms");
 				System.out.println("   " + todData.toFmtString(null, "   "));
 			}
-			Map<ArtNetNodePort, Set<ACN_UID>> map = m_uidMap.get();
+			Map<ArtNetPortAddr, Set<ACN_UID>> map = m_uidMap.get();
 			if (map != null) {
 				Set<ACN_UID> uids = map.get(nodePort);
 				if (uids == null) {
@@ -274,7 +307,7 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 		}
 		ArtNetFindRdmUids uidFinder = new ArtNetFindRdmUids(channel);
 		uidFinder.setPrtReplies(prtReplies);
-		Map<ArtNetNodePort, Set<ACN_UID>> uidMap;
+		Map<ArtNetPortAddr, Set<ACN_UID>> uidMap;
 		System.out.print("Sending ArtNet TOD requests to");
 		for (InetAddress addr: channel.getBroadcastAddrs()) {
 			System.out.print(" " + addr.getHostAddress());
@@ -282,7 +315,7 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 		System.out.println(":");
 		System.out.flush();
 		uidMap = uidFinder.getUidMap(artNetPorts);
-		for (Map.Entry<ArtNetNodePort, Set<ACN_UID>> ent: uidMap.entrySet()) {
+		for (Map.Entry<ArtNetPortAddr, Set<ACN_UID>> ent: uidMap.entrySet()) {
 			System.out.println(ent.getKey() + ": " + ent.getValue());
 		}
 		
@@ -290,8 +323,8 @@ public class ArtNetFindRdmUids implements ArtNetChannel.Receiver
 		 * Test code to send DEVICE_INFO requests to all UIDs.
 		 * 
 		channel.addReceiver(uidFinder);
-		for (Map.Entry<ArtNetNodePort, Set<ACN_UID>> ent: uidMap.entrySet()) {
-			ArtNetNodePort node = ent.getKey();
+		for (Map.Entry<ArtNetPortAddr, Set<ACN_UID>> ent: uidMap.entrySet()) {
+			ArtNetPortAddr node = ent.getKey();
 			for (ACN_UID uid: ent.getValue()) {
 				System.out.println("Sending DEVICE_INFO to " + node.m_port + " " + uid + ":");
 				RdmPacket rdmPacket = new RdmPacket(uid, RdmPacket.CMD_GET,

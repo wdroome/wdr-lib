@@ -46,6 +46,19 @@ public class ArtNetPort implements Comparable<ArtNetPort>
 	}
 	
 	/**
+	 * Create an ArtNetPort
+	 * @param netSubUniv The net, subnet, and univ as one number.
+	 * 		"univ" is the least significant 4 bits, "subnet" is the next to the last 4 bits,
+	 * 		and "net" is the 7 bits before that. 
+	 */
+	public ArtNetPort(int netSubUniv)
+	{
+		m_net = (netSubUniv & 0x7f00) >> 8;
+		m_subNet = (netSubUniv & 0xf0) >> 4;
+		m_universe = netSubUniv & 0x0f;		
+	}
+	
+	/**
 	 * Copy an ArtNetPort.
 	 * @param src The source port.
 	 */

@@ -1,24 +1,25 @@
 package com.wdroome.artnet;
 
 /**
- * An ArtNet NodeAddress and an ArtNet Port on that node.
- * Used as a key.
+ * An ArtNet Port and the Node Address of the node with that port.
+ * A client can use the address to send a message to the node.
+ * This object can be used as a key in Maps.
  * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
-public class ArtNetNodePort implements Comparable<ArtNetNodePort>
+public class ArtNetPortAddr implements Comparable<ArtNetPortAddr>
 {
 	public final ArtNetNodeAddr m_nodeAddr;
 	public final ArtNetPort m_port;
 	
-	public ArtNetNodePort(ArtNetNodeAddr nodeAddr, ArtNetPort port)
+	public ArtNetPortAddr(ArtNetNodeAddr nodeAddr, ArtNetPort port)
 	{
 		m_nodeAddr = nodeAddr;
 		m_port = port;
 	}
 
 	@Override
-	public int compareTo(ArtNetNodePort o)
+	public int compareTo(ArtNetPortAddr o)
 	{
 		int cmp = m_nodeAddr.compareTo(o.m_nodeAddr);
 		if (cmp != 0) {
@@ -53,7 +54,7 @@ public class ArtNetNodePort implements Comparable<ArtNetNodePort>
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		ArtNetNodePort other = (ArtNetNodePort) obj;
+		ArtNetPortAddr other = (ArtNetPortAddr) obj;
 		if (m_nodeAddr == null) {
 			if (other.m_nodeAddr != null)
 				return false;

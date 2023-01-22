@@ -28,7 +28,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 {
 	private final ArtNetChannel m_channel;
 	private final boolean m_sharedChannel;
-	private Map<ArtNetNodePort, Set<ACN_UID>> m_uidMap = null;
+	private Map<ArtNetPortAddr, Set<ACN_UID>> m_uidMap = null;
 	
 	private int m_transNum = 0;
 	private int m_srcUidManufacturer = 0x6975;
@@ -40,7 +40,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	
 	private long m_timeoutMS = 4000;
 	
-	public ArtNetRdmRequest(ArtNetChannel channel, Map<ArtNetNodePort, Set<ACN_UID>> uidMap)
+	public ArtNetRdmRequest(ArtNetChannel channel, Map<ArtNetPortAddr, Set<ACN_UID>> uidMap)
 						throws IOException
 	{
 		if (channel != null) {
@@ -132,10 +132,10 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		if (m_uidMap == null) {
 			throw new IllegalStateException("ArtNetRdmRequest: no uid map");
 		}
-		for (Map.Entry<ArtNetNodePort, Set<ACN_UID>> ent: m_uidMap.entrySet())
+		for (Map.Entry<ArtNetPortAddr, Set<ACN_UID>> ent: m_uidMap.entrySet())
 		{
 			if (ent.getValue().contains(destUid)) {
-				ArtNetNodePort nodePort = ent.getKey();
+				ArtNetPortAddr nodePort = ent.getKey();
 				return sendRequest(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port, destUid,
 									isSet, paramId, requestData);
 			}
@@ -143,11 +143,11 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		return null;
 	}
 
-	public Map<ArtNetNodePort, Set<ACN_UID>> getUidMap() {
+	public Map<ArtNetPortAddr, Set<ACN_UID>> getUidMap() {
 		return m_uidMap;
 	}
 
-	public void setUidMap(Map<ArtNetNodePort, Set<ACN_UID>> uidMap) {
+	public void setUidMap(Map<ArtNetPortAddr, Set<ACN_UID>> uidMap) {
 		this.m_uidMap = uidMap;
 	}
 

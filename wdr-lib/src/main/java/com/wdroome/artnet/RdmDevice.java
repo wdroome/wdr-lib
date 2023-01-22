@@ -21,7 +21,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 	public static final String UNKNOWN_DESC = "???";
 	
 	public final ACN_UID m_uid;
-	public final ArtNetNodePort m_nodePort;
+	public final ArtNetPortAddr m_nodePort;
 	public final RdmParamResp.DeviceInfo m_deviceInfo;
 	public final String m_manufacturer;
 	public final String m_model;
@@ -32,7 +32,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 	public final List<Integer> m_otherParamIds;
 	
 	public RdmDevice(ACN_UID uid,
-					ArtNetNodePort nodePort,
+					ArtNetPortAddr nodePort,
 					RdmParamResp.DeviceInfo deviceInfo,
 					TreeMap<Integer, RdmParamResp.PersonalityDesc> personalities,
 					TreeMap<Integer, String> slotDescs,
@@ -130,22 +130,41 @@ public class RdmDevice implements Comparable<RdmDevice>
 	 */
 	public String getPersonalityDesc()
 	{
+		return getPersonalityDesc(m_deviceInfo.m_currentPersonality, m_deviceInfo.m_dmxFootprint);
+	}
+	
+	/**
+	 * Get a description a personality.
+	 * @param iPers The desired personality number (staring with 1).
+	 * @return A description that personality.
+	 */
+	public String getPersonalityDesc(int iPers)
+	{
+		return getPersonalityDesc(iPers, -1);
+	}
+	
+	private String getPersonalityDesc(int iPers, int nSlots)
+	{
 		StringBuilder buff = new StringBuilder();
-		int iPers = m_deviceInfo.m_currentPersonality;
 		buff.append(iPers + ": ");
 		String desc = null;
 		if (m_personalities != null) {
 			RdmParamResp.PersonalityDesc fullDesc = m_personalities.get(iPers);
 			if (fullDesc != null) {
 				desc = fullDesc.m_desc;
+				nSlots = fullDesc.m_nSlots;
 			}
 		}
 		if (desc == null || desc.isEmpty()) {
-			buff.append(" " + m_deviceInfo.m_dmxFootprint + " Chan");
+			if (nSlots > 0) {
+				buff.append(" " + nSlots + " Chan");
+			} else {
+				buff.append(" " + UNKNOWN_DESC);
+			}
 		} else {
-			desc = desc.replaceFirst("^" + iPers + "[:/ ]", "");
-			if (!desc.matches("^" + m_deviceInfo.m_dmxFootprint + "[ ]*[Cc][Hh].*")) {
-				desc = m_deviceInfo.m_dmxFootprint + "CH " + desc;
+			desc = desc.replaceFirst("^" + iPers + "[:/ ] *", "");
+			if (nSlots > 0 && !desc.matches("^" + nSlots + "[ ]*[Cc][Hh].*")) {
+				desc = nSlots + "ch " + desc;
 			}
 			buff.append(desc);
 		}

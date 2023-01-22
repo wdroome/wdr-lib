@@ -21,7 +21,7 @@ public class ArtNetNodeAddr implements Comparable<ArtNetNodeAddr>
 												// Never null.	
 	
 	/**
-	 * Create a new logical node address.
+	 * Create a new logical node address from fields in a reply message from the node.
 	 * @param bindAddr The node's "bind" address. If 0 or null, use pollAddr or fromAddr.
 	 * @param index The node's "bind" index. If 0, use 1.
 	 * @param pollIpAddr The address in the ArtNetPollReply msg. May be all zero.

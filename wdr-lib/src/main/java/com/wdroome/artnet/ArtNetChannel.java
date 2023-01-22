@@ -512,9 +512,24 @@ public class ArtNetChannel extends Thread
 	 */
 	public boolean broadcast(ArtNetMsg msg) throws IOException
 	{
+		return broadcast(msg, ArtNetConst.ARTNET_PORT);
+	}
+	
+	/**
+	 * Broadcast a message to all directed broadcast addresses.
+	 * @param msg The message.
+	 * @param port The IP port to send to. If 0 or negative, use the ArtNet port.
+	 * @return True if all broadcasts succeeded.
+	 * @throws IOException If an I/O error occurs.
+	 */
+	public boolean broadcast(ArtNetMsg msg, int port) throws IOException
+	{
+		if (port <= 0) {
+			port = ArtNetConst.ARTNET_PORT;
+		}
 		boolean allOk = true;
 		for (InetAddress inetAddr: m_bcastAddrs) {
-			if (!send(msg, new InetSocketAddress(inetAddr, ArtNetConst.ARTNET_PORT))) {
+			if (!send(msg, new InetSocketAddress(inetAddr, port))) {
 				allOk = false;
 			}
 		}

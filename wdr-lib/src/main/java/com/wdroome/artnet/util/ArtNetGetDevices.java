@@ -14,7 +14,7 @@ import java.util.TreeMap;
 import com.wdroome.artnet.ACN_UID;
 import com.wdroome.artnet.ArtNetChannel;
 import com.wdroome.artnet.ArtNetNode;
-import com.wdroome.artnet.ArtNetNodePort;
+import com.wdroome.artnet.ArtNetPortAddr;
 import com.wdroome.artnet.ArtNetPort;
 import com.wdroome.artnet.ArtNetRdmRequest;
 import com.wdroome.artnet.RdmDevice;
@@ -30,10 +30,10 @@ public class ArtNetGetDevices implements Closeable
 {
 	private final ArtNetChannel m_channel;
 	private final boolean m_sharedChannel;
-	private Map<ArtNetNodePort, Set<ACN_UID>> m_uidMap = null;
+	private Map<ArtNetPortAddr, Set<ACN_UID>> m_uidMap = null;
 	private final ArtNetRdmRequest m_rdmReq;
 	
-	public ArtNetGetDevices(ArtNetChannel channel, Map<ArtNetNodePort, Set<ACN_UID>> uidMap)
+	public ArtNetGetDevices(ArtNetChannel channel, Map<ArtNetPortAddr, Set<ACN_UID>> uidMap)
 						throws IOException
 	{
 		if (channel != null) {
@@ -83,7 +83,7 @@ public class ArtNetGetDevices implements Closeable
 	
 	public RdmDevice getDevice(ACN_UID uid) throws IOException
 	{
-		ArtNetNodePort nodePort = findNodePort(uid);
+		ArtNetPortAddr nodePort = findNodePort(uid);
 		if (nodePort == null) {
 			return null;
 		}
@@ -132,9 +132,9 @@ public class ArtNetGetDevices implements Closeable
 							manufacturer, model, swVerLabel, supportedPids);
 	}
 	
-	private ArtNetNodePort findNodePort(ACN_UID uid)
+	private ArtNetPortAddr findNodePort(ACN_UID uid)
 	{
-		for (Map.Entry<ArtNetNodePort, Set<ACN_UID>> ent: m_uidMap.entrySet()) {
+		for (Map.Entry<ArtNetPortAddr, Set<ACN_UID>> ent: m_uidMap.entrySet()) {
 			if (ent.getValue().contains(uid)) {
 				return ent.getKey();
 			}
@@ -157,7 +157,7 @@ public class ArtNetGetDevices implements Closeable
 		}
 	}
 	
-	private TreeMap<Integer,RdmParamResp.PersonalityDesc> getPersonalities(ArtNetNodePort nodePort,
+	private TreeMap<Integer,RdmParamResp.PersonalityDesc> getPersonalities(ArtNetPortAddr nodePort,
 													 ACN_UID uid, int nPersonalities,
 													 RdmParamResp.PidList supportedPids) throws IOException
 	{
@@ -167,8 +167,9 @@ public class ArtNetGetDevices implements Closeable
 			for (int iPersonality = 1; iPersonality <= nPersonalities; iPersonality++) {
 				RdmPacket personalityDescReply = null;
 				if (ok) {
-					personalityDescReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port, uid, false,
-							RdmParamId.DMX_PERSONALITY_DESCRIPTION, new byte[] { (byte) iPersonality });
+					personalityDescReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port,
+									uid, false, RdmParamId.DMX_PERSONALITY_DESCRIPTION,
+									new byte[] { (byte) iPersonality });
 					if (personalityDescReply == null) {
 						ok = false;
 					}
@@ -185,7 +186,7 @@ public class ArtNetGetDevices implements Closeable
 		return personalities;
 	}
 	
-	private TreeMap<Integer,String> getSlotDescs(ArtNetNodePort nodePort,
+	private TreeMap<Integer,String> getSlotDescs(ArtNetPortAddr nodePort,
 												 ACN_UID uid, int nSlots,
 												 RdmParamResp.PidList supportedPids) throws IOException
 	{
@@ -193,18 +194,21 @@ public class ArtNetGetDevices implements Closeable
 		boolean ok = isSupported(RdmParamId.SLOT_DESCRIPTION, supportedPids);
 		if (ok) {
 			for (int iSlot = 0; iSlot < nSlots; iSlot++) {
-				String desc = RdmDevice.UNKNOWN_DESC;
+				slotDescs.put(iSlot, RdmDevice.UNKNOWN_DESC);
+			}
+			for (int iSlot = 0; iSlot < nSlots; iSlot++) {
 				if (ok) {
 					byte[] iSlotAsBytes = new byte[] { (byte) ((iSlot >> 8) & 0xff), (byte) (iSlot & 0xff) };
-					RdmPacket slotDescReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port, uid, false,
-							RdmParamId.SLOT_DESCRIPTION, iSlotAsBytes);
+					RdmPacket slotDescReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
+													nodePort.m_port, uid, false,
+													RdmParamId.SLOT_DESCRIPTION, iSlotAsBytes);
 					if (slotDescReply != null && slotDescReply.isRespAck()) {
-						desc = new RdmParamResp.StringReply(slotDescReply).m_string;
+						RdmParamResp.SlotDesc slotDesc = new RdmParamResp.SlotDesc(slotDescReply);
+						slotDescs.put(slotDesc.m_number, slotDesc.m_desc);
 					} else {
 						ok = false;
 					}
 				}
-				slotDescs.put(iSlot, desc);
 			} 
 		}
 		return slotDescs;
@@ -238,10 +242,34 @@ public class ArtNetGetDevices implements Closeable
 				}
 				System.out.println(indent + "dmx config " + devInfo.getPersonalityDesc());
 				System.out.println(indent + "version: " + devInfo.m_softwareVersionLabel);
-				if (!devInfo.m_stdParamIds.isEmpty() || !devInfo.m_otherParamIds.isEmpty()) {
-					System.out.print(indent + "parameters:");
-					int lineLen = indent.length() + 11;
+				if (!devInfo.m_slotDescs.isEmpty()) {
+					System.out.print(indent + "slots: ");
+					int lineLen = indent.length() + 6;
 					String sep = " ";
+					for (Map.Entry<Integer,String> ent: devInfo.m_slotDescs.entrySet()) {
+						String s = ent.getKey() + ": " + ent.getValue();
+						if (lineLen + s.length() > 75) {
+							System.out.println();
+							System.out.print(indent + indent);
+							lineLen = 2*indent.length();
+							sep = "";
+						}
+						System.out.print(sep + s);
+						lineLen += s.length() + sep.length();
+						sep = " ";
+					}
+					System.out.println();
+				}
+				if (!devInfo.m_personalities.isEmpty()) {
+					System.out.println(indent + "available configurations:");
+					for (int iPers: devInfo.m_personalities.keySet()) {
+						System.out.println(indent + indent + devInfo.getPersonalityDesc(iPers));
+					}
+				}
+				if (!devInfo.m_stdParamIds.isEmpty() || !devInfo.m_otherParamIds.isEmpty()) {
+					System.out.print(indent + "supported parameters:");
+					int lineLen = 1000;
+					String sep = "";
 					for (RdmParamId pid: devInfo.m_stdParamIds) {
 						String s = pid.toString();
 						if (lineLen + s.length() > 75) {
@@ -256,24 +284,6 @@ public class ArtNetGetDevices implements Closeable
 					}
 					for (int pid: devInfo.m_otherParamIds) {
 						String s = "0x" + Integer.toHexString(pid);
-						if (lineLen + s.length() > 75) {
-							System.out.println();
-							System.out.print(indent + indent);
-							lineLen = 2*indent.length();
-							sep = "";
-						}
-						System.out.print(sep + s);
-						lineLen += s.length() + sep.length();
-						sep = " ";
-					}
-					System.out.println();
-				}
-				if (!devInfo.m_slotDescs.isEmpty()) {
-					System.out.print(indent + "slots: ");
-					int lineLen = indent.length() + 6;
-					String sep = " ";
-					for (Map.Entry<Integer,String> ent: devInfo.m_slotDescs.entrySet()) {
-						String s = ent.getKey() + ": " + ent.getValue();
 						if (lineLen + s.length() > 75) {
 							System.out.println();
 							System.out.print(indent + indent);

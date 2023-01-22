@@ -5,8 +5,16 @@ import java.util.ArrayList;
 
 import com.wdroome.util.ByteAOL;
 
+/**
+ * Parameter-specific data for an RDM response message from an RDM device.
+ * TO cut down on the number of files, the classes are bundled into this one class.
+ * @author wdr
+ */
 public class RdmParamResp
 {
+	/**
+	 * Response for a RDM DEVICE_INFO request.
+	 */
 	public static class DeviceInfo extends RdmParamData
 	{
 		public final int m_protoVersMajor;
@@ -64,6 +72,9 @@ public class RdmParamResp
 		}
 	}
 	
+	/**
+	 * Response that consists of an array of parameter ids.
+	 */
 	public static class PidList extends RdmParamData
 	{
 		public final List<RdmParamId> m_stdPids;
@@ -115,6 +126,9 @@ public class RdmParamResp
 		}
 	}
 	
+	/*
+	 * Response that consists of a single ASCII string.
+	 */
 	public static class StringReply extends RdmParamData
 	{
 		public final String m_string;
@@ -122,16 +136,7 @@ public class RdmParamResp
 		public StringReply(RdmPacket rdmPacket)
 		{
 			super(rdmPacket.m_paramIdCode, rdmPacket.m_paramData);
-			StringBuilder buff = new StringBuilder();
-			if (rdmPacket.m_paramData != null) {
-				for (byte b: rdmPacket.m_paramData) {
-					if (b == 0) {
-						break;
-					}
-					buff.append((char) b);
-				} 
-			}
-			m_string = buff.toString();
+			m_string = getStringRemainder(rdmPacket.m_paramData, 0, rdmPacket.m_paramDataLen);
 		}
 		
 		@Override
@@ -141,6 +146,9 @@ public class RdmParamResp
 		}
 	}
 	
+	/**
+	 * Response for a DMX_PERSONALITY_DESCRIPTION request.
+	 */
 	public static class PersonalityDesc extends RdmParamData
 	{
 		public final int m_personalityNumber;
@@ -159,17 +167,7 @@ public class RdmParamResp
 			m_personalityNumber = rdmPacket.m_paramData[off++] & 0xff;
 			m_nSlots = ArtNetMsg.getBigEndInt16(rdmPacket.m_paramData, off);
 			off += 2;
-			StringBuilder buff = new StringBuilder();
-			if (rdmPacket.m_paramData != null) {
-				for (; off < rdmPacket.m_paramDataLen; off++) {
-					byte b = rdmPacket.m_paramData[off];
-					if (b == 0) {
-						break;
-					}
-					buff.append((char) b);
-				} 
-			}
-			m_desc = buff.toString();
+			m_desc = getStringRemainder(rdmPacket.m_paramData, off, rdmPacket.m_paramDataLen);
 		}
 		
 		public PersonalityDesc(int number, int numChannels, String desc)
@@ -186,5 +184,49 @@ public class RdmParamResp
 			return paramNameOrCode() + "(" + m_personalityNumber + ":" + m_desc
 						+ ",#slots=" + m_nSlots + ")";
 		}
+	}
+	
+	/**
+	 * Response for a SLOT_DESCRIPTION request.
+	 */
+	public static class SlotDesc extends RdmParamData
+	{
+		public final int m_number;
+		public final String m_desc;
+	
+		public SlotDesc(RdmPacket rdmPacket)
+		{
+			super(rdmPacket.m_paramIdCode, rdmPacket.m_paramData);
+			if (rdmPacket.m_paramDataLen < 2) {
+				throw new IllegalArgumentException("RDM SlotDesc resp: short data "
+						+ rdmPacket.m_paramDataLen);				
+			}
+			int off = 0;
+			m_number = ArtNetMsg.getBigEndInt16(rdmPacket.m_paramData, off);
+			off += 2;
+			m_desc = getStringRemainder(rdmPacket.m_paramData, off, rdmPacket.m_paramDataLen);
+		}
+	}
+	
+	/**
+	 * Return the rest of the data as a String.
+	 * @param data The response data.
+	 * @param off The starting offset of the string.
+	 * @param len The length of the data.
+	 * @return The rest of the data as a String.
+	 */
+	private static String getStringRemainder(byte[] data, int off, int len)
+	{
+		StringBuilder buff = new StringBuilder();
+		if (data != null) {
+			for (; off < len; off++) {
+				byte b = data[off];
+				if (b == 0) {
+					break;
+				}
+				buff.append((char) b);
+			} 
+		}
+		return buff.toString();
 	}
 }

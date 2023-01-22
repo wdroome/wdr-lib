@@ -2,12 +2,14 @@ package com.wdroome.artnet;
 
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.TreeSet;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Collection;
+import java.util.Collections;
 
 import com.wdroome.artnet.msgs.ArtNetPollReply;
 
@@ -25,20 +27,25 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	/** Node's response time, in milliseconds. */
 	public final long m_responseMS;
 	
-	/** Remote node's address and port. */
-	public final InetSocketAddress m_sender;
-	
 	/**
 	 * Create an ArtNetNode.
 	 * @param reply The poll reply.
 	 * @param responseMS The node's response time, in millisec.
 	 * @param sender The node's socket address.
 	 */
-	public ArtNetNode(ArtNetPollReply reply, long responseMS, InetSocketAddress sender)
+	public ArtNetNode(ArtNetPollReply reply, long responseMS)
 	{
-		m_sender = sender;
 		m_responseMS = responseMS;
 		m_reply = reply;
+	}
+	
+	/**
+	 * Return this node's NodeAddress. Yes, it's in m_reply, but it's buried there.
+	 * @return
+	 */
+	public ArtNetNodeAddr getNodeAddr()
+	{
+		return m_reply.m_nodeAddr;
 	}
 	
 	/**
@@ -127,5 +134,33 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 			}
 		}
 		return map;
+	}
+	
+	/**
+	 * Return a sorted list of all node-ports.
+	 * @param nodes The nodes.
+	 * @return A sorted list of all unique node-ports.
+	 */
+	public static List<ArtNetPortAddr> getNodePorts(Collection<ArtNetNode> nodes)
+	{
+		ArrayList<ArtNetPortAddr> nodePorts = new ArrayList<>();
+		if (nodes != null) {
+			for (ArtNetNode ni: nodes) {
+				for (int i = 0; i < ni.m_reply.m_numPorts; i++) {
+					int portType = ni.m_reply.m_portTypes[i];
+					ArtNetPort port = ni.m_reply.getOutputPort(i);
+					if (((portType & ArtNetPollReply.PORT_TYPE_OUTPUT) != 0)
+							&& ((portType & ArtNetPollReply.PORT_TYPE_PROTO_MASK)
+											== ArtNetPollReply.PORT_TYPE_PROTO_DMX512)) {
+						ArtNetPortAddr nodePort = new ArtNetPortAddr(ni.m_reply.m_nodeAddr, port);
+						if (!nodePorts.contains(nodePort)) {
+							nodePorts.add(nodePort);
+						}
+					}
+				}
+			}
+		}
+		Collections.sort(nodePorts);
+		return nodePorts;
 	}
 }

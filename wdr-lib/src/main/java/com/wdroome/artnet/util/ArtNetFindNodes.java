@@ -24,6 +24,7 @@ import com.wdroome.artnet.ArtNetNode;
 import com.wdroome.artnet.ArtNetNodeAddr;
 import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.artnet.ArtNetChannel;
+import com.wdroome.artnet.ArtNetPortAddr;
 
 import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetPoll;
@@ -53,11 +54,18 @@ public class ArtNetFindNodes implements ArtNetChannel.Receiver
 		/** Map from ArtNet Ports to Nodes. */
 		public final Map<ArtNetPort, Set<ArtNetNode>> m_portsToNodes;
 		
+		/** Set of all nodes, sorted. */
+		public final Set<ArtNetPort> m_allPorts;
+		
+		public final List<ArtNetPortAddr> m_allNodePorts;
+				
 		public Results(List<ArtNetNode> allNodes)
 		{
 			m_allNodes = allNodes;
 			m_uniqueNodes = ArtNetNode.getUniqueNodes(allNodes);
 			m_portsToNodes = ArtNetNode.getDmxPort2NodeMap(allNodes);
+			m_allPorts = m_portsToNodes.keySet();
+			m_allNodePorts = ArtNetNode.getNodePorts(allNodes);
 		}
 	}
 	
@@ -252,8 +260,8 @@ public class ArtNetFindNodes implements ArtNetChannel.Receiver
 	{
 		if (msg instanceof ArtNetPollReply) {
 			// System.out.println("XXX: msg from " + sender);
-			ArtNetNode nodeInfo = new ArtNetNode((ArtNetPollReply)msg, System.currentTimeMillis() - m_sendTS,
-								sender);
+			ArtNetNode nodeInfo = new ArtNetNode((ArtNetPollReply)msg,
+													System.currentTimeMillis() - m_sendTS);
 			List<ArtNetNode> replies = m_nodes.get();
 			if (replies != null) {
 				replies.add(nodeInfo);
