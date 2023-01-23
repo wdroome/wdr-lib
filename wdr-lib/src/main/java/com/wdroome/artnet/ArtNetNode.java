@@ -27,6 +27,8 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	/** Node's response time, in milliseconds. */
 	public final long m_responseMS;
 	
+	public final List<ArtNetPort> m_dmxOutputPorts;
+	
 	/**
 	 * Create an ArtNetNode.
 	 * @param reply The poll reply.
@@ -37,6 +39,16 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	{
 		m_responseMS = responseMS;
 		m_reply = reply;
+		m_dmxOutputPorts = new ArrayList<>();
+		for (int i = 0; i < m_reply.m_numPorts; i++) {
+			int portType = m_reply.m_portTypes[i];
+			ArtNetPort port = m_reply.getOutputPort(i);
+			if (((portType & ArtNetPollReply.PORT_TYPE_OUTPUT) != 0)
+					&& ((portType & ArtNetPollReply.PORT_TYPE_PROTO_MASK)
+									== ArtNetPollReply.PORT_TYPE_PROTO_DMX512)) {
+				m_dmxOutputPorts.add(port);
+			}
+		}
 	}
 	
 	/**
@@ -117,6 +129,15 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 		Map<ArtNetPort, Set<ArtNetNode>> map = new HashMap<>();
 		if (nodes != null) {
 			for (ArtNetNode ni: nodes) {
+				for (ArtNetPort port: ni.m_dmxOutputPorts) {
+					Set<ArtNetNode> portNodes = map.get(port);
+					if (portNodes == null) {
+						portNodes = new HashSet<ArtNetNode>();
+						map.put(port, portNodes);
+					}
+					portNodes.add(ni);					
+				}
+				/*
 				for (int i = 0; i < ni.m_reply.m_numPorts; i++) {
 					int portType = ni.m_reply.m_portTypes[i];
 					ArtNetPort port = ni.m_reply.getOutputPort(i);
@@ -131,6 +152,7 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 						portNodes.add(ni);
 					}
 				}
+				*/
 			}
 		}
 		return map;
@@ -146,6 +168,13 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 		ArrayList<ArtNetPortAddr> nodePorts = new ArrayList<>();
 		if (nodes != null) {
 			for (ArtNetNode ni: nodes) {
+				for (ArtNetPort port: ni.m_dmxOutputPorts) {
+					ArtNetPortAddr nodePort = new ArtNetPortAddr(ni.m_reply.m_nodeAddr, port);
+					if (!nodePorts.contains(nodePort)) {
+						nodePorts.add(nodePort);
+					}					
+				}
+				/*
 				for (int i = 0; i < ni.m_reply.m_numPorts; i++) {
 					int portType = ni.m_reply.m_portTypes[i];
 					ArtNetPort port = ni.m_reply.getOutputPort(i);
@@ -158,6 +187,7 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 						}
 					}
 				}
+				*/
 			}
 		}
 		Collections.sort(nodePorts);
