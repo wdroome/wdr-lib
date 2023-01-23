@@ -27,6 +27,7 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	/** Node's response time, in milliseconds. */
 	public final long m_responseMS;
 	
+	/** Node's ArtNet DMX output ports, if any. */
 	public final List<ArtNetPort> m_dmxOutputPorts;
 	
 	/**
@@ -137,22 +138,6 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 					}
 					portNodes.add(ni);					
 				}
-				/*
-				for (int i = 0; i < ni.m_reply.m_numPorts; i++) {
-					int portType = ni.m_reply.m_portTypes[i];
-					ArtNetPort port = ni.m_reply.getOutputPort(i);
-					if (((portType & ArtNetPollReply.PORT_TYPE_OUTPUT) != 0)
-							&& ((portType & ArtNetPollReply.PORT_TYPE_PROTO_MASK)
-											== ArtNetPollReply.PORT_TYPE_PROTO_DMX512)) {
-						Set<ArtNetNode> portNodes = map.get(port);
-						if (portNodes == null) {
-							portNodes = new HashSet<ArtNetNode>();
-							map.put(port, portNodes);
-						}
-						portNodes.add(ni);
-					}
-				}
-				*/
 			}
 		}
 		return map;
@@ -174,20 +159,6 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 						nodePorts.add(nodePort);
 					}					
 				}
-				/*
-				for (int i = 0; i < ni.m_reply.m_numPorts; i++) {
-					int portType = ni.m_reply.m_portTypes[i];
-					ArtNetPort port = ni.m_reply.getOutputPort(i);
-					if (((portType & ArtNetPollReply.PORT_TYPE_OUTPUT) != 0)
-							&& ((portType & ArtNetPollReply.PORT_TYPE_PROTO_MASK)
-											== ArtNetPollReply.PORT_TYPE_PROTO_DMX512)) {
-						ArtNetPortAddr nodePort = new ArtNetPortAddr(ni.m_reply.m_nodeAddr, port);
-						if (!nodePorts.contains(nodePort)) {
-							nodePorts.add(nodePort);
-						}
-					}
-				}
-				*/
 			}
 		}
 		Collections.sort(nodePorts);
