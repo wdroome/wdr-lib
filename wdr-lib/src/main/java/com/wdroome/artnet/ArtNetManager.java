@@ -30,6 +30,8 @@ import com.wdroome.artnet.msgs.ArtNetTodControl;
 
 import com.wdroome.util.IErrorLogger;
 import com.wdroome.util.SystemErrorLogger;
+import com.wdroome.util.ImmutableMap;
+import com.wdroome.util.ImmutableSet;
 import com.wdroome.util.inet.InetInterface;
 import com.wdroome.util.inet.InetUtil;
 
@@ -144,10 +146,10 @@ public class ArtNetManager implements Closeable
 	}
 
 	/**
-	 * Return an immutable sorted Set of the ArtNet ports handled by some node.
-	 * @return An immutable sorted Set of the ArtNet ports handled by some node.
+	 * Return a sorted immutable sorted List of the ArtNet ports handled by some node.
+	 * @return A sorted immutable sorted Set of the ArtNet ports handled by some node.
 	 */
-	public Set<ArtNetPort> getAllPorts()
+	public List<ArtNetPort> getAllPorts()
 	{
 		return m_monitorSync.getAllPorts();
 	}
@@ -351,7 +353,7 @@ public class ArtNetManager implements Closeable
 		private List<ArtNetNode> m_allNodes = null;
 		private Set<ArtNetNode> m_uniqueNodes = null;
 		private Map<ArtNetPort, Set<ArtNetNode>> m_portsToNodes = null;
-		private Set<ArtNetPort> m_allPorts = null;
+		private List<ArtNetPort> m_allPorts = null;
 		private List<ArtNetPortAddr> m_allNodePorts = null;
 		private Map<ArtNetPortAddr, Set<ACN_UID>> m_portAddrsToUids = null;
 		private Map<ACN_UID, ArtNetPortAddr> m_uidsToPortAddrs = null;
@@ -380,7 +382,7 @@ public class ArtNetManager implements Closeable
 			return m_portsToNodes;
 		}
 
-		private synchronized Set<ArtNetPort> getAllPorts()
+		private synchronized List<ArtNetPort> getAllPorts()
 		{
 			if (!m_isValid) {
 				refresh();
@@ -436,7 +438,7 @@ public class ArtNetManager implements Closeable
 						List<ArtNetNode> allNodes,
 						Set<ArtNetNode> uniqueNodes,
 						Map<ArtNetPort, Set<ArtNetNode>> portsToNodes,
-						Set<ArtNetPort> allPorts,
+						List<ArtNetPort> allPorts,
 						List<ArtNetPortAddr> allNodePorts,
 						Map<ArtNetPortAddr, Set<ACN_UID>> portAddrsToUids,
 						Map<ACN_UID, ArtNetPortAddr> uidsToPortAddrs
@@ -603,12 +605,12 @@ public class ArtNetManager implements Closeable
 								= ArtNetNode.getDmxPort2NodeMap(m_allNodes);
 				m_monitorSync.done(
 						List.copyOf(m_allNodes),
-						Set.copyOf(ArtNetNode.getUniqueNodes(m_allNodes)),
-						Map.copyOf(portsToNodes),
-						Set.copyOf(portsToNodes.keySet()),
+						new ImmutableSet<ArtNetNode>(ArtNetNode.getUniqueNodes(m_allNodes)),
+						new ImmutableMap<ArtNetPort, Set<ArtNetNode>>(portsToNodes),
+						List.copyOf(portsToNodes.keySet()),
 						List.copyOf(ArtNetNode.getNodePorts(m_allNodes)),
-						Map.copyOf(m_portAddrsToUids),
-						Map.copyOf(m_uidsToPortAddrs));
+						new ImmutableMap<ArtNetPortAddr, Set<ACN_UID>>(m_portAddrsToUids),
+						new ImmutableMap<ACN_UID, ArtNetPortAddr>(m_uidsToPortAddrs));
 				m_polling = false;
 				closeChan();
 				m_chan = null;
@@ -782,19 +784,31 @@ public class ArtNetManager implements Closeable
 				if (prtAllReplies) {
 					List<ArtNetNode> allNodes = new ArrayList<>(mgr.getAllNodes());
 					Collections.sort(allNodes);
-					System.out.println(allNodes.size() + " replies:");
+					System.out.println(allNodes.size() + " Replies:");
 					for (ArtNetNode node : allNodes) {
 						System.out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
 						// node.m_reply.print(System.out, "");
 					}
 					System.out.println();
 				}
+				
 				Set<ArtNetNode> uniqueNodes = mgr.getUniqueNodes();
-				System.out.println(uniqueNodes.size() + " unique nodes:");
+				System.out.println(uniqueNodes.size() + " Unique Nodes:");
 				for (ArtNetNode node : uniqueNodes) {
 					System.out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
 				}
 				System.out.println();
+				
+				List<ArtNetPort> allPorts = mgr.getAllPorts();
+				System.out.println(allPorts.size() + " ArtNet Ports:");
+				String sep = indent;
+				for (ArtNetPort port: allPorts) {
+					System.out.print(sep + port);
+					sep = "  ";
+				}
+				System.out.println();
+				System.out.println();
+				
 				Map<ArtNetPort, Set<ArtNetNode>> portsToNodes = mgr.getPortsToNodes();
 				System.out.println(portsToNodes.keySet().size() + " DMX Output Ports: ");
 				for (Map.Entry<ArtNetPort, Set<ArtNetNode>> ent : portsToNodes.entrySet()) {
@@ -805,12 +819,14 @@ public class ArtNetManager implements Closeable
 					System.out.println();
 				}
 				System.out.println();
+				
 				Map<ArtNetPortAddr, Set<ACN_UID>> portAddrsToUids = mgr.getPortAddrsToUids();
-				System.out.println("RDM UIDs on each port:");
+				System.out.println("RDM Device UIDs, by ArtNet Port:");
 				for (Map.Entry<ArtNetPortAddr, Set<ACN_UID>> ent : portAddrsToUids.entrySet()) {
 					System.out.println(indent + ent.getKey() + ": " + ent.getValue());
 				}
 				System.out.println();
+				
 				Map<ACN_UID, ArtNetPortAddr> uidsToPortAddrs = mgr.getUidsToPortAddrs();
 				System.out.println("UID to port map:");
 				for (Map.Entry<ACN_UID, ArtNetPortAddr> ent : uidsToPortAddrs.entrySet()) {

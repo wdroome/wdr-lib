@@ -46,7 +46,7 @@ public class ArtNetPoll extends ArtNetMsg
 	public ArtNetPoll(byte[] buff, int off, int length, Inet4Address fromAddr)
 	{
 		super(ArtNetOpcode.OpPoll, fromAddr);
-		if (length < size()) {
+		if (length < minSize()) {
 			throw new IllegalArgumentException("ArtNetPoll: short msg " + length);
 		}
 		ArtNetOpcode opcode = getOpcode(buff, off, length);
@@ -67,17 +67,26 @@ public class ArtNetPoll extends ArtNetMsg
 	}
 	
 	/**
-	 * Return the length of an ArtNetPoll message.
+	 * Return the minimum length of an ArtNetPoll message.
 	 * @return The length of an ArtNetPoll message.
 	 */
-	public static int size()
+	public static int minSize()
 	{
 		return ArtNetConst.HDR_OPCODE_LENGTH
 				+ ArtNetConst.PROTO_VERS_LENGTH		// protoVers
 				+ 1			// talkToMe (aka flags)
-				+ 1			// priority
+				+ 1;			// priority
+	}
+	
+	/**
+	 * Return the maximum length of an ArtNetPoll message.
+	 * @return The maximum length of an ArtNetPoll message.
+	 */
+	public static int maxSize()
+	{
+		return minSize() 
 				+ 2			// targetPortAddrTop
-				+ 2;		// targetPortAddrBot
+				+ 2;		// targetPortAddrBot				
 	}
 	
 	/**
@@ -114,13 +123,13 @@ public class ArtNetPoll extends ArtNetMsg
 		ArtNetPoll m = new ArtNetPoll();
 		m.m_talkToMe = 0x02;
 		m.m_priority = ArtNetConst.DpMed;
-		System.out.println("size: " + ArtNetPoll.size());
+		System.out.println("min/maxSize: " + ArtNetPoll.minSize() + "/" + ArtNetPoll.maxSize());
 		m.print(System.out, "");
-		byte[] buff = new byte[ArtNetPoll.size()];
+		byte[] buff = new byte[ArtNetPoll.maxSize()];
 		m.putData(buff, 0);
 		String x = new ByteAOL(buff, 0, buff.length).toHex();
 		System.out.println(x);
-		ArtNetPoll m2 = new ArtNetPoll(buff, 0, ArtNetPoll.size(), null);
+		ArtNetPoll m2 = new ArtNetPoll(buff, 0, ArtNetPoll.maxSize(), null);
 		m2.print(System.out, "");
 		
 		if (args.length > 0) {

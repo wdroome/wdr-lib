@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -119,7 +120,7 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	}
 	
 	/**
-	 * Given a list of discovered nodes, return a map from each distinct ArtNet port
+	 * Given a list of discovered nodes, return a sorted map from each distinct ArtNet port
 	 * to the set of the nodes which can output DMX on that port.
 	 * @param nodes The nodes.
 	 * @return A map from each ArtNetPort to a set of nodes that can output DMX on that port.
@@ -127,7 +128,7 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	 */
 	public static Map<ArtNetPort, Set<ArtNetNode>> getDmxPort2NodeMap(Collection<ArtNetNode> nodes)
 	{
-		Map<ArtNetPort, Set<ArtNetNode>> map = new HashMap<>();
+		Map<ArtNetPort, Set<ArtNetNode>> map = new TreeMap<>();
 		if (nodes != null) {
 			for (ArtNetNode ni: nodes) {
 				for (ArtNetPort port: ni.m_dmxOutputPorts) {
