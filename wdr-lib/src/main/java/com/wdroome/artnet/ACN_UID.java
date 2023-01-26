@@ -5,7 +5,7 @@ import java.util.Arrays;
 /*
  * Represent an ACN UID.
  */
-public class ACN_UID
+public class ACN_UID implements Comparable<ACN_UID>
 {
 	public static final int SACN_UID_LENGTH = 6;
 	
@@ -22,7 +22,6 @@ public class ACN_UID
 	/**
 	 * Create a UID from bytes in an array.
 	 * @param src The byte array.
-	 * @param offset The offset in the array.
 	 * @throws IllegalArgumentException If src is shorter than offset+6.
 	 */
 	public ACN_UID(byte[] src)
@@ -30,6 +29,12 @@ public class ACN_UID
 		this(src, 0);
 	}
 	
+	/**
+	 * Create a UID from bytes in an array.
+	 * @param src The byte array.
+	 * @param offset The offset in the array.
+	 * @throws IllegalArgumentException If src is shorter than offset+6.
+	 */
 	public ACN_UID(byte[] src, int offset)
 	{
 		if (src == null) {
@@ -140,6 +145,15 @@ public class ACN_UID
 				;
 	}
 	
+	/**
+	 * Compare two UIDs. Compare byte-by-byte, so the UIDs for a manufacturer sort together.
+	 */
+	@Override
+	public int compareTo(ACN_UID o)
+	{
+		return o != null ? Arrays.compare(m_bytes, o.m_bytes) : 1;
+	}
+
 	@Override
 	public String toString()
 	{

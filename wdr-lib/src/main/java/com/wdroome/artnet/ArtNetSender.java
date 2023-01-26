@@ -50,7 +50,7 @@ public class ArtNetSender implements AutoCloseable
 			DatagramPacket request = new DatagramPacket(msgBuff, msgLen, target);
 			m_sendSocket.send(request);
 		} catch (IOException e) {
-			System.out.println("ArtNetSender.send " + "->" + target + " ERR:" + e);
+			System.out.println("ArtNetTestSender.send " + "->" + target + " ERR:" + e);
 			throw e;
 		}			
 	}

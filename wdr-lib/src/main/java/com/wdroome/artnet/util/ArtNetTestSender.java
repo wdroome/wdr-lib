@@ -24,11 +24,11 @@ import com.wdroome.artnet.ArtNetChannel;
  * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
-public class ArtNetSender extends ArtNetChannel.MsgPrinter
+public class ArtNetTestSender extends ArtNetChannel.MsgPrinter
 {
 	private final ArtNetChannel m_chan;
 	
-	public ArtNetSender() throws IOException
+	public ArtNetTestSender() throws IOException
 	{
 		this(null);
 	}
@@ -36,7 +36,7 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 	/**
 	 * @throws IOException If an error occurs.
 	 */
-	public ArtNetSender(int[] ports) throws IOException
+	public ArtNetTestSender(int[] ports) throws IOException
 	{
 		m_chan = new ArtNetChannel(this, ports);
 	}
@@ -193,7 +193,7 @@ public class ArtNetSender extends ArtNetChannel.MsgPrinter
 		if (portArr.length == 0) {
 			portArr = new int[] {ArtNetConst.ARTNET_PORT};
 		}
-		ArtNetSender monitor = new ArtNetSender(portArr);
+		ArtNetTestSender monitor = new ArtNetTestSender(portArr);
 		Chaser chaser = null;
 				
 		while (true) {

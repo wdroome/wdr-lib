@@ -22,6 +22,7 @@ import com.wdroome.artnet.msgs.RdmPacket;
 
 /**
  * Send an RDM request to a device and return the response.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
 public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
