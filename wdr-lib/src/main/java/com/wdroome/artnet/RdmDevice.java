@@ -170,6 +170,15 @@ public class RdmDevice implements Comparable<RdmDevice>
 		}
 		return buff.toString();
 	}
+	
+	/**
+	 * Get the name of the device category, or UNKNOWN if we can't tell.
+	 * @return The name of the device category.
+	 */
+	public String getCategoryName()
+	{
+		return RdmProductCategories.getCategoryName(m_deviceInfo.m_category);
+	}
 
 	/**
 	 * Compare on Manufacturer, Model, DMX Universe (ArtNet Port) and DMX Start Address.

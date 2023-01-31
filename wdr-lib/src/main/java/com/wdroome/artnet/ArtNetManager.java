@@ -25,8 +25,11 @@ import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetPoll;
 import com.wdroome.artnet.msgs.ArtNetPollReply;
 import com.wdroome.artnet.msgs.ArtNetTodRequest;
+import com.wdroome.artnet.msgs.RdmParamId;
 import com.wdroome.artnet.msgs.ArtNetTodData;
 import com.wdroome.artnet.msgs.ArtNetTodControl;
+import com.wdroome.artnet.msgs.RdmPacket;
+import com.wdroome.artnet.msgs.RdmParamResp;
 
 import com.wdroome.util.IErrorLogger;
 import com.wdroome.util.SystemErrorLogger;
@@ -51,10 +54,11 @@ public class ArtNetManager implements Closeable
 	public static final long DEF_TOD_DATA_MS = 10000;
 	
 	private final MonitorSync m_monitorSync = new MonitorSync();
+	private ArtNetRdmRequest m_rdmRequest = null;
 	private final MonitorThread m_monitorThread;
 	
-	// Use this channel if not null. If null, create & close a channel as needed.
-	private ArtNetChannel m_sharedChannel = null;
+	private final ArtNetChannel m_channel;
+	private final boolean m_isSharedChannel;
 	
 	private long m_pollReplyWaitMS = DEF_POLL_REPLY_MS;
 	private long m_todDataWaitMS = DEF_TOD_DATA_MS;
@@ -77,8 +81,9 @@ public class ArtNetManager implements Closeable
 
 	/**
 	 * Create a new manager. This c'tor creates and destroys an ArtNetChannel as needed.
+	 * @throws IOException 
 	 */
-	public ArtNetManager()
+	public ArtNetManager() throws IOException
 	{
 		this(null);
 	}
@@ -86,11 +91,20 @@ public class ArtNetManager implements Closeable
 	/**
 	 * Create a new manager using an existing ArtNetChannel.
 	 * @param sharedChannel The channel to use. If null, create and destroy a new channel as needed.
+	 * @throws IOException 
 	 */
-	public ArtNetManager(ArtNetChannel sharedChannel)
+	public ArtNetManager(ArtNetChannel sharedChannel) throws IOException
 	{
-		m_sharedChannel = sharedChannel;
+		// System.out.println("XXX: ArtNetManager c'tor");
+		if (sharedChannel != null) {
+			m_channel = sharedChannel;
+			m_isSharedChannel = true;
+		} else {
+			m_channel = new ArtNetChannel();
+			m_isSharedChannel = false;
+		}
 		m_monitorThread = new MonitorThread();
+		m_channel.addReceiver(m_monitorThread);
 	}
 	
 	/**
@@ -100,7 +114,11 @@ public class ArtNetManager implements Closeable
 	@Override
 	public void close() throws IOException
 	{
+		// System.out.println("ArtNetManager: close XXX");
 		m_monitorSync.shutdown();
+		if (!m_isSharedChannel) {
+			m_channel.shutdown();
+		}
 	}
 
 	/**
@@ -233,7 +251,7 @@ public class ArtNetManager implements Closeable
 	}
 	
 	/**
-	 * Set the ports on which ArtNetPoll messages will be sent.
+	 * Set the UDP ports on which ArtNetPoll messages will be sent.
 	 * @param ports The ports. The class copies the list.
 	 */
 	public void setPorts(List<Integer> ports)
@@ -243,8 +261,8 @@ public class ArtNetManager implements Closeable
 	}
 	
 	/**
-	 * Set the inet addresses on which ArtNetPoll messages will be sent.
-	 * It will be send to each port in the port list.
+	 * Set the UDP addresses on which ArtNetPoll messages will be sent.
+	 * It will be send to each port in the UDP port list.
 	 * @param addrs The addresses. The class copies the list.
 	 */
 	public void setInetAddrs(List<InetAddress> addrs)
@@ -254,8 +272,8 @@ public class ArtNetManager implements Closeable
 	}
 	
 	/**
-	 * Set the socket addresses on which ArtNetPoll messages will be sent.
-	 * This overrides the addresses and ports
+	 * Set the UDP socket addresses on which ArtNetPoll messages will be sent.
+	 * This overrides the addresses and UDP ports
 	 * set by {@link #setInetAddrs(List)} and {@link #setPorts(List)}.
 	 * @param addrs The socket addresses. The class makes a shallow copy of this list.
 	 */
@@ -281,6 +299,164 @@ public class ArtNetManager implements Closeable
 	public boolean isFindRdmUids()
 	{
 		return m_findRdmUids;
+	}
+	
+	/**
+	 * Send an RDM request to a device and return the response.
+	 * This uses the UID map ({@link #getUidsToPortAddrs()} to find the node address and port for the UID.
+	 * @param destUid The device UID.
+	 * @param isSet True if this is a SET request, false if it's a GET.
+	 * @param paramId The RMD parameter id.
+	 * @param requestData The request data. May be null.
+	 * @return The RdmPacket with the device's reply, or null if the request timed out
+	 * 			or the UID map does not have the node for destUID.
+	 * @throws IOException If an IO error occurs when sending the request.
+	 */
+	public RdmPacket sendRdmRequest(ACN_UID destUid, boolean isSet, RdmParamId paramId, byte[] requestData)
+			throws IOException
+	{
+		if (m_rdmRequest == null) {
+			m_rdmRequest = new ArtNetRdmRequest(m_channel, getUidsToPortAddrs());
+		}
+		return m_rdmRequest.sendRequest(destUid, isSet, paramId, requestData);
+	}
+	
+	/**
+	 * Get the standard information for all RDM devices.
+	 * Note: This method does not cache the results;
+	 * each time it's called it gets fresh information for each device.
+	 * @param errors If errors occur, append a message to this list for each error.
+	 * 				If the list is null, ignore errors.  
+	 * @return A sorted map from UIDs to RdmDevice descriptions.
+	 */
+	public Map<ACN_UID, RdmDevice> getDeviceMap(List<String> errors)
+	{
+		Map<ACN_UID, RdmDevice> deviceInfoMap = new TreeMap<>();
+		for (ACN_UID uid: getUidsToPortAddrs().keySet()) {
+			try {
+				RdmDevice info = getDevice(uid);
+				if (info != null) {
+					deviceInfoMap.put(uid, info);
+				} else if (errors != null) {
+					errors.add("Cannot get DeviceInfo for " + uid);
+				}
+			} catch (Exception e) {
+				if (errors != null) {
+					errors.add("Exception getting UID " + uid + ": " + e);
+				}
+			}
+		}
+		return deviceInfoMap;
+	}
+
+	/**
+	 * Get the standard information for an RDM device.
+	 * @param uid The device UID.
+	 * @return The device information, or null if the TOD requests did not
+	 * 			give the node with that UID, or the device does not reply.
+	 * @throws IOException If an I//O error occurs.
+	 */
+	public RdmDevice getDevice(ACN_UID uid) throws IOException
+	{
+		ArtNetPortAddr portAddr = getUidsToPortAddrs().get(uid);
+		if (portAddr == null) {
+			return null;
+		}
+		RdmPacket devInfoReply = sendRdmRequest(uid, false, RdmParamId.DEVICE_INFO, null);
+		if (devInfoReply == null || !devInfoReply.isRespAck()) {
+			return null;
+		}
+		RdmParamResp.DeviceInfo devInfo = new RdmParamResp.DeviceInfo(devInfoReply);
+		
+		RdmPacket supportedPidsReply = sendRdmRequest(uid, false, RdmParamId.SUPPORTED_PARAMETERS, null);
+		RdmParamResp.PidList supportedPids = new RdmParamResp.PidList(supportedPidsReply);
+		
+		RdmPacket swVerLabelReply = sendRdmRequest(uid, false, RdmParamId.SOFTWARE_VERSION_LABEL, null);
+		String swVerLabel = "[" + devInfo.m_softwareVersion + "]";
+		if (swVerLabelReply != null) {
+			swVerLabel = new RdmParamResp.StringReply(swVerLabelReply).m_string;
+		}
+		
+		String manufacturer = String.format("0x%04x", uid.getManufacturer());
+		if (isParamSupported(RdmParamId.MANUFACTURER_LABEL, supportedPids)) {
+			RdmPacket manufacturerReply = sendRdmRequest(uid, false, RdmParamId.MANUFACTURER_LABEL, null);
+			if (manufacturerReply != null && manufacturerReply.isRespAck()) {
+				manufacturer = new RdmParamResp.StringReply(manufacturerReply).m_string;
+			} 
+		}
+		
+		String model = String.format("0x%04x", devInfo.m_model);
+		if (isParamSupported(RdmParamId.DEVICE_MODEL_DESCRIPTION, supportedPids)) {
+			RdmPacket modelReply = sendRdmRequest(uid, false, RdmParamId.DEVICE_MODEL_DESCRIPTION, null);
+			if (modelReply != null && modelReply.isRespAck()) {
+				model = new RdmParamResp.StringReply(modelReply).m_string;
+			} 
+		}
+		
+		return new RdmDevice(uid, portAddr, devInfo,
+							getPersonalities(uid, devInfo.m_nPersonalities, supportedPids),
+							getSlotDescs(uid, devInfo.m_dmxFootprint, supportedPids),
+							manufacturer, model, swVerLabel, supportedPids);
+	}
+	
+	
+	private TreeMap<Integer,RdmParamResp.PersonalityDesc> getPersonalities(ACN_UID uid, int nPersonalities,
+													 RdmParamResp.PidList supportedPids) throws IOException
+	{
+		TreeMap<Integer,RdmParamResp.PersonalityDesc> personalities = new TreeMap<>();
+		boolean ok = isParamSupported(RdmParamId.DMX_PERSONALITY_DESCRIPTION, supportedPids);
+		if (ok) {
+			for (int iPersonality = 1; iPersonality <= nPersonalities; iPersonality++) {
+				RdmPacket personalityDescReply = null;
+				if (ok) {
+					personalityDescReply = sendRdmRequest(uid, false,
+														RdmParamId.DMX_PERSONALITY_DESCRIPTION,
+														new byte[] { (byte) iPersonality });
+					if (personalityDescReply == null) {
+						ok = false;
+					}
+				}
+				RdmParamResp.PersonalityDesc desc;
+				if (personalityDescReply != null && personalityDescReply.isRespAck()) {
+					desc = new RdmParamResp.PersonalityDesc(personalityDescReply);
+				} else {
+					desc = new RdmParamResp.PersonalityDesc(iPersonality, 1, RdmDevice.UNKNOWN_DESC);
+				}
+				personalities.put(iPersonality, desc);
+			} 
+		}
+		return personalities;
+	}
+	
+	private TreeMap<Integer,String> getSlotDescs(ACN_UID uid, int nSlots,
+												 RdmParamResp.PidList supportedPids) throws IOException
+	{
+		TreeMap<Integer,String> slotDescs = new TreeMap<>();
+		boolean ok = isParamSupported(RdmParamId.SLOT_DESCRIPTION, supportedPids);
+		if (ok) {
+			for (int iSlot = 0; iSlot < nSlots; iSlot++) {
+				slotDescs.put(iSlot, RdmDevice.UNKNOWN_DESC);
+			}
+			for (int iSlot = 0; iSlot < nSlots; iSlot++) {
+				if (ok) {
+					byte[] iSlotAsBytes = new byte[] {(byte)((iSlot >> 8) & 0xff), (byte)(iSlot & 0xff)};
+					RdmPacket slotDescReply = sendRdmRequest(uid, false,
+													RdmParamId.SLOT_DESCRIPTION, iSlotAsBytes);
+					if (slotDescReply != null && slotDescReply.isRespAck()) {
+						RdmParamResp.SlotDesc slotDesc = new RdmParamResp.SlotDesc(slotDescReply);
+						slotDescs.put(slotDesc.m_number, slotDesc.m_desc);
+					} else {
+						ok = false;
+					}
+				}
+			} 
+		}
+		return slotDescs;
+	}
+	
+	private boolean isParamSupported(RdmParamId paramId, RdmParamResp.PidList supportedPids)
+	{
+		return paramId.isRequired() || (supportedPids != null && supportedPids.isSupported(paramId));
 	}
 
 	/**
@@ -328,12 +504,13 @@ public class ArtNetManager implements Closeable
 				}
 			}
 		}
-		m_pollSockAddrs = new ArrayList<>();
+		List<InetSocketAddress> pollSockAddrs = new ArrayList<>();
 		for (InetAddress addr: m_pollInetAddrs) {
 			for (int port: m_pollPorts) {
-				m_pollSockAddrs.add(new InetSocketAddress(addr, port));
+				pollSockAddrs.add(new InetSocketAddress(addr, port));
 			}
 		}
+		m_pollSockAddrs = List.copyOf(pollSockAddrs);
 	}
 	
 	/**
@@ -422,6 +599,7 @@ public class ArtNetManager implements Closeable
 		private synchronized boolean refresh() 
 		{
 			try {
+				setupParam();
 				m_monitorCmds.put(MonitorCmd.Refresh);
 				wait();
 				return true;
@@ -492,8 +670,6 @@ public class ArtNetManager implements Closeable
 		private boolean m_polling = false;
 		private long m_startPollTS = 0;
 		private long m_pollEndTS = 0;
-		private ArtNetChannel m_chan = m_sharedChannel;
-		private boolean m_closeChan = false;
 
 		/**
 		 * Create and start the thread.
@@ -550,9 +726,7 @@ public class ArtNetManager implements Closeable
 					}
 				} 
 			} finally {
-				if (m_polling) {
-					closeChan();
-				}
+				m_polling = false;
 				// System.out.println("XXX: ArtNetManager.MonitorThread exiting.");
 			}
 		}
@@ -566,29 +740,15 @@ public class ArtNetManager implements Closeable
 			m_uniqueNodes = new TreeSet<>();
 			m_portAddrsToUids = new TreeMap<>();
 			m_uidsToPortAddrs = new HashMap<>();
-			if (m_sharedChannel != null) {
-				m_chan = m_sharedChannel;
-				m_closeChan = false;
-				m_chan.addReceiver(this);
-			} else {
-				try {
-					m_chan = new ArtNetChannel(this, m_listenPorts);
-				} catch (IOException e) {
-					m_errorLogger.logError("ArtNetManager: exception creating channel listenPorts="
-							+ m_listenPorts + ": " + e);
-					return;
-				}
-				m_closeChan = true;
-			}
 			m_startPollTS = System.currentTimeMillis();
 			m_pollEndTS = m_startPollTS + m_pollReplyWaitMS + (m_findRdmUids ? m_todDataWaitMS : 0);
 			m_polling = true;
-			for (InetSocketAddress addr: m_pollSockAddrs) {
+			for (InetSocketAddress addr: getSockAddrs()) {
 				ArtNetPoll msg = new ArtNetPoll();
 				msg.m_talkToMe |= ArtNetPoll.FLAGS_SEND_REPLY_ON_CHANGE;
 				// System.out.println("XXX: poll msg: " + msg);
 				try {
-					if (!m_chan.send(msg, addr)) {
+					if (!m_channel.send(msg, addr)) {
 						m_errorLogger.logError("ArtNetManager/" + addr + ": send failed.");
 					}
 				} catch (IOException e) {
@@ -612,18 +772,6 @@ public class ArtNetManager implements Closeable
 						new ImmutableMap<ArtNetPortAddr, Set<ACN_UID>>(m_portAddrsToUids),
 						new ImmutableMap<ACN_UID, ArtNetPortAddr>(m_uidsToPortAddrs));
 				m_polling = false;
-				closeChan();
-				m_chan = null;
-			}
-		}
-		
-		private void closeChan()
-		{
-			// System.out.println("XXX closing channel");
-			if (m_closeChan) {
-				m_chan.shutdown();
-			} else {
-				m_chan.dropReceiver(this);
 			}
 		}
 		
@@ -636,6 +784,9 @@ public class ArtNetManager implements Closeable
 		 */
 		private void handlePollReply(ArtNetPollReply msg)
 		{
+			if (!m_polling) {
+				return;
+			}
 			if (m_prtReplies) {
 				System.out.println("PollReply: from=" + msg.getFromAddr().getHostAddress()
 							+ " time=" + (System.currentTimeMillis() - m_startPollTS) + "ms");
@@ -651,7 +802,7 @@ public class ArtNetManager implements Closeable
 					todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
 					todCtlReq.m_subnetUniv = port.subUniv();
 					try {
-						if (!m_chan.send(todCtlReq, nodeInfo.getNodeAddr().m_nodeAddr)) {
+						if (!m_channel.send(todCtlReq, nodeInfo.getNodeAddr().m_nodeAddr)) {
 							m_errorLogger.logError("ArtNetManager: send TODControl failed.");
 						}
 					} catch (IOException e1) {
@@ -663,6 +814,9 @@ public class ArtNetManager implements Closeable
 		
 		private void handleTodData(ArtNetTodData msg)
 		{
+			if (!m_polling) {
+				return;
+			}
 			ArtNetTodData todData = (ArtNetTodData)msg;
 			InetAddress fromAddr = msg.getFromAddr();
 			if (todData.m_rdmVers != ArtNetTodRequest.RDM_VERS) {

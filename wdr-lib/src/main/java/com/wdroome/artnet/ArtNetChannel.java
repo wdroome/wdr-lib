@@ -148,6 +148,7 @@ public class ArtNetChannel extends Thread
 	 */
 	public ArtNetChannel(Receiver receiver, Collection<Integer> listenPorts) throws IOException
 	{
+		// System.out.println("XXX: ArtNetChannel c'tor");
 		m_selector = Selector.open();
 		if (receiver != null) {
 			m_receivers.add(receiver);

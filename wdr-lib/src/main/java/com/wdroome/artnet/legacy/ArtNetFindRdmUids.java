@@ -1,4 +1,4 @@
-package com.wdroome.artnet.util;
+package com.wdroome.artnet.legacy;
 
 import java.io.IOException;
 import java.net.InetAddress;

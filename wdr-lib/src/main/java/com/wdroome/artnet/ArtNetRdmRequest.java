@@ -28,8 +28,8 @@ import com.wdroome.artnet.msgs.RdmPacket;
 public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 {
 	private final ArtNetChannel m_channel;
-	private final boolean m_sharedChannel;
-	private Map<ArtNetPortAddr, Set<ACN_UID>> m_uidMap = null;
+	private final boolean m_isSharedChannel;
+	private Map<ACN_UID, ArtNetPortAddr> m_uidMap = null;
 	
 	private int m_transNum = 0;
 	private int m_srcUidManufacturer = 0x6975;
@@ -41,23 +41,36 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	
 	private long m_timeoutMS = 4000;
 	
-	public ArtNetRdmRequest(ArtNetChannel channel, Map<ArtNetPortAddr, Set<ACN_UID>> uidMap)
+	/**
+	 * Create an object for sending RDM requests.
+	 * @param channel A channel for sending and receiving Art-Net messages.
+	 * 			If null, create a channel, and close it when done.
+	 * @param uidMap An optional map with the UIDs on each network port.
+	 * 			{@link #sendRequest(ACN_UID, boolean, RdmParamId, byte[])}
+	 * 			uses this map to locate the UID's node.
+	 * @throws IOException If an error occurs when creating the channel.
+	 */
+	public ArtNetRdmRequest(ArtNetChannel channel, Map<ACN_UID, ArtNetPortAddr> uidMap)
 						throws IOException
 	{
 		if (channel != null) {
 			m_channel = channel;
-			m_sharedChannel = true;
+			m_isSharedChannel = true;
 		} else {
+			// System.out.println("XXX: ArtNetRdmRequest new ArtNetChannel c'tor");
 			m_channel = new ArtNetChannel();
-			m_sharedChannel = false;			
+			m_isSharedChannel = false;			
 		}
 		m_uidMap = uidMap;
 	}
 
+	/**
+	 * Close or disconnect from the channel.
+	 */
 	@Override
 	public void close() throws IOException
 	{
-		if (m_sharedChannel) {
+		if (m_isSharedChannel) {
 			m_channel.dropReceiver(this);
 		} else {
 			m_channel.shutdown();
@@ -117,6 +130,23 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	
 	/**
 	 * Send an RDM request to a device and return the response.
+	 * @param portAddr The ArtNet port and IP address of the node with this device.
+	 * @param destUid The device UID.
+	 * @param isSet True if this is a SET request, false if it's a GET.
+	 * @param paramId The RMD parameter id.
+	 * @param requestData The request data. May be null.
+	 * @return The RdmPacket with the device's reply, or null if the request timed out.
+	 * @throws IOException If an IO error occurs when sending the request.
+	 */
+	public RdmPacket sendRequest(ArtNetPortAddr portAddr, ACN_UID destUid, boolean isSet,
+								 RdmParamId paramId, byte[] requestData) throws IOException
+	{
+		return sendRequest(portAddr.m_nodeAddr.m_nodeAddr, portAddr.m_port, destUid,
+									isSet, paramId, requestData);
+	}
+	
+	/**
+	 * Send an RDM request to a device and return the response.
 	 * This uses the UID map ({@link #setUidMap(Map)} to find the node address and port for the UID.
 	 * @param destUid The device UID.
 	 * @param isSet True if this is a SET request, false if it's a GET.
@@ -133,22 +163,19 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		if (m_uidMap == null) {
 			throw new IllegalStateException("ArtNetRdmRequest: no uid map");
 		}
-		for (Map.Entry<ArtNetPortAddr, Set<ACN_UID>> ent: m_uidMap.entrySet())
-		{
-			if (ent.getValue().contains(destUid)) {
-				ArtNetPortAddr nodePort = ent.getKey();
-				return sendRequest(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port, destUid,
-									isSet, paramId, requestData);
-			}
+		ArtNetPortAddr portAddr = m_uidMap.get(destUid);
+		if (portAddr == null) {
+			return null;
 		}
-		return null;
+		return sendRequest(portAddr.m_nodeAddr.m_nodeAddr, portAddr.m_port, destUid,
+									isSet, paramId, requestData);
 	}
 
-	public Map<ArtNetPortAddr, Set<ACN_UID>> getUidMap() {
+	public Map<ACN_UID, ArtNetPortAddr> getUidMap() {
 		return m_uidMap;
 	}
 
-	public void setUidMap(Map<ArtNetPortAddr, Set<ACN_UID>> uidMap) {
+	public void setUidMap(Map<ACN_UID, ArtNetPortAddr> uidMap) {
 		this.m_uidMap = uidMap;
 	}
 

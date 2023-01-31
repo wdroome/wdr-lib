@@ -1,4 +1,4 @@
-package com.wdroome.artnet.util;
+package com.wdroome.artnet.legacy;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -18,6 +18,7 @@ import com.wdroome.artnet.ArtNetPortAddr;
 import com.wdroome.artnet.ArtNetPort;
 import com.wdroome.artnet.ArtNetRdmRequest;
 import com.wdroome.artnet.RdmDevice;
+import com.wdroome.artnet.ArtNetManager;
 
 import com.wdroome.artnet.msgs.ArtNetRdm;
 import com.wdroome.artnet.msgs.RdmPacket;
@@ -29,31 +30,32 @@ import com.wdroome.artnet.msgs.RdmProductCategories;
 public class ArtNetGetDevices implements Closeable
 {
 	private final ArtNetChannel m_channel;
-	private final boolean m_sharedChannel;
-	private Map<ArtNetPortAddr, Set<ACN_UID>> m_uidMap = null;
-	private final ArtNetRdmRequest m_rdmReq;
+	private final boolean m_isSharedChannel;
+	private final ArtNetManager m_manager;
+	private final Map<ACN_UID, ArtNetPortAddr> m_uidMap;
 	
-	public ArtNetGetDevices(ArtNetChannel channel, Map<ArtNetPortAddr, Set<ACN_UID>> uidMap)
+	public ArtNetGetDevices(ArtNetChannel channel, Map<ACN_UID, ArtNetPortAddr> uidMap)
 						throws IOException
 	{
 		if (channel != null) {
 			m_channel = channel;
-			m_sharedChannel = true;
+			m_isSharedChannel = true;
 		} else {
 			m_channel = new ArtNetChannel();
-			m_sharedChannel = false;			
+			m_isSharedChannel = false;			
 		}
+		m_manager = new ArtNetManager(m_channel);
 		if (uidMap == null) {
-			uidMap = new ArtNetFindRdmUids(m_channel).getUidMap(null);
+			uidMap = m_manager.getUidsToPortAddrs();
 		}
 		m_uidMap = uidMap;
-		m_rdmReq = new ArtNetRdmRequest(m_channel, m_uidMap);
 	}
 		
 	@Override
 	public void close() throws IOException
 	{
-		if (!m_sharedChannel) {
+		m_manager.close();
+		if (!m_isSharedChannel) {
 			m_channel.shutdown();
 		}
 	}
@@ -61,20 +63,17 @@ public class ArtNetGetDevices implements Closeable
 	public Map<ACN_UID, RdmDevice> getDeviceMap(List<String> errors)
 	{
 		Map<ACN_UID, RdmDevice> deviceInfoMap = new HashMap<>();
-		
-		for (Set<ACN_UID> uidSet: m_uidMap.values()) {
-			for (ACN_UID uid: uidSet) {
-				try {
-					RdmDevice info = getDevice(uid);
-					if (info != null) {
-						deviceInfoMap.put(uid, info);
-					} else if (errors != null) {
-						errors.add("Cannot get DeviceInfo for " + uid);
-					}
-				} catch (Exception e) {
-					if (errors != null) {
-						errors.add("Exception getting UID " + uid + ": " + e);
-					}
+		for (ACN_UID uid: m_uidMap.keySet()) {
+			try {
+				RdmDevice info = getDevice(uid);
+				if (info != null) {
+					deviceInfoMap.put(uid, info);
+				} else if (errors != null) {
+					errors.add("Cannot get DeviceInfo for " + uid);
+				}
+			} catch (Exception e) {
+				if (errors != null) {
+					errors.add("Exception getting UID " + uid + ": " + e);
 				}
 			}
 		}
@@ -87,9 +86,7 @@ public class ArtNetGetDevices implements Closeable
 		if (nodePort == null) {
 			return null;
 		}
-		RdmPacket devInfoReply = m_rdmReq.sendRequest(nodePort.m_nodeAddr.m_nodeAddr,
-													nodePort.m_port, uid,
-													false, RdmParamId.DEVICE_INFO, null);
+		RdmPacket devInfoReply = m_manager.sendRdmRequest(uid, false, RdmParamId.DEVICE_INFO, null);
 		if (devInfoReply == null || !devInfoReply.isRespAck()) {
 			return null;
 		}
@@ -110,8 +107,9 @@ public class ArtNetGetDevices implements Closeable
 		
 		String manufacturer = String.format("0x%04x", uid.getManufacturer());
 		if (isSupported(RdmParamId.MANUFACTURER_LABEL, supportedPids)) {
-			RdmPacket manufacturerReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port, uid, false,
-					RdmParamId.MANUFACTURER_LABEL, null);
+			RdmPacket manufacturerReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
+													nodePort.m_port, uid, false,
+													RdmParamId.MANUFACTURER_LABEL, null);
 			if (manufacturerReply != null && manufacturerReply.isRespAck()) {
 				manufacturer = new RdmParamResp.StringReply(manufacturerReply).m_string;
 			} 
@@ -134,12 +132,7 @@ public class ArtNetGetDevices implements Closeable
 	
 	private ArtNetPortAddr findNodePort(ACN_UID uid)
 	{
-		for (Map.Entry<ArtNetPortAddr, Set<ACN_UID>> ent: m_uidMap.entrySet()) {
-			if (ent.getValue().contains(uid)) {
-				return ent.getKey();
-			}
-		}
-		return null;
+		return m_uidMap.get(uid);
 	}
 	
 	private boolean isSupported(RdmParamId paramId, RdmParamResp.PidList supportedPids)
@@ -151,7 +144,7 @@ public class ArtNetGetDevices implements Closeable
 									boolean isSet, RdmParamId paramId, byte[] requestData)
 	{
 		try {
-			return m_rdmReq.sendRequest(ipAddr, port, destUid, isSet, paramId, requestData);
+			return m_manager.sendRdmRequest(destUid, isSet, paramId, requestData);
 		} catch (IOException e) {
 			return null;
 		}
