@@ -48,8 +48,8 @@ public class ACN_UID implements Comparable<ACN_UID>
 	
 	/**
 	 * Create a UID from a hex string. Acceptable formats are manufacturer:serial-number,
-	 * as in "1900:10abc", 6 hex bytes separated by colons, as in "19:0:0:1:a:bc",
-	 * or a string of hex digits without colons, as in "190000010abc".
+	 * in hex, as in "1900:10abc", or 6 hex bytes separated by colons, as in "19:0:0:1:a:bc",
+	 * or a string of 12 hex digits without colons, as in "190000010abc".
 	 * @param src The source string.
 	 * @throws IllegalArgumentException If the format can't be recognized.
 	 * @throws NumberFormatException If components aren't hex numbers.
