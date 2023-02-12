@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.io.IOException;
+import java.io.Closeable;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -62,7 +63,7 @@ import com.wdroome.util.swing.SwingAppUtils;
  * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
-public class ArtNetMonitorWindow extends JFrame
+public class ArtNetMonitorWindow extends JFrame implements Closeable
 {
 	public static final String TABNAME__ALERTS = "Alerts";
 	
@@ -168,7 +169,9 @@ public class ArtNetMonitorWindow extends JFrame
 	private Dimension m_chanBoxSize;
 	private JTabbedPane m_tabPane;
 	
-	private ArtNetChannel m_channel;
+	private ArtNetChannel m_channel = null;
+	private boolean m_isSharedChannel = false;
+	private Receiver m_myReceiver = null;
 	private AtomicBoolean m_running = new AtomicBoolean(true);
 
 	private ArrayList<AtomicReference<DmxMsgTS>> m_lastDmxMsg = new ArrayList<>();
@@ -179,21 +182,65 @@ public class ArtNetMonitorWindow extends JFrame
 	private AnPortDisplay[] m_anPortDisplays;
 	private IErrorLogger m_logger = new SystemErrorLogger();	// C'tor replaces. This ensures it's never null.
 
+	/**
+	 * Start as a standalone application.
+	 * @param args
+	 */
 	public static void main(String[] args)
 	{
 		SwingAppUtils.startSwing(() -> {
 			try {
-				new ArtNetMonitorWindow(args);
+				ArtNetMonitorWindow artNetMonitorWindow = new ArtNetMonitorWindow(args);
+				// System.err.println("XXX: post create app");
 			} catch (IOException e) {
 				System.err.println("Exception at startup: " + e);
 				System.exit(1);
 			}
 		}, args);
+		// System.err.println("XXX: main returns");
+	}
+	
+	/**
+	 * Start Swing with the node simulator, but share an ArtNetChannel created by the caller.
+	 * @param args
+	 * @param channel The channel to use. If null, create a channel and close when done.
+	 */
+	public static class Instance implements Closeable
+	{
+		private AtomicReference<ArtNetMonitorWindow> m_instance = new AtomicReference<>(null);
+		
+		public Instance(String[] args, ArtNetChannel channel) throws IOException
+		{
+			SwingAppUtils.startSwing(() -> {
+				try {
+					m_instance.set(new ArtNetMonitorWindow(args, channel));
+				} catch (IOException e) {
+					System.err.println("ArtNetMonitorWindow.Instance: Exception at startup: " + e);
+				}
+			}, args);
+		}
+		
+		public void close()
+		{
+			ArtNetMonitorWindow instance = m_instance.getAndSet(null);
+			if (instance != null) {
+				instance.close();
+			}
+		}
 	}
 	
 	public ArtNetMonitorWindow(String[] args) throws IOException
 	{
+		this(args, null);
+	}
+	
+	public ArtNetMonitorWindow(String[] args, ArtNetChannel channel) throws IOException
+	{
 		super();
+		if (channel != null) {
+			m_channel = channel;
+			m_isSharedChannel = true;
+		}
 		if (!parseArgs(args)) {
 			return;
 		}
@@ -229,7 +276,12 @@ public class ArtNetMonitorWindow extends JFrame
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		setVisible(true);
 		
-    	m_channel = new MyArtNetChannel(new Receiver(), m_ipPorts);
+		m_myReceiver = new Receiver();
+    	if (!m_isSharedChannel) {
+    		m_channel = new MyArtNetChannel(m_myReceiver, m_ipPorts);
+    	} else {
+    		m_channel.addReceiver(m_myReceiver);
+    	}
     	StringBuilder listenSockets = new StringBuilder();
     	String sep = "";
     	for (InetSocketAddress addr: m_channel.getListenSockets()) {
@@ -238,6 +290,18 @@ public class ArtNetMonitorWindow extends JFrame
     	}
     	m_logger.logError("Listening on sockets: " + listenSockets.toString());
 		new Monitor();
+	}
+	
+	@Override
+	public void close()
+	{
+		if (m_channel != null) {
+			m_channel.dropReceiver(m_myReceiver);
+			if (!m_isSharedChannel) {
+				m_channel.shutdown();
+			}
+		}
+		dispose();
 	}
 	
 	private boolean parseArgs(String[] args)

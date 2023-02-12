@@ -195,6 +195,7 @@ public class ArtNetTestSender extends ArtNetChannel.MsgPrinter
 		}
 		ArtNetTestSender monitor = new ArtNetTestSender(portArr);
 		Chaser chaser = null;
+		ArtNetMonitorWindow.Instance node = null;
 				
 		while (true) {
 			System.out.print("* ");
@@ -274,6 +275,12 @@ public class ArtNetTestSender extends ArtNetChannel.MsgPrinter
 					System.out.println(chaseUsage);
 					continue;
 				}
+			} else if (cmd.equals("start-node")) {
+				if (node != null) {
+					System.out.println("Now window already started.");
+					continue;					
+				}
+				node = new ArtNetMonitorWindow.Instance(new String[0], monitor.m_chan);
 			} else if (cmd.equals("stop")) {
 				if (chaser != null) {
 					chaser.m_running = false;
@@ -288,7 +295,11 @@ public class ArtNetTestSender extends ArtNetChannel.MsgPrinter
 			}
 		}
 		
+		if (node != null) {
+			node.close();
+		}
 		monitor.shutdown();
+		System.exit(0);
 	}
 	
 	private static InetSocketAddress getAddr(String s)

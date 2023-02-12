@@ -148,10 +148,10 @@ public class ArtNetChannel extends Thread
 	 */
 	public ArtNetChannel(Receiver receiver, Collection<Integer> listenPorts) throws IOException
 	{
-		// System.out.println("XXX: ArtNetChannel c'tor");
+		// System.err.println("XXX: ArtNetChannel c'tor " + receiver);
 		m_selector = Selector.open();
 		if (receiver != null) {
-			m_receivers.add(receiver);
+			addReceiver(receiver);
 		}
 		if (listenPorts == null || listenPorts.isEmpty()) {
 			listenPorts = ArrayToList.toList(new int[] {ArtNetConst.ARTNET_PORT});
@@ -242,9 +242,14 @@ public class ArtNetChannel extends Thread
 	public void addReceiver(Receiver receiver)
 	{
 		if (receiver != null) {
+			boolean added = false;
+			int nRcvrs = 0;
 			synchronized (m_receivers) {
-				m_receivers.add(receiver);
+				added = m_receivers.add(receiver);
+				nRcvrs = m_receivers.size();
 			}
+			// System.err.println("XXX: ArtNetChannel.addReceiver(): " + added + " " + nRcvrs
+			// 		+ " " + receiver);
 		}
 	}
 	
@@ -256,6 +261,7 @@ public class ArtNetChannel extends Thread
 	public boolean dropReceiver(Receiver receiver)
 	{
 		synchronized (m_receivers) {
+			// System.err.println("XXX ArtNetChannel dropRcvr " + receiver);
 			return m_receivers.remove(receiver);
 		}
 	}
