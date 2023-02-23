@@ -38,6 +38,7 @@ public class JSONLexan implements IJSONLexan
 	private final String m_fileName;
 	private final int m_contentLength;
 	private final long m_size;
+	private boolean m_atEof = false;
 	
 	private int m_nread = 0;
 	private int m_lineNumber = 1;
@@ -213,11 +214,23 @@ public class JSONLexan implements IJSONLexan
 		if (m_contentLength >= 0 && m_nread >= m_contentLength) {
 			return -1;
 		}
+		if (m_atEof) {
+			return -1;
+		}
 		int c;
 		if (m_inputStream != null) {
 			c = m_inputStream.read();
 		} else {
 			c = m_reader.read();
+		}
+		if (c == -1) {
+			if (m_inputStream != null) {
+				try {m_inputStream.close();} catch (Exception e) {};
+			} else {
+				try {m_reader.close();} catch (Exception e) {};
+			}
+			m_atEof = true;
+			return -1;
 		}
 		m_nread++;
 		if (c == '\r') {

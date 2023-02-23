@@ -132,6 +132,9 @@ public class ArtNetChannel extends Thread
 	// All directed broadcast IP addresses.
 	private List<InetAddress> m_bcastAddrs = new ArrayList<>();
 	
+	// IP Ports to send broadcast messages on. Normally this is just the standard ArtNet port.
+	private Set<Integer> m_bcastIpPorts = new HashSet<>(List.of(ArtNetConst.ARTNET_PORT));
+	
 	// If true, listen on the wildcard address.
 	// If false, listen on all local IP addresses.
 	private boolean m_listentOnWildcardAddr = true;
@@ -298,6 +301,36 @@ public class ArtNetChannel extends Thread
 	public void setBroadcastAddrs(List<InetAddress> addrs)
 	{
 		m_bcastAddrs = List.copyOf(addrs);
+	}
+	
+	/**
+	 * Set the IP port for broadcasts. The default is the standard ArtNet port.
+	 * @param port The IP port for broadcast messages.
+	 */
+	public void setBcastIpPort(int port)
+	{
+		if (port > 0) {
+			setBcaseIpPorts(List.of(port));
+		}
+	}
+	
+	/**
+	 * Set the IP ports for broadcasts. 
+	 * @param ports The IP ports for broadcast messages.
+	 */
+	public void setBcaseIpPorts(Collection<Integer> ports)
+	{
+		if (ports != null && !ports.isEmpty()) {
+			Set<Integer> newIpPorts = new HashSet<>();
+			for (int port: ports) {
+				if (port > 0) {
+					newIpPorts.add(port);
+				}
+			}
+			if (!newIpPorts.isEmpty()) {
+				m_bcastIpPorts = newIpPorts;
+			}
+		}
 	}
 	
 	/**
@@ -512,10 +545,12 @@ public class ArtNetChannel extends Thread
 	
 	/**
 	 * Broadcast a message to all directed broadcast addresses.
-	 * Send to the default ArtNet port.
+	 * Use the ports specified by {@link #setBcastIpPort(int)}
+	 * or {@link #setBcaseIpPorts(Collection)},
+	 * or the default ArtNet port if not specified.
 	 * @param msg The message.
 	 * @return True if all broadcasts succeeded.
-	 * @throws IOException If an I/O error occurs.
+	 * @throws IOException If any I/O error occurs.
 	 */
 	public boolean broadcast(ArtNetMsg msg) throws IOException
 	{
@@ -527,17 +562,36 @@ public class ArtNetChannel extends Thread
 	 * @param msg The message.
 	 * @param port The IP port to send to. If 0 or negative, use the ArtNet port.
 	 * @return True if all broadcasts succeeded.
-	 * @throws IOException If an I/O error occurs.
+	 * @throws IOException If any I/O error occurs.
 	 */
 	public boolean broadcast(ArtNetMsg msg, int port) throws IOException
 	{
 		if (port <= 0) {
 			port = ArtNetConst.ARTNET_PORT;
 		}
+		return broadcast(msg, List.of(port));
+	}
+	
+	/**
+	 * Broadcast a message to all directed broadcast addresses.
+	 * @param msg The message.
+	 * @param ports The IP ports to send to. If null or empty,
+	 * use the ports specified by {@link #setBcastIpPort(int)}
+	 * or {@link #setBcaseIpPorts(Collection)}.
+	 * @return True if all broadcasts succeeded.
+	 * @throws IOException If any I/O error occurs.
+	 */
+	public boolean broadcast(ArtNetMsg msg, Collection<Integer> ports) throws IOException
+	{
+		if (ports == null || ports.isEmpty()) {
+			ports = m_bcastIpPorts;
+		}
 		boolean allOk = true;
 		for (InetAddress inetAddr: m_bcastAddrs) {
-			if (!send(msg, new InetSocketAddress(inetAddr, port))) {
-				allOk = false;
+			for (int port: ports) {
+				if (!send(msg, new InetSocketAddress(inetAddr, port))) {
+					allOk = false;
+				} 
 			}
 		}
 		return allOk;

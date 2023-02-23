@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.Arrays;
 import java.math.BigInteger;
 import java.math.BigDecimal;
 
@@ -110,6 +111,30 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 			curElem = nextElem;
 		}
 		curElem.put(path.get(n-1), value);
+	}
+
+	/**
+	 * Like {@link #putPath(List, JSONValue)}, except the keys are an array.
+	 * @param path The path to the value.
+	 * @param value The value to be added at the end of the path.
+	 */
+	public void putPath(String[] path, JSONValue value)
+	{
+		if (path != null) {
+			putPath(Arrays.asList(path), value);
+		}
+	}
+	
+	/**
+	 * Like {@link #putPath(List, JSONValue)}, except the keys are /-separated string.
+	 * @param path The path to the value.
+	 * @param value The value to be added at the end of the path.
+	 */
+	public void putPath(String path, JSONValue value)
+	{
+		if (path != null) {
+			putPath(path.split("/"), value);
+		}
 	}
 	
 	/**
@@ -571,6 +596,30 @@ public class JSONValue_Object extends HashMap<String,JSONValue> implements JSONV
 			curElem = nextElem;
 		}
 		return curElem.get(path.get(n-1), def);
+	}
+	
+	/**
+	 * Like {@link #getPath(List, JSONValue), except the path is a String array.
+	 * Return the value at the end of a path.
+	 * @param path An array of keys.
+	 * @param def The default value.
+	 * @return The value at the end of the object path, or "def".
+	 */
+	public JSONValue getPath(String[] path, JSONValue def)
+	{
+		return path != null ? getPath(Arrays.asList(path), def) : def;
+	}
+
+	/**
+	 * Like {@link #getPath(List, JSONValue), except the path is a /-separated String.
+	 * Return the value at the end of a path.
+	 * @param path The keys, separated by "/"
+	 * @param def The default value.
+	 * @return The value at the end of the object path, or "def".
+	 */
+	public JSONValue getPath(String path, JSONValue def)
+	{
+		return path != null ? getPath(path.split("/"), def) : def;
 	}
 
 	/**

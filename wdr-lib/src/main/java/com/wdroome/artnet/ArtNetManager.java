@@ -2,7 +2,7 @@ package com.wdroome.artnet;
 
 import java.io.IOException;
 import java.io.Closeable;
-
+import java.io.File;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -11,6 +11,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -30,7 +31,7 @@ import com.wdroome.artnet.msgs.ArtNetTodData;
 import com.wdroome.artnet.msgs.ArtNetTodControl;
 import com.wdroome.artnet.msgs.RdmPacket;
 import com.wdroome.artnet.msgs.RdmParamResp;
-
+import com.wdroome.artnet.util.ArtNetTestNode;
 import com.wdroome.util.IErrorLogger;
 import com.wdroome.util.SystemErrorLogger;
 import com.wdroome.util.ImmutableMap;
@@ -890,11 +891,38 @@ public class ArtNetManager implements Closeable
 	 */
 	public static void main(String[] args) throws Exception
 	{
+		List<String> argList = new ArrayList<>();
+		if (args != null) {
+			for (String arg: args) {
+				argList.add(arg);
+			}
+		}
+
+		ArtNetChannel chan = null;
+		boolean useTestNode = false;
+		File testNodeParamFile = null;
+		for (ListIterator<String> iter = argList.listIterator(); iter.hasNext(); ) {
+			String arg = iter.next();
+			if (arg.startsWith("-testnode")) {
+				arg = arg.substring("-testnode".length());
+				if (arg.startsWith("=")) {
+					testNodeParamFile = new File(arg.substring(1));
+				}
+				useTestNode = true;
+				iter.remove();
+			}
+		}
+		ArtNetTestNode testNode = null;
+		if (useTestNode) {
+			chan = new ArtNetChannel();
+			testNode = new ArtNetTestNode(chan, null, testNodeParamFile, testNodeParamFile);
+		}
+		
 		boolean prtAllReplies = false;
 		long nRepeats = 1;
-		try (ArtNetManager mgr = new ArtNetManager()) {
+		try (ArtNetManager mgr = new ArtNetManager(chan)) {
 			Long longVal;
-			for (String arg: args) {
+			for (String arg: argList) {
 				if (arg.equals("-a")) {
 					prtAllReplies = true;
 				} else if (arg.equals("-r")) {

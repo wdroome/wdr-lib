@@ -14,6 +14,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.LineNumberReader;
 import java.io.PrintStream;
+import java.io.File;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -21,6 +22,9 @@ import java.net.UnknownHostException;
 import com.wdroome.artnet.msgs.RdmParamId;
 import com.wdroome.artnet.msgs.RdmProductCategories;
 
+import com.wdroome.artnet.util.ArtNetTestNode;
+import com.wdroome.json.JSONParseException;
+import com.wdroome.json.JSONValueTypeException;
 import com.wdroome.util.ArrayToList;
 
 /**
@@ -35,6 +39,7 @@ public class ArtNetListDevices
 	private static boolean g_printOkDevs = false;
 
 	public static void main(String[] args)
+			throws IOException, JSONParseException, JSONValueTypeException
 	{
 		List<String> argList = new ArrayList<>();
 		if (args != null) {
@@ -42,7 +47,28 @@ public class ArtNetListDevices
 				argList.add(arg);
 			}
 		}
-		try (ArtNetManager manager = makeManager(argList)) {
+
+		ArtNetChannel chan = null;
+		boolean useTestNode = false;
+		File testNodeParamFile = null;
+		for (ListIterator<String> iter = argList.listIterator(); iter.hasNext(); ) {
+			String arg = iter.next();
+			if (arg.startsWith("-testnode")) {
+				arg = arg.substring("-testnode".length());
+				if (arg.startsWith("=")) {
+					testNodeParamFile = new File(arg.substring(1));
+				}
+				useTestNode = true;
+				iter.remove();
+			}
+		}
+		ArtNetTestNode testNode = null;
+		if (useTestNode) {
+			chan = new ArtNetChannel();
+			testNode = new ArtNetTestNode(chan, null, testNodeParamFile, testNodeParamFile);
+		}
+
+		try (ArtNetManager manager = makeManager(chan, argList)) {
 			ArrayList<String> errors = new ArrayList<>();
 			Map<ACN_UID, RdmDevice> deviceMap = manager.getDeviceMap(errors);
 			if (argList.isEmpty()) {
@@ -356,7 +382,7 @@ public class ArtNetListDevices
 		}
 		
 		/**
-		 * Get the value for a column. Never return null, and substiture for missing values.
+		 * Get the value for a column. Never return null, and substitute for missing values.
 		 */
 		@Override
 		@SuppressWarnings("incomplete-switch")
@@ -406,9 +432,9 @@ public class ArtNetListDevices
 		return map;
 	}
 	
-	private static ArtNetManager makeManager(List<String> args) throws IOException
+	private static ArtNetManager makeManager(ArtNetChannel chan, List<String> args) throws IOException
 	{
-		ArtNetManager mgr = new ArtNetManager();
+		ArtNetManager mgr = new ArtNetManager(chan);
 		Long longVal;
 		List<InetAddress> pollAddrs = new ArrayList<>();
 		for (ListIterator<String> iter = args.listIterator(); iter.hasNext(); ) {
