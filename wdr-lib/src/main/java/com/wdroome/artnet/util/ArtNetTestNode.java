@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.TreeSet;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 import java.io.OutputStream;
@@ -29,6 +30,7 @@ import com.wdroome.artnet.ArtNetPort;
 import com.wdroome.artnet.ACN_UID;
 
 import com.wdroome.artnet.msgs.ArtNetMsg;
+import com.wdroome.artnet.msgs.ArtNetMsgUtil;
 import com.wdroome.artnet.msgs.ArtNetPoll;
 import com.wdroome.artnet.msgs.ArtNetPollReply;
 import com.wdroome.artnet.msgs.ArtNetDmx;
@@ -36,6 +38,11 @@ import com.wdroome.artnet.msgs.ArtNetTodRequest;
 import com.wdroome.artnet.msgs.ArtNetTodControl;
 import com.wdroome.artnet.msgs.ArtNetTodData;
 import com.wdroome.artnet.msgs.ArtNetRdm;
+import com.wdroome.artnet.msgs.RdmPacket;
+import com.wdroome.artnet.msgs.RdmParamData;
+import com.wdroome.artnet.msgs.RdmParamId;
+import com.wdroome.artnet.msgs.RdmParamResp;
+import com.wdroome.artnet.msgs.RdmProductCategories;
 
 import com.wdroome.json.JSONValue;
 import com.wdroome.json.JSONValueTypeException;
@@ -51,6 +58,16 @@ import com.wdroome.json.JSONUtil;
 import com.wdroome.util.IErrorLogger;
 import com.wdroome.util.SystemErrorLogger;
 
+/**
+ * A simulated Art-Net DMX-output node. Reply to Poll requests giving the configured ports.
+ * Save DMX levels set for each port, so a client can access them. Respond to TOD requests
+ * for simulated devices defined by a configuration file.
+ * This simulator simulates multiple physical ports and multiple ArtNet ports,
+ * but the physical ports are 1-1 with the ArtNet ports.
+ * That is, this class does not allow two physical ports to have the same ArtNet port.
+ * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
+ * @author wdr
+ */
 public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 {
 	@FunctionalInterface
@@ -69,6 +86,13 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	public interface DmxHandler
 	{
 		public void handleDmx(ArtNetDmx dmx);
+	}
+	
+	@FunctionalInterface
+	public interface IdentifyDeviceHandler
+	{
+		// Called when an IDENTIFY_DEVICE request arrives, either turning it on or off.
+		public void handleIdentifyDevice(ACN_UID uid, ArtNetPort anPort, int dmxAddr, boolean isOn);
 	}
 	
     /** A struct with a DMX message, the time it was received, and the number of DMX msgs received. */
@@ -110,6 +134,9 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	// Map from ArtNet ports to RDM devices on that port.
 	private final TreeMap<ArtNetPort, List<Device>> m_deviceMap;
 	
+	// Devices with IDENTIFY_DEVICE set to true.
+	private final Set<ACN_UID> m_identifyingDevices = new HashSet<>();
+	
 	// ArtNetPollReply message describing this node.
 	private final ArtNetPollReply m_pollReply;
 	private final List<ArtNetPollReply> m_pollReplies;
@@ -124,6 +151,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	private final Set<PollHandler> m_pollHandlers = new HashSet<>();
 	private final Set<PollReplyHandler> m_pollReplyHandlers = new HashSet<>();
 	private final Set<DmxHandler> m_dmxHandlers = new HashSet<>();
+	private final Set<IdentifyDeviceHandler> m_identifyDeviceHandlers = new HashSet<>();
 	
 	public ArtNetTestNode(ArtNetChannel channel, IErrorLogger logger,
 							File inputParamFile, File outputParamFile)
@@ -152,6 +180,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 		}
 		m_pollReply = makePollReply();
 		m_pollReplies = makePollReplies();
+		new SendMsgThread();
 		m_channel.addReceiver(this);
 	}
 	
@@ -271,6 +300,13 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 		}
 	}
 	
+	public boolean addHandler(IdentifyDeviceHandler handler)
+	{
+		synchronized (m_identifyDeviceHandlers) {
+			return m_identifyDeviceHandlers.add(handler);
+		}
+	}
+	
 	@Override
 	public void close()
 	{
@@ -292,6 +328,47 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	public DmxMsgTS getDmxLevels(ArtNetPort port)
 	{
 		return m_lastDmxMsg.get(port);
+	}
+	
+	private class SendMsgReq
+	{
+		private final InetSocketAddress m_destAddr;	// If null, broadcast the message.
+		private final ArtNetMsg m_msg;
+		
+		private SendMsgReq(InetSocketAddress destAddr, ArtNetMsg msg)
+		{
+			m_destAddr = destAddr;
+			m_msg = msg;
+		}
+	}
+	
+	private final ArrayBlockingQueue<SendMsgReq> m_sendQueue = new ArrayBlockingQueue<>(50);
+	
+	private class SendMsgThread extends Thread
+	{
+		private SendMsgThread()
+		{
+			setName("ArtNetTestNode.SendThread");
+			setDaemon(true);
+			start();
+		}
+
+		@Override
+		public void run()
+		{
+			SendMsgReq req;
+			try {
+				while ((req = m_sendQueue.take()) != null) {
+					if (req.m_destAddr == null) {
+						m_channel.broadcast(req.m_msg);
+					} else {
+						m_channel.send(req.m_msg, req.m_destAddr);
+					}
+				}
+			} catch (Exception e) {
+				System.err.println("ArtNetTestNode.SendMsgThread: " + e);
+			}
+		}
 	}
 
 	@Override
@@ -322,8 +399,9 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 			for (ArtNetPollReply reply: m_pollReplies) {
 				try {
 					// m_channel.broadcast(m_pollReply);
-					m_channel.broadcast(reply);
-				} catch (IOException e) {
+					// m_channel.broadcast(reply);
+					m_sendQueue.add(new SendMsgReq(null, reply));
+				} catch (Exception e) {
 					m_logger.logError("ArtNetTestNode: Poll Reply Send Error",
 							60000, ": " + e);
 				}
@@ -361,7 +439,241 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 				m_logger.logError("ArtNetMonitorWindow: Incorrect ANPort " +
 								new ArtNetPort(dmx.m_net, dmx.m_subUni).toString(), 60000, "");
 			}
+		} else if (msg instanceof ArtNetTodRequest) {
+			ArtNetTodRequest todReq = (ArtNetTodRequest)msg;
+			int numSubnetUnivs = Math.min(todReq.m_numSubnetUnivs, todReq.m_subnetUnivs.length);
+			if (todReq.m_command == ArtNetTodRequest.COMMAND_TOD_FULL) {
+				for (int iUniv = 0; iUniv < numSubnetUnivs; iUniv++) {
+					ArtNetPort anPort = new ArtNetPort(todReq.m_net, todReq.m_subnetUnivs[iUniv]);
+					sendTodData(anPort);
+				} 
+			}
+		} else if (msg instanceof ArtNetTodControl) {
+			ArtNetTodControl todCtl = (ArtNetTodControl)msg;
+			sendTodData(new ArtNetPort(todCtl.m_net,todCtl.m_subnetUniv));		
+		} else if (msg instanceof ArtNetRdm) {
+			doRdmMsg((ArtNetRdm)msg, sender);
 		}
+	}
+	
+	private void sendTodData(ArtNetPort anPort)
+	{
+		ArtNetTodData todReply = new ArtNetTodData();
+		List<Device> devices = m_deviceMap.get(anPort);
+		if (devices != null) {
+			todReply.m_port = m_anPorts.indexOf(anPort) + 1;
+			todReply.m_bindIndex = todReply.m_port;
+			todReply.m_net = anPort.m_net;
+			todReply.m_command = ArtNetTodRequest.COMMAND_TOD_FULL;
+			todReply.m_subnetUniv = anPort.subUniv();
+			todReply.m_numUidsTotal = devices.size();
+			todReply.m_numUids = todReply.m_numUidsTotal;
+			todReply.m_uids = new ACN_UID[todReply.m_numUids];
+			for (int iDev = 0; iDev < todReply.m_numUids; iDev++) {
+				todReply.m_uids[iDev] = devices.get(iDev).m_uid;
+			}
+			if (false) {
+				System.err.println("XXX: b'cast " + todReply);
+			}
+			try {
+				// m_channel.broadcast(todReply);
+				m_sendQueue.add(new SendMsgReq(null, todReply));
+			} catch (Exception e) {
+				m_logger.logError("ArtNetTestNode.sendTodData: " + e);
+			}
+		}
+	}
+	
+	private void doRdmMsg(ArtNetRdm req, InetSocketAddress sender)
+	{
+		// System.err.println("XXX RDM " + req);
+		ArtNetPort anPort = new ArtNetPort(req.m_net, req.m_subnetUniv);
+		List<Device> devices = m_deviceMap.get(anPort);
+		if (devices == null) {
+			return;
+		}
+		RdmPacket rdmReq = req.m_rdmPacket;
+		for (Device device: devices) {
+			if (device.m_uid.matches(rdmReq.m_destUid)) {
+				ArtNetRdm reply = new ArtNetRdm();
+				reply.m_net = anPort.m_net;
+				reply.m_subnetUniv = anPort.subUniv();
+				byte[] replyRdmData = null;
+				switch (rdmReq.getParamId()) {
+				case DEVICE_INFO:
+					replyRdmData = getDeviceInfoData(device);
+					break;
+				case SOFTWARE_VERSION_LABEL:
+					replyRdmData = ETC_SW_VERSION_LABEL.getBytes();
+					break;
+				case MANUFACTURER_LABEL:
+					replyRdmData = device.m_type.m_makerName.getBytes();
+					break;
+				case DEVICE_MODEL_DESCRIPTION:
+					replyRdmData = device.m_type.m_modelName.getBytes();
+					break;
+				case SUPPORTED_PARAMETERS:
+					replyRdmData = getSupportedParamIds(device);
+					break;
+				case DMX_PERSONALITY_DESCRIPTION:
+					replyRdmData = getPersonalityDescr(device, rdmReq);
+					break;
+				case DMX_START_ADDRESS:
+					replyRdmData = getDmxStartAddr(device, rdmReq);
+					break;					
+				case DMX_PERSONALITY:
+					replyRdmData = getDmxPersonality(device, rdmReq);
+					break;					
+				case IDENTIFY_DEVICE:
+					replyRdmData = getIdentifyDevice(device, rdmReq);
+					break;					
+				default:
+					break;
+				}
+				RdmPacket rdmResp = new RdmPacket(rdmReq, replyRdmData);
+				rdmResp.m_srcUid = device.m_uid;
+				reply.m_rdmPacket = rdmResp;
+				// System.out.println("XXX: RDM " + rdmReq.getParamId() + reply);
+				try {
+					// m_channel.broadcast(reply);
+					m_sendQueue.add(new SendMsgReq(sender, reply));
+				} catch (Exception e) {
+					m_logger.logError("ArtNetTestNode.sendRdm "
+							+ RdmParamId.getName(rdmReq.m_paramIdCode) + ": " + e);
+				}
+			}
+		}
+	}
+	
+	private byte[] getDeviceInfoData(Device device)
+	{
+		byte[] data = new byte[19];
+		int personality = device.m_config;
+		int footprint;
+		if (personality >= 1 && personality <= device.m_type.m_personalities.length) {
+			footprint = device.m_type.m_personalities[personality - 1].m_nSlots;
+		} else {
+			personality = 1;
+			footprint = 1;
+		}
+		int off = 0;
+		off = ArtNetMsgUtil.putBigEndInt16(data, off, 0x0100);	// RDM major/minor protocol version
+		off = ArtNetMsgUtil.putBigEndInt16(data, off, device.m_type.m_modelId);
+		off = ArtNetMsgUtil.putBigEndInt16(data, off, device.m_type.m_productCategory);
+		off = ArtNetMsgUtil.putBigEndInt32(data, off, ETC_SW_VERSION_NUMBER);
+		off = ArtNetMsgUtil.putBigEndInt16(data, off, footprint);	
+		data[off++] = (byte)personality;
+		data[off++] = (byte)device.m_type.m_personalities.length;
+		off = ArtNetMsgUtil.putBigEndInt16(data, off, device.m_dmx);
+		off = ArtNetMsgUtil.putBigEndInt16(data, off, 0);	// Subdevice count
+		data[off++] = 0;	// Sensor count
+		return data;
+	}
+	
+	private byte[] getSupportedParamIds(Device device)
+	{
+		byte[] data = new byte[2*ETC_SUPPORTED_PARAMETERS.length];
+		int off = 0;
+		for (RdmParamId paramId: ETC_SUPPORTED_PARAMETERS) {
+			off = ArtNetMsgUtil.putBigEndInt16(data, off, paramId.getCode());
+		}
+		return data;
+	}
+	
+	private byte[] getPersonalityDescr(Device device, RdmPacket rdmReq)
+	{
+		byte[] data = null;
+		if (rdmReq.m_paramDataLen >= 1) {
+			int personality = rdmReq.m_paramData[0] & 0xff;
+			if (personality >= 1 && personality <= device.m_type.m_personalities.length) {
+				DevicePersonality personalityDescr = device.m_type.m_personalities[personality-1];
+				data = new byte[2 + 2 + personalityDescr.m_name.length()];
+				int off = 0;
+				data[off++] = (byte)personality;
+				data[off++] = 0;
+				off = ArtNetMsgUtil.putBigEndInt16(data, off, personalityDescr.m_nSlots);
+				off = ArtNetMsgUtil.putString(data, off, personalityDescr.m_name);
+			}
+		}
+		return data;
+	}
+	
+	private byte[] getDeviceLabel(Device device, RdmPacket rdmReq)
+	{
+		byte[] data = null;
+		if (rdmReq.m_command == RdmPacket.CMD_SET) {
+			if (rdmReq.m_paramDataLen > 0 && rdmReq.m_paramData != null) {
+				device.m_label = new String(rdmReq.m_paramData);
+			}
+		} else {
+			data = device.m_label != null ? device.m_label.getBytes() : new byte[0];
+		}
+		return data;
+	}
+	
+	private byte[] getDmxStartAddr(Device device, RdmPacket rdmReq)
+	{
+		byte[] data = null;
+		if (rdmReq.m_command == RdmPacket.CMD_SET) {
+			if (rdmReq.m_paramDataLen >= 2 && rdmReq.m_paramData != null) {
+				int dmxAddr = ArtNetMsgUtil.getBigEndInt16(data, 0);
+				if (dmxAddr >= 1 && dmxAddr <= 512) {
+					device.m_dmx = dmxAddr;
+				}
+			}
+		} else {
+			data = new byte[2];
+			ArtNetMsgUtil.putBigEndInt16(data, 0, device.m_dmx);
+		}
+		return data;
+	}
+	
+	private byte[] getDmxPersonality(Device device, RdmPacket rdmReq)
+	{
+		byte[] data = null;
+		if (rdmReq.m_command == RdmPacket.CMD_SET) {
+			if (rdmReq.m_paramDataLen >= 1 && rdmReq.m_paramData != null) {
+				int personality = rdmReq.m_paramData[0] & 0xff;
+				if (personality >= 1 && personality <= device.m_type.m_personalities.length) {
+					device.m_config = personality;
+				}
+			}
+		} else {
+			data = new byte[] {(byte)device.m_config, (byte)device.m_type.m_personalities.length};
+		}
+		return data;
+	}
+	
+	private byte[] getIdentifyDevice(Device device, RdmPacket rdmReq)
+	{
+		byte[] data = null;
+		if (rdmReq.m_command == RdmPacket.CMD_SET) {
+			if (rdmReq.m_paramDataLen >= 1 && rdmReq.m_paramData != null) {
+				boolean isOn = (rdmReq.m_paramData[0] & 0xff) != 0;
+				if (isOn) {
+					m_identifyingDevices.add(device.m_uid);
+				} else {
+					m_identifyingDevices.remove(device.m_uid);
+				}
+				synchronized (m_identifyDeviceHandlers) {
+					if (m_identifyDeviceHandlers.isEmpty()) {
+						m_logger.logError("IDENTIFY " + (isOn ? "ON" : "OFF") + " uid=" + device.m_uid + " univ="
+								+ device.m_anPort + " dmx=" + device.m_dmx);
+					} else {
+						for (IdentifyDeviceHandler handler: m_identifyDeviceHandlers) {
+							try {
+								handler.handleIdentifyDevice(device.m_uid, device.m_anPort, device.m_dmx, isOn);
+							} catch (Exception e) {
+								m_logger.logError("ArtNetTestNode: exception in identify handler: " + e);
+							}
+						}
+					}
+				}
+			}
+		} else {
+			data = new byte[] {(byte)(m_identifyingDevices.contains(device.m_uid) ? 1 : 0)};
+		}
+		return data;
 	}
 
 	@Override
@@ -398,30 +710,45 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 			new DevicePersonality(3, "RGB"),
 	};
 	
+	private static final int ETC_PRODUCT_CATEGORY = 0x0509;	// DIMMER_CS_LED
+	private static final int ETC_SW_VERSION_NUMBER = 0x00010203;
+	private static final String ETC_SW_VERSION_LABEL = "1.2.3";
+	private static final RdmParamId[] ETC_SUPPORTED_PARAMETERS = new RdmParamId[] {
+			RdmParamId.SOFTWARE_VERSION_LABEL,
+			RdmParamId.MANUFACTURER_LABEL,
+			RdmParamId.DEVICE_MODEL_DESCRIPTION,
+			RdmParamId.DEVICE_LABEL,
+			RdmParamId.DMX_PERSONALITY_DESCRIPTION,
+			RdmParamId.DMX_PERSONALITY,
+	};
+	
 	private static enum DeviceType
 	{
-		CS_PAR(0x6574, "ETC", 0x201, "CS PAR", ETC_CS_PERSONALITIES),
-		CS_PAR_DB(0x6574, "ETC", 0x202, "CS PAR DB", ETC_CS_PERSONALITIES),
-		CS_SPOT(0x6574, "ETC", 0x205, "CS SPOT", ETC_CS_PERSONALITIES),
-		CS_SPOT_DB(0x6574, "ETC", 0x206, "CS SPOT DB", ETC_CS_PERSONALITIES),
-		CS_SPOT_JR(0x6574, "ETC", 0x219, "CS SPOT JR", ETC_CS_PERSONALITIES),
-		CS_SPOT_JR_DB(0x6574, "ETC", 0x21A, "CS SPOT JR DB", ETC_CS_PERSONALITIES),
+		CS_PAR(0x6574, "ETC", 0x201, "CS PAR", ETC_CS_PERSONALITIES, ETC_PRODUCT_CATEGORY),
+		CS_PAR_DB(0x6574, "ETC", 0x202, "CS PAR DB", ETC_CS_PERSONALITIES, ETC_PRODUCT_CATEGORY),
+		CS_SPOT(0x6574, "ETC", 0x205, "CS SPOT", ETC_CS_PERSONALITIES, ETC_PRODUCT_CATEGORY),
+		CS_SPOT_DB(0x6574, "ETC", 0x206, "CS SPOT DB", ETC_CS_PERSONALITIES, ETC_PRODUCT_CATEGORY),
+		CS_SPOT_JR(0x6574, "ETC", 0x219, "CS SPOT JR", ETC_CS_PERSONALITIES, ETC_PRODUCT_CATEGORY),
+		CS_SPOT_JR_DB(0x6574, "ETC", 0x21A, "CS SPOT JR DB",
+										ETC_CS_PERSONALITIES, ETC_PRODUCT_CATEGORY),
 		;
 		
 		private final int m_makerId;
 		private final String m_makerName;
 		private final int m_modelId;
 		private final String m_modelName;
+		private final int m_productCategory;
 		private final DevicePersonality[] m_personalities;
 		
 		private DeviceType(int makerId, String makerName, int modelId, String modelName,
-							DevicePersonality[] personalities)
+							DevicePersonality[] personalities, int productCategory)
 		{
 			m_makerId = makerId;
 			m_makerName = makerName;
 			m_modelId = modelId;
 			m_modelName = modelName;
 			m_personalities = personalities;
+			m_productCategory = productCategory;
 		}
 	}
 	

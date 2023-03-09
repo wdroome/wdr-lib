@@ -53,15 +53,15 @@ public class ArtNetIpProgReply extends ArtNetMsg
 		m_protoVers = getProtoVers(buff, off);
 		off += ArtNetConst.PROTO_VERS_LENGTH;
 		off += 4;		// filler
-		m_ipAddr = getIpAddr(buff, off);
+		m_ipAddr = ArtNetMsgUtil.getIpAddr(buff, off);
 		off += 4;
-		m_ipMask = getIpAddr(buff, off);
+		m_ipMask = ArtNetMsgUtil.getIpAddr(buff, off);
 		off += 4;
-		m_ipPort = getBigEndInt16(buff, off);
+		m_ipPort = ArtNetMsgUtil.getBigEndInt16(buff, off);
 		off += 2;
 		m_status = buff[off++] & 0xff;
 		off += 1;		// spare
-		m_defGateway = getIpAddr(buff, off);
+		m_defGateway = ArtNetMsgUtil.getIpAddr(buff, off);
 		off += 4;
 	}
 	
@@ -92,19 +92,19 @@ public class ArtNetIpProgReply extends ArtNetMsg
 	public int putData(byte[] buff, int off)
 	{
 		off += putHeader(buff, off, m_protoVers);
-		zeroBytes(buff, off, 4);
+		ArtNetMsgUtil.zeroBytes(buff, off, 4);
 		off += 4;
-		putIpAddr(buff, off, m_ipAddr);
+		ArtNetMsgUtil.putIpAddr(buff, off, m_ipAddr);
 		off += 4;
-		putIpAddr(buff, off, m_ipMask);
+		ArtNetMsgUtil.putIpAddr(buff, off, m_ipMask);
 		off += 4;
-		putBigEndInt16(buff, off, m_ipPort);
+		ArtNetMsgUtil.putBigEndInt16(buff, off, m_ipPort);
 		off += 2;
 		buff[off++] = (byte)m_status;
 		buff[off++] = 0;
-		putIpAddr(buff, off, m_defGateway);
+		ArtNetMsgUtil.putIpAddr(buff, off, m_defGateway);
 		off += 4;
-		zeroBytes(buff, off, 2);
+		ArtNetMsgUtil.zeroBytes(buff, off, 2);
 		off += 2;
 		return off;
 	}
@@ -114,12 +114,12 @@ public class ArtNetIpProgReply extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("OpIpProgReply{");
-		append(b, "protoVers", m_protoVers);
-		append(b, "ipAddr", m_ipAddr);
-		append(b, "ipMask", m_ipMask);
-		append(b, "ipPort", m_ipPort);
-		appendHex(b, "status", m_status);
-		append(b, "defGateway", m_defGateway);
+		ArtNetMsgUtil.append(b, "protoVers", m_protoVers);
+		ArtNetMsgUtil.append(b, "ipAddr", m_ipAddr);
+		ArtNetMsgUtil.append(b, "ipMask", m_ipMask);
+		ArtNetMsgUtil.append(b, "ipPort", m_ipPort);
+		ArtNetMsgUtil.appendHex(b, "status", m_status);
+		ArtNetMsgUtil.append(b, "defGateway", m_defGateway);
 		b.append('}');
 		return b.toString();
 	}

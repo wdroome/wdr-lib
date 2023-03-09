@@ -10,6 +10,8 @@ public class ACN_UID implements Comparable<ACN_UID>
 	public static final int SACN_UID_LENGTH = 6;
 	
 	public final byte[] m_bytes;
+
+	public static final ACN_UID BROADCAST_UID = new ACN_UID(0xffff, 0xffffffff);
 	
 	/**
 	 * Create a blank (all zero) UID.
@@ -103,15 +105,6 @@ public class ACN_UID implements Comparable<ACN_UID>
 	}
 	
 	/**
-	 * Return the "full broadcast" UID.
-	 * @return The "full broadcast" UID.
-	 */
-	public static ACN_UID broadcastUid()
-	{
-		return new ACN_UID(0xffff, 0xffffffff);
-	}
-	
-	/**
 	 * Return a UID to broadcast to all devices from a specific manufacturer.
 	 * @param vendor The manufacture's id.
 	 * @return A UID to broadcast to all devices from that vendor.
@@ -119,6 +112,45 @@ public class ACN_UID implements Comparable<ACN_UID>
 	public static ACN_UID vendorcastUid(int vendor)
 	{
 		return new ACN_UID(vendor, 0xffffffff);
+	}
+	
+	/**
+	 * Test if this is a full-broadcast UID.
+	 * @return true iff this a full-broadcast UID.
+	 */
+	public boolean isBroadcastUID()
+	{
+		return equals(BROADCAST_UID);
+	}
+	
+	/**
+	 * Test if this is a vendor-cast UID.
+	 * @return True iff this is a vendor-cast UID.
+	 */
+	public boolean isVendorcastUID()
+	{
+		return getDeviceId() == 0xffffffff;
+	}
+	
+	/**
+	 * Test if another UID matches this one.
+	 * The other uid may be a wildcard.
+	 * @param uid Another uid, possibly a wildcard.
+	 * @return
+	 */
+	public boolean matches(ACN_UID uid)
+	{
+		if (uid == null) {
+			return false;
+		} else if (equals(uid)) {
+			return true;
+		} else if (uid.isBroadcastUID()) {
+			return true;
+		} else if (uid.isVendorcastUID()) {
+			return getManufacturer() == uid.getManufacturer();
+		} else {
+			return false;
+		}
 	}
 	
 	/**

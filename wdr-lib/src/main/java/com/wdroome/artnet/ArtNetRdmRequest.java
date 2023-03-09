@@ -12,8 +12,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import java.io.Closeable;
 import java.io.IOException;
-
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 
 import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetRdm;
@@ -116,7 +117,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		} catch (InterruptedException e) {
 		}
 		if (replyMsg == null) {
-			// System.out.println("XXX: ArtNetRdmRequest.sendRequest timeout " + paramId);
+			System.out.println("XXX: ArtNetRdmRequest.sendRequest timeout " + paramId);
 		}
 		m_channel.dropReceiver(this);
 		m_reqMsg.set(null);
@@ -163,7 +164,9 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		if (m_uidMap == null) {
 			throw new IllegalStateException("ArtNetRdmRequest: no uid map");
 		}
+		// System.err.println("XXX ArtNetRdmRequest uidMap: " + m_uidMap.entrySet());
 		ArtNetPortAddr portAddr = m_uidMap.get(destUid);
+		// System.err.println("XXX ArtNetRdmRequest portAddr: " + destUid + " " + portAddr);
 		if (portAddr == null) {
 			return null;
 		}

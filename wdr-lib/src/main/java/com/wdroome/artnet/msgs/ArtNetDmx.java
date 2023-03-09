@@ -76,7 +76,7 @@ public class ArtNetDmx extends ArtNetMsg
 		m_physical = buff[off++] & 0xff;
 		m_subUni = buff[off++] & 0xff;
 		m_net = buff[off++] & 0xff;
-		m_dataLen = getBigEndInt16(buff, off);
+		m_dataLen = ArtNetMsgUtil.getBigEndInt16(buff, off);
 		off += 2;
 		if (m_dataLen > length - off) {
 			m_dataLen = length - off;
@@ -85,7 +85,7 @@ public class ArtNetDmx extends ArtNetMsg
 			if (m_data == null || m_data.length < m_dataLen) {
 				m_data = new byte[m_dataLen];
 			}
-			copyBytes(m_data, 0, buff, off, m_dataLen);
+			ArtNetMsgUtil.copyBytes(m_data, 0, buff, off, m_dataLen);
 		}		
 	}
 	
@@ -132,7 +132,7 @@ public class ArtNetDmx extends ArtNetMsg
 	 */
 	public String getPortString()
 	{
-		return toPortString(m_net, m_subUni);
+		return ArtNetMsgUtil.toPortString(m_net, m_subUni);
 	}
 	
 	/**
@@ -148,9 +148,9 @@ public class ArtNetDmx extends ArtNetMsg
 		buff[off++] = (byte)m_physical;
 		buff[off++] = (byte)m_subUni;
 		buff[off++] = (byte)m_net;
-		putBigEndInt16(buff, off, (m_dataLen & 1) == 0 ? m_dataLen : m_dataLen+1);
+		ArtNetMsgUtil.putBigEndInt16(buff, off, (m_dataLen & 1) == 0 ? m_dataLen : m_dataLen+1);
 		off += 2;
-		copyBytes(buff, off, m_data, 0, m_dataLen);
+		ArtNetMsgUtil.copyBytes(buff, off, m_data, 0, m_dataLen);
 		off += m_dataLen;
 		if ((m_dataLen & 1) != 0) {
 			// Art-Net spec says length must be even.
@@ -165,12 +165,12 @@ public class ArtNetDmx extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetDmx{");
-		append(b, "protoVers", m_protoVers);
-		appendHex(b, "seqn", m_sequence);
-		appendHex(b, "phys", m_physical);
-		appendHex(b, "subUni", m_subUni);
-		appendHex(b, "net", m_net);
-		append(b, "dataLen", m_dataLen);
+		ArtNetMsgUtil.append(b, "protoVers", m_protoVers);
+		ArtNetMsgUtil.appendHex(b, "seqn", m_sequence);
+		ArtNetMsgUtil.appendHex(b, "phys", m_physical);
+		ArtNetMsgUtil.appendHex(b, "subUni", m_subUni);
+		ArtNetMsgUtil.appendHex(b, "net", m_net);
+		ArtNetMsgUtil.append(b, "dataLen", m_dataLen);
 		for (int i = 0; i < m_dataLen; i++) {
 			b.append(Integer.toHexString(m_data[i] & 0xff));
 			b.append(',');
@@ -192,7 +192,7 @@ public class ArtNetDmx extends ArtNetMsg
 		}
 		int nPerLine = 16;
 		int n = (m_dataLen + 1) & ~0x1; 
-		out.print(linePrefix + "ArtNetDmx port: " + toPortString(m_net, m_subUni)
+		out.print(linePrefix + "ArtNetDmx port: " + ArtNetMsgUtil.toPortString(m_net, m_subUni)
 					+ " seqn: " + m_sequence + " #chan: " + n);
 		for (int i = 0; i < n; i++) {
 			if ((i % nPerLine) == 0) {

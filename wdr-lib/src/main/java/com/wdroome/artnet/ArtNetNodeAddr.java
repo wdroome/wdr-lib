@@ -4,8 +4,9 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
-import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.util.inet.InetUtil;
+
+import com.wdroome.artnet.msgs.ArtNetMsgUtil;
 
 /*
  * The logical identifier for a node: the bind IP address, bind index
@@ -31,19 +32,19 @@ public class ArtNetNodeAddr implements Comparable<ArtNetNodeAddr>
 	public ArtNetNodeAddr(Inet4Address bindAddr, int index, Inet4Address pollIpAddr,
 							int port, Inet4Address fromAddr)
 	{
-		if (ArtNetMsg.isZeroIpAddr(bindAddr)) {
+		if (ArtNetMsgUtil.isZeroIpAddr(bindAddr)) {
 			bindAddr = pollIpAddr;
-			if (ArtNetMsg.isZeroIpAddr(bindAddr)) {
+			if (ArtNetMsgUtil.isZeroIpAddr(bindAddr)) {
 				bindAddr = fromAddr;
 			}
 		}
-		if (ArtNetMsg.isZeroIpAddr(bindAddr)) {
+		if (ArtNetMsgUtil.isZeroIpAddr(bindAddr)) {
 			throw new IllegalArgumentException("ArtNetNodeAddr(): No 'bind' address.");			
 		}
 		m_rootAddr = bindAddr;
 		m_index = index > 0 ? index : 1;
 		InetAddress sendAddr = pollIpAddr;
-		if (ArtNetMsg.isZeroIpAddr(pollIpAddr)) {
+		if (ArtNetMsgUtil.isZeroIpAddr(pollIpAddr)) {
 			sendAddr = fromAddr;
 		}
 		m_nodeAddr = new InetSocketAddress(sendAddr, port != 0 ? port : ArtNetConst.ARTNET_PORT);

@@ -39,19 +39,19 @@ public class RdmParamResp
 			}
 			m_protoVersMajor = rdmPacket.m_paramData[off++] & 0xff;
 			m_protoVersMinor = rdmPacket.m_paramData[off++] & 0xff;
-			m_model = ArtNetMsg.getBigEndInt16(rdmPacket.m_paramData, off);
+			m_model = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
 			off += 2;
-			m_category = ArtNetMsg.getBigEndInt16(rdmPacket.m_paramData, off);
+			m_category = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
 			off += 2;
-			m_softwareVersion = ArtNetMsg.getBigEndInt32(rdmPacket.m_paramData, off);
+			m_softwareVersion = ArtNetMsgUtil.getBigEndInt32(rdmPacket.m_paramData, off);
 			off += 4;
-			m_dmxFootprint = ArtNetMsg.getBigEndInt16(rdmPacket.m_paramData, off);
+			m_dmxFootprint = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
 			off += 2;
 			m_currentPersonality = rdmPacket.m_paramData[off++] & 0xff;
 			m_nPersonalities = rdmPacket.m_paramData[off++] & 0xff;
-			m_startAddr = ArtNetMsg.getBigEndInt16(rdmPacket.m_paramData, off);
+			m_startAddr = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
 			off += 2;
-			m_numSubDevs = ArtNetMsg.getBigEndInt16(rdmPacket.m_paramData, off);
+			m_numSubDevs = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
 			off += 2;
 			m_numSensors = rdmPacket.m_paramData[off++] & 0xff;
 		}
@@ -86,7 +86,7 @@ public class RdmParamResp
 			m_stdPids = new ArrayList<>();
 			m_otherPids = new ArrayList<>();
 			for (int off = 0; off+1 < rdmPacket.m_paramDataLen; off += 2) {
-				int paramIdCode = ArtNetMsg.getBigEndInt16(rdmPacket.m_paramData, off);
+				int paramIdCode = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
 				RdmParamId paramId = RdmParamId.getParamId(paramIdCode);
 				if (paramId != RdmParamId.UNKNOWN_PARAM_ID) {
 					m_stdPids.add(paramId);
@@ -160,12 +160,12 @@ public class RdmParamResp
 			super(rdmPacket.m_paramIdCode, rdmPacket.m_paramData);
 			// System.out.println("XXX pers/desc " + new ByteAOL(rdmPacket.m_paramData).toHex());
 			if (rdmPacket.m_paramDataLen < 3) {
-				throw new IllegalArgumentException("RDM DeviceInfo resp: short data "
+				throw new IllegalArgumentException("RDM PersonalityDesc resp: short data "
 						+ rdmPacket.m_paramDataLen);				
 			}
 			int off = 0;
 			m_personalityNumber = rdmPacket.m_paramData[off++] & 0xff;
-			m_nSlots = ArtNetMsg.getBigEndInt16(rdmPacket.m_paramData, off);
+			m_nSlots = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
 			off += 2;
 			m_desc = getStringRemainder(rdmPacket.m_paramData, off, rdmPacket.m_paramDataLen);
 		}
@@ -202,7 +202,7 @@ public class RdmParamResp
 						+ rdmPacket.m_paramDataLen);				
 			}
 			int off = 0;
-			m_number = ArtNetMsg.getBigEndInt16(rdmPacket.m_paramData, off);
+			m_number = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
 			off += 2;
 			m_desc = getStringRemainder(rdmPacket.m_paramData, off, rdmPacket.m_paramDataLen);
 		}

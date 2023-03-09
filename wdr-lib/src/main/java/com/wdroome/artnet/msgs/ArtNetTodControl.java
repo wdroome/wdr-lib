@@ -83,7 +83,7 @@ public class ArtNetTodControl extends ArtNetMsg
 	public int putData(byte[] buff, int off)
 	{
 		off += putHeader(buff, off, m_protoVers);
-		zeroBytes(buff, off, 2 + 7);	// filler & spare
+		ArtNetMsgUtil.zeroBytes(buff, off, 2 + 7);	// filler & spare
 		off += 2 + 7;
 		buff[off++] = (byte)m_net;
 		buff[off++] = (byte)m_command;
@@ -118,10 +118,10 @@ public class ArtNetTodControl extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetTodControl{");
-		append(b, "protoVers", m_protoVers);
-		append(b, "net", m_net);
-		appendHex(b, "command", m_command);
-		appendHex(b, "subnetUniv", m_subnetUniv);
+		ArtNetMsgUtil.append(b, "protoVers", m_protoVers);
+		ArtNetMsgUtil.append(b, "net", m_net);
+		ArtNetMsgUtil.appendHex(b, "command", m_command);
+		ArtNetMsgUtil.appendHex(b, "subnetUniv", m_subnetUniv);
 		b.append('}');
 		return b.toString();
 	}

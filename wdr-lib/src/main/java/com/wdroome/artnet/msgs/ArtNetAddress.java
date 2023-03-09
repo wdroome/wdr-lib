@@ -61,9 +61,9 @@ public class ArtNetAddress extends ArtNetMsg
 		off += 18;
 		m_longName = StringUtils.makeString(buff, off, 64);
 		off += 64;
-		copyBytes(m_swIn, 0, buff, off, 4);
+		ArtNetMsgUtil.copyBytes(m_swIn, 0, buff, off, 4);
 		off += 4;
-		copyBytes(m_swOut, 0, buff, off, 4);
+		ArtNetMsgUtil.copyBytes(m_swOut, 0, buff, off, 4);
 		off += 4;
 		m_subNetAddr = buff[off++] & 0xff;
 		m_acnPriority = buff[off++] & 0xff;
@@ -100,13 +100,13 @@ public class ArtNetAddress extends ArtNetMsg
 		off += putHeader(buff, off, m_protoVers);
 		buff[off++] = (byte)m_netAddr;
 		buff[off++] = (byte)m_bindIndex;
-		putString(buff, off, 18, m_shortName);
+		ArtNetMsgUtil.putString(buff, off, 18, m_shortName);
 		off += 18;
-		putString(buff, off, 64, m_longName);
+		ArtNetMsgUtil.putString(buff, off, 64, m_longName);
 		off += 64;
-		copyBytes(buff, off, m_swIn, 0, 4);
+		ArtNetMsgUtil.copyBytes(buff, off, m_swIn, 0, 4);
 		off += 4;
-		copyBytes(buff, off, m_swOut, 0, 4);
+		ArtNetMsgUtil.copyBytes(buff, off, m_swOut, 0, 4);
 		off += 4;
 		buff[off++] = (byte)m_subNetAddr;
 		buff[off++] = (byte)m_acnPriority;
@@ -119,16 +119,16 @@ public class ArtNetAddress extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetAddress{");
-		appendHex(b, "command", m_command);
-		append(b, "protoVers", m_protoVers);
-		appendHex(b, "netAddr", m_netAddr);
-		appendHex(b, "subNetAddr", m_subNetAddr);
-		append(b, "shortName", m_shortName);
-		append(b, "longName", m_longName);
-		append(b, "swIn", m_swIn);
-		append(b, "swOut", m_swOut);
-		appendHex(b, "acnPriority", m_acnPriority);
-		append(b, "bindIndex", m_bindIndex);
+		ArtNetMsgUtil.appendHex(b, "command", m_command);
+		ArtNetMsgUtil.append(b, "protoVers", m_protoVers);
+		ArtNetMsgUtil.appendHex(b, "netAddr", m_netAddr);
+		ArtNetMsgUtil.appendHex(b, "subNetAddr", m_subNetAddr);
+		ArtNetMsgUtil.append(b, "shortName", m_shortName);
+		ArtNetMsgUtil.append(b, "longName", m_longName);
+		ArtNetMsgUtil.append(b, "swIn", m_swIn);
+		ArtNetMsgUtil.append(b, "swOut", m_swOut);
+		ArtNetMsgUtil.appendHex(b, "acnPriority", m_acnPriority);
+		ArtNetMsgUtil.append(b, "bindIndex", m_bindIndex);
 		b.append('}');
 		return b.toString();
 	}

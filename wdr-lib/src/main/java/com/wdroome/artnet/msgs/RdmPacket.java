@@ -81,6 +81,23 @@ public class RdmPacket
 	}
 	
 	/**
+	 * Create a packet with a device's reply to an RDM request.
+	 * @param rdmReq The request this is replying to.
+	 * @param paramData The reply data.
+	 */
+	public RdmPacket(RdmPacket rdmReq, byte[] paramData)
+	{
+		m_destUid = rdmReq.m_srcUid;
+		m_srcUid = rdmReq.m_destUid;
+		m_transNum = rdmReq.m_transNum;
+		m_command = rdmReq.m_command == CMD_SET ? CMD_SET_RESP : CMD_GET_RESP;
+		m_paramIdCode = rdmReq.m_paramIdCode;
+		m_paramDataLen = paramData != null ? paramData.length : 0;
+		m_paramData = paramData;
+		setMsgLen();
+	}
+	
+	/**
 	 * Create an RDM packet from bytes read from a node.
 	 * @param buff The bytes sent by the node.
 	 * @param off The offset in buff.
@@ -108,20 +125,20 @@ public class RdmPacket
 		m_transNum = buff[off++] & 0xff;
 		m_portOrRespType = buff[off++] & 0xff;
 		m_msgCount = buff[off++] & 0xff;
-		m_subDevice = ArtNetMsg.getBigEndInt16(buff, off);
+		m_subDevice = ArtNetMsgUtil.getBigEndInt16(buff, off);
 		off += 2;
 		m_command = buff[off++] & 0xff;
-		m_paramIdCode = ArtNetMsg.getBigEndInt16(buff, off);
+		m_paramIdCode = ArtNetMsgUtil.getBigEndInt16(buff, off);
 		off += 2;
 		m_paramDataLen = buff[off++] & 0xff;
 		if (m_paramDataLen >= length - PACKET_HDR_LEN) {
 			throw new IllegalArgumentException("RdmPacket: bad data len " + m_paramDataLen + " " + length);			
 		}
 		m_paramData = new byte[m_paramDataLen];
-		ArtNetMsg.copyBytes(m_paramData, 0, buff, off, m_paramDataLen);
+		ArtNetMsgUtil.copyBytes(m_paramData, 0, buff, off, m_paramDataLen);
 		off += m_paramDataLen;
 		int msgCheckSum = calcCheckSum(buff, startOffset, off);
-		m_checkSum = ArtNetMsg.getBigEndInt16(buff, off);
+		m_checkSum = ArtNetMsgUtil.getBigEndInt16(buff, off);
 		if (m_checkSum != msgCheckSum) {
 			throw new IllegalArgumentException("RdmPacket: bad checksum " + msgCheckSum + " " + m_checkSum);						
 		}
@@ -248,13 +265,13 @@ public class RdmPacket
 		buff[off++] = (byte)m_transNum;
 		buff[off++] = (byte)m_portOrRespType;
 		buff[off++] = (byte)m_msgCount;
-		off = ArtNetMsg.putBigEndInt16(buff, off, m_subDevice);
+		off = ArtNetMsgUtil.putBigEndInt16(buff, off, m_subDevice);
 		buff[off++] = (byte)m_command;
-		off = ArtNetMsg.putBigEndInt16(buff, off, m_paramIdCode);
+		off = ArtNetMsgUtil.putBigEndInt16(buff, off, m_paramIdCode);
 		buff[off++] = (byte)m_paramDataLen;
-		ArtNetMsg.copyBytes(buff, off, m_paramData, 0, m_paramDataLen);
+		ArtNetMsgUtil.copyBytes(buff, off, m_paramData, 0, m_paramDataLen);
 		off += m_paramDataLen;
-		off = ArtNetMsg.putBigEndInt16(buff, off, calcCheckSum(buff, 0, off));
+		off = ArtNetMsgUtil.putBigEndInt16(buff, off, calcCheckSum(buff, 0, off));
 		return buff;
 	}
 	

@@ -333,17 +333,20 @@ public class ArtNetManager implements Closeable
 	public Map<ACN_UID, RdmDevice> getDeviceMap(List<String> errors)
 	{
 		Map<ACN_UID, RdmDevice> deviceInfoMap = new TreeMap<>();
-		for (ACN_UID uid: getUidsToPortAddrs().keySet()) {
+		Set<ACN_UID> uids = getUidsToPortAddrs().keySet();
+		// uids = new TreeSet<>(uids);
+		for (ACN_UID uid: uids) {
 			try {
+				// System.err.println("XXX: pre getDeviceInfo: " + uid);
 				RdmDevice info = getDevice(uid);
 				if (info != null) {
 					deviceInfoMap.put(uid, info);
 				} else if (errors != null) {
-					errors.add("Cannot get DeviceInfo for " + uid);
+					errors.add("ArtNetManger: Cannot get DeviceInfo for " + uid);
 				}
 			} catch (Exception e) {
 				if (errors != null) {
-					errors.add("Exception getting UID " + uid + ": " + e);
+					errors.add("ArtNetManger: Exception getting UID " + uid + ": " + e);
 				}
 			}
 		}
@@ -361,10 +364,12 @@ public class ArtNetManager implements Closeable
 	{
 		ArtNetPortAddr portAddr = getUidsToPortAddrs().get(uid);
 		if (portAddr == null) {
+			// System.out.println("XXX " + uid + " no portaddr");
 			return null;
 		}
 		RdmPacket devInfoReply = sendRdmRequest(uid, false, RdmParamId.DEVICE_INFO, null);
 		if (devInfoReply == null || !devInfoReply.isRespAck()) {
+			System.out.println("XXX " + uid + " no devinfo");
 			return null;
 		}
 		RdmParamResp.DeviceInfo devInfo = new RdmParamResp.DeviceInfo(devInfoReply);

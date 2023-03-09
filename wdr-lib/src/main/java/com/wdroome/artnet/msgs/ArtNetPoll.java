@@ -110,10 +110,10 @@ public class ArtNetPoll extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetPoll{");
-		append(b, "protoVers", m_protoVers);
-		appendHex(b, "flags", m_talkToMe);
-		appendHex(b, "priority", m_priority);
-		append(b, "target", m_topTarget.toString() + "-" + m_bottomTarget.toString());
+		ArtNetMsgUtil.append(b, "protoVers", m_protoVers);
+		ArtNetMsgUtil.appendHex(b, "flags", m_talkToMe);
+		ArtNetMsgUtil.appendHex(b, "priority", m_priority);
+		ArtNetMsgUtil.append(b, "target", m_topTarget.toString() + "-" + m_bottomTarget.toString());
 		b.append('}');
 		return b.toString();
 	}

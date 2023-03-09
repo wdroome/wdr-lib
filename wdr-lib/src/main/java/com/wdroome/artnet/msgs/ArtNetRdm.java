@@ -95,14 +95,14 @@ public class ArtNetRdm extends ArtNetMsg
 	{
 		off += putHeader(buff, off, m_protoVers);
 		buff[off++] = (byte)m_rdmVers;
-		zeroBytes(buff, off, 1 + 7);
+		ArtNetMsgUtil.zeroBytes(buff, off, 1 + 7);
 		off += 1 + 7;
 		buff[off++] = (byte)m_net;
 		buff[off++] = (byte)m_command;
 		buff[off++] = (byte)m_subnetUniv;
 		if (m_rdmPacket != null) {
 			byte[] rdmBytes = m_rdmPacket.getBytes();
-			copyBytes(buff, off, rdmBytes, 0, rdmBytes.length);
+			ArtNetMsgUtil.copyBytes(buff, off, rdmBytes, 0, rdmBytes.length);
 			off += rdmBytes.length;
 		}
 		return off;
@@ -142,13 +142,13 @@ public class ArtNetRdm extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetRdm{");
-		append(b, "from", getFromAddr());
-		append(b, "rdmVers", m_rdmVers);
-		append(b, "net", m_net);
-		appendHex(b, "command", m_command);
-		appendHex(b, "subnetUniv", m_subnetUniv);
+		ArtNetMsgUtil.append(b, "from", getFromAddr());
+		ArtNetMsgUtil.append(b, "rdmVers", m_rdmVers);
+		ArtNetMsgUtil.append(b, "net", m_net);
+		ArtNetMsgUtil.appendHex(b, "command", m_command);
+		ArtNetMsgUtil.appendHex(b, "subnetUniv", m_subnetUniv);
 		if (m_rdmPacket != null) {
-			b.append("," + m_rdmPacket.toString());
+			b.append(m_rdmPacket.toString());
 		}
 		b.append('}');
 		return b.toString();

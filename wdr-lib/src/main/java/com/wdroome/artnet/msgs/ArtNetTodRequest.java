@@ -60,8 +60,8 @@ public class ArtNetTodRequest extends ArtNetMsg
 		m_net = buff[off++] & 0xff;
 		m_command = buff[off++] & 0xff;
 		m_numSubnetUnivs = buff[off++] & 0xff;
-		zeroBytes(m_subnetUnivs, 0, MAX_SUBNET_UNIVS);
-		copyBytes(m_subnetUnivs, 0, buff, off, m_numSubnetUnivs);
+		ArtNetMsgUtil.zeroBytes(m_subnetUnivs, 0, MAX_SUBNET_UNIVS);
+		ArtNetMsgUtil.copyBytes(m_subnetUnivs, 0, buff, off, m_numSubnetUnivs);
 		off += m_numSubnetUnivs;
 	}
 	
@@ -90,12 +90,12 @@ public class ArtNetTodRequest extends ArtNetMsg
 	public int putData(byte[] buff, int off)
 	{
 		off += putHeader(buff, off, m_protoVers);
-		zeroBytes(buff, off, 2 + 7);	// filler & spare
+		ArtNetMsgUtil.zeroBytes(buff, off, 2 + 7);	// filler & spare
 		off += 2 + 7;
 		buff[off++] = (byte)m_net;
 		buff[off++] = (byte)m_command;
 		buff[off++] = (byte)m_numSubnetUnivs;
-		copyBytes(buff, off, m_subnetUnivs, 0, MAX_SUBNET_UNIVS);
+		ArtNetMsgUtil.copyBytes(buff, off, m_subnetUnivs, 0, MAX_SUBNET_UNIVS);
 		off += MAX_SUBNET_UNIVS;
 		return off;
 	}
@@ -135,11 +135,11 @@ public class ArtNetTodRequest extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetTodRequest{");
-		append(b, "protoVers", m_protoVers);
-		append(b, "net", m_net);
-		appendHex(b, "command", m_command);
-		append(b, "nSubnetUniv", m_numSubnetUnivs);
-		appendHex(b, "subnetUnivs", m_subnetUnivs, m_numSubnetUnivs);
+		ArtNetMsgUtil.append(b, "protoVers", m_protoVers);
+		ArtNetMsgUtil.append(b, "net", m_net);
+		ArtNetMsgUtil.appendHex(b, "command", m_command);
+		ArtNetMsgUtil.append(b, "nSubnetUniv", m_numSubnetUnivs);
+		ArtNetMsgUtil.appendHex(b, "subnetUnivs", m_subnetUnivs, m_numSubnetUnivs);
 		b.append('}');
 		return b.toString();
 	}

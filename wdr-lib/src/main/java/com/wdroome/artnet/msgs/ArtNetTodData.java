@@ -74,7 +74,7 @@ public class ArtNetTodData extends ArtNetMsg
 		m_net = buff[off++] & 0xff;
 		m_command = buff[off++] & 0xff;
 		m_subnetUniv = buff[off++] & 0xff;
-		m_numUidsTotal = getBigEndInt16(buff, off);
+		m_numUidsTotal = ArtNetMsgUtil.getBigEndInt16(buff, off);
 		off += 2;
 		m_blockCount = buff[off++] & 0xff;
 		m_numUids = buff[off++] & 0xff;
@@ -125,13 +125,13 @@ public class ArtNetTodData extends ArtNetMsg
 		off += putHeader(buff, off, m_protoVers);
 		buff[off++] = (byte)m_rdmVers;
 		buff[off++] = (byte)m_port;
-		zeroBytes(buff, off, 6);
+		ArtNetMsgUtil.zeroBytes(buff, off, 6);
 		off += 6;
 		buff[off++] = (byte)m_bindIndex;
 		buff[off++] = (byte)m_net;
 		buff[off++] = (byte)m_command;
 		buff[off++] = (byte)m_subnetUniv;
-		putBigEndInt16(buff, off, m_numUidsTotal);
+		ArtNetMsgUtil.putBigEndInt16(buff, off, m_numUidsTotal);
 		off += 2;
 		buff[off++] = (byte)m_blockCount;
 		buff[off++] = (byte)m_numUids;
@@ -179,17 +179,17 @@ public class ArtNetTodData extends ArtNetMsg
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetTodData{");
 		if (m_nodeAddr != null) {
-			append(b, "nodeAddr", m_nodeAddr.toString());
+			ArtNetMsgUtil.append(b, "nodeAddr", m_nodeAddr.toString());
 		}
-		append(b, "rdmVers", m_rdmVers);
-		append(b, "port", m_port);
-		append(b, "bindIndex", m_bindIndex);
-		append(b, "net", m_net);
-		appendHex(b, "command", m_command);
-		appendHex(b, "subnetUniv", m_subnetUniv);
-		append(b, "numUidsTotal", m_numUidsTotal);
-		append(b, "blockCount", m_blockCount);
-		append(b, "numUids", m_numUids);
+		ArtNetMsgUtil.append(b, "rdmVers", m_rdmVers);
+		ArtNetMsgUtil.append(b, "port", m_port);
+		ArtNetMsgUtil.append(b, "bindIndex", m_bindIndex);
+		ArtNetMsgUtil.append(b, "net", m_net);
+		ArtNetMsgUtil.appendHex(b, "command", m_command);
+		ArtNetMsgUtil.appendHex(b, "subnetUniv", m_subnetUniv);
+		ArtNetMsgUtil.append(b, "numUidsTotal", m_numUidsTotal);
+		ArtNetMsgUtil.append(b, "blockCount", m_blockCount);
+		ArtNetMsgUtil.append(b, "numUids", m_numUids);
 		if (m_uids != null) {
 			b.append("uids:");
 			for (ACN_UID uid: m_uids) {

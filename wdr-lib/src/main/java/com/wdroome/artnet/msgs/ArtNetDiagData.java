@@ -50,7 +50,7 @@ public class ArtNetDiagData extends ArtNetMsg
 		m_priority = buff[off++] & 0xff;
 		m_logicalPort = buff[off++] & 0xff;
 		off += 1;		// filler
-		int dataLen = getBigEndInt16(buff, off);
+		int dataLen = ArtNetMsgUtil.getBigEndInt16(buff, off);
 		off += 2;
 		if (dataLen > length - off) {
 			dataLen = length - off;
@@ -99,9 +99,9 @@ public class ArtNetDiagData extends ArtNetMsg
 		buff[off++] = (byte)m_logicalPort;
 		buff[off++] = 0;	// filler
 		int dataLen = (m_data != null) ? m_data.length() : 0;
-		putBigEndInt16(buff, off, dataLen + 1);	// +1 is for the null term.
+		ArtNetMsgUtil.putBigEndInt16(buff, off, dataLen + 1);	// +1 is for the null term.
 		off += 2;
-		copyBytes(buff, off, m_data.getBytes(), 0, dataLen);
+		ArtNetMsgUtil.copyBytes(buff, off, m_data.getBytes(), 0, dataLen);
 		off += dataLen;
 		buff[off] = 0;
 		off++;
@@ -113,9 +113,9 @@ public class ArtNetDiagData extends ArtNetMsg
 	{
 		StringBuilder b = new StringBuilder(300);
 		b.append("ArtNetDiagData{");
-		append(b, "protoVers", m_protoVers);
-		appendHex(b, "priority", m_priority);
-		append(b, "data", m_data);
+		ArtNetMsgUtil.append(b, "protoVers", m_protoVers);
+		ArtNetMsgUtil.appendHex(b, "priority", m_priority);
+		ArtNetMsgUtil.append(b, "data", m_data);
 		b.append('}');
 		return b.toString();
 	}

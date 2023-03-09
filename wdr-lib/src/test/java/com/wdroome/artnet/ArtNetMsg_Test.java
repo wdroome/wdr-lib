@@ -20,6 +20,8 @@ import com.wdroome.artnet.msgs.ArtNetIpProgReply;
 import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetPoll;
 import com.wdroome.artnet.msgs.ArtNetPollReply;
+import com.wdroome.artnet.msgs.ArtNetMsgUtil;
+
 import com.wdroome.util.HexDump;
 
 /**
@@ -178,9 +180,9 @@ public class ArtNetMsg_Test
 	@Test
 	public void testMakeSocketAddress() throws UnknownHostException
 	{
-		InetSocketAddress sockAddr = ArtNetMsg.makeSocketAddress("10.0.0.1");
+		InetSocketAddress sockAddr = ArtNetMsgUtil.makeSocketAddress("10.0.0.1");
 		assertEquals("10.0.0.1:" + ArtNetConst.ARTNET_PORT, sockAddr.toString().replaceAll("^/", ""));
-		sockAddr = ArtNetMsg.makeSocketAddress("10.0.0.2:12345");
+		sockAddr = ArtNetMsgUtil.makeSocketAddress("10.0.0.2:12345");
 		assertEquals("10.0.0.2:12345", sockAddr.toString().replaceAll("^/", ""));
 	}
 }
