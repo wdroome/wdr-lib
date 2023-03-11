@@ -127,7 +127,7 @@ public class ArtNetGetDevices implements Closeable
 		return new RdmDevice(uid, nodePort, devInfo,
 							getPersonalities(nodePort, uid, devInfo.m_nPersonalities, supportedPids),
 							getSlotDescs(nodePort, uid, devInfo.m_dmxFootprint, supportedPids),
-							manufacturer, model, swVerLabel, supportedPids);
+							manufacturer, model, swVerLabel, -1, null, supportedPids);
 	}
 	
 	private ArtNetPortAddr findNodePort(ACN_UID uid)

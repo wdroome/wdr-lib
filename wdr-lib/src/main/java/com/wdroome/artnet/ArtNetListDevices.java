@@ -20,7 +20,9 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import com.wdroome.artnet.msgs.RdmParamId;
+import com.wdroome.artnet.msgs.RdmParamResp;
 import com.wdroome.artnet.msgs.RdmProductCategories;
+import com.wdroome.artnet.msgs.RdmPacket;
 
 import com.wdroome.artnet.util.ArtNetTestNode;
 import com.wdroome.json.JSONParseException;
@@ -72,7 +74,7 @@ public class ArtNetListDevices
 			ArrayList<String> errors = new ArrayList<>();
 			Map<ACN_UID, RdmDevice> deviceMap = manager.getDeviceMap(errors);
 			if (argList.isEmpty()) {
-				prtDevices(deviceMap, errors);
+				prtDevices(deviceMap, errors, manager);
 			} else {
 				String cmd = argList.get(0);
 				if (cmd.equals("-tab")) {
@@ -97,7 +99,8 @@ public class ArtNetListDevices
 	 * @param deviceMap Information for all RDM devices.
 	 * @param errors Any errors that occurred while getting the device information.
 	 */
-	private static void prtDevices(Map<ACN_UID, RdmDevice> deviceMap, List<String> errors)
+	private static void prtDevices(Map<ACN_UID, RdmDevice> deviceMap, List<String> errors,
+					ArtNetManager manager)
 	{
 		if (!errors.isEmpty()) {
 			System.out.println("errors: " + errors);
@@ -121,7 +124,11 @@ public class ArtNetListDevices
 				System.out.println(indent + "univ: " + devInfo.m_nodePort);
 			}
 			System.out.println(indent + "dmx config " + devInfo.getPersonalityDesc());
-			System.out.println(indent + "version: " + devInfo.m_softwareVersionLabel);
+			System.out.println(indent + "version: " + devInfo.m_softwareVersionLabel
+							+ " #subdevs: " + devInfo.m_deviceInfo.m_numSubDevs
+							+ " #sensors: " + devInfo.m_deviceInfo.m_numSensors
+							+ (devInfo.m_deviceHours >= 0 ? (" hours: " + devInfo.m_deviceHours) : "")
+							);
 			if (!devInfo.m_slotDescs.isEmpty()) {
 				System.out.print(indent + "slots: ");
 				int lineLen = indent.length() + 6;
@@ -144,6 +151,22 @@ public class ArtNetListDevices
 				System.out.println(indent + "available configurations:");
 				for (int iPers: devInfo.m_personalities.keySet()) {
 					System.out.println(indent + indent + devInfo.getPersonalityDesc(iPers));
+				}
+			}
+			if (!devInfo.m_sensorDefs.isEmpty()) {
+				System.out.println(indent + "sensors:");
+				for (RdmParamResp.SensorDef sensorDef: devInfo.m_sensorDefs.values()) {
+					System.out.println(indent + indent + sensorDef);
+					try {
+						RdmPacket valueReply = manager.sendRdmRequest(devInfo.m_uid, false,
+										RdmParamId.SENSOR_VALUE, new byte[] {(byte)sensorDef.m_sensorNum});
+						if (valueReply != null) {
+							System.out.println(indent + indent + "  "
+										+ new RdmParamResp.SensorValue(valueReply, sensorDef.m_desc));
+						}
+					} catch (IOException e) {
+						System.err.println(indent + indent + "  error getting value: " + e);
+					}
 				}
 			}
 			if (!devInfo.m_stdParamIds.isEmpty() || !devInfo.m_otherParamIds.isEmpty()) {

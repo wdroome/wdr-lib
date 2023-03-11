@@ -399,10 +399,20 @@ public class ArtNetManager implements Closeable
 			} 
 		}
 		
+		long devHours = -1;
+		if (isParamSupported(RdmParamId.DEVICE_HOURS, supportedPids)) {
+			RdmPacket devHoursReply = sendRdmRequest(uid, false, RdmParamId.DEVICE_HOURS, null);
+			if (devHoursReply != null && devHoursReply.isRespAck()) {
+				devHours = RdmParamResp.unknownEnd32Int(devHoursReply, devHours);
+			}
+		}
+		
 		return new RdmDevice(uid, portAddr, devInfo,
 							getPersonalities(uid, devInfo.m_nPersonalities, supportedPids),
 							getSlotDescs(uid, devInfo.m_dmxFootprint, supportedPids),
-							manufacturer, model, swVerLabel, supportedPids);
+							manufacturer, model, swVerLabel, devHours,
+							getSensorDefs(uid, devInfo.m_numSensors, supportedPids),
+							supportedPids);
 	}
 	
 	
@@ -432,6 +442,31 @@ public class ArtNetManager implements Closeable
 			} 
 		}
 		return personalities;
+	}
+	
+	private TreeMap<Integer,RdmParamResp.SensorDef> getSensorDefs(ACN_UID uid, int nSensors,
+													RdmParamResp.PidList supportedPids) throws IOException
+	{
+		TreeMap<Integer,RdmParamResp.SensorDef> sensorDefs = new TreeMap<>();
+		boolean ok = isParamSupported(RdmParamId.SENSOR_DEFINITION, supportedPids);
+		if (ok) {
+			for (int iSensor = 0; iSensor < nSensors; iSensor++) {
+				RdmPacket sensorDefReply = null;
+				if (ok) {
+					sensorDefReply = sendRdmRequest(uid, false,
+														RdmParamId.SENSOR_DEFINITION,
+														new byte[] { (byte) iSensor });
+				}
+				RdmParamResp.SensorDef defn = null;
+				if (sensorDefReply != null && sensorDefReply.isRespAck()) {
+					defn = new RdmParamResp.SensorDef(sensorDefReply);
+					sensorDefs.put(iSensor, defn);
+				} else {
+					ok = false;
+				}
+			}
+		}
+		return sensorDefs;
 	}
 	
 	private TreeMap<Integer,String> getSlotDescs(ACN_UID uid, int nSlots,

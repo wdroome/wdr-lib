@@ -28,6 +28,8 @@ public class RdmDevice implements Comparable<RdmDevice>
 	public final String m_softwareVersionLabel;
 	public final TreeMap<Integer, RdmParamResp.PersonalityDesc> m_personalities;
 	public final TreeMap<Integer, String> m_slotDescs;
+	public final TreeMap<Integer,RdmParamResp.SensorDef> m_sensorDefs;
+	public final long m_deviceHours;
 	public final List<RdmParamId> m_stdParamIds;
 	public final List<Integer> m_otherParamIds;
 	
@@ -39,6 +41,8 @@ public class RdmDevice implements Comparable<RdmDevice>
 					String manufacturer,
 					String model,
 					String softwareVersionLabel,
+					long deviceHours,
+					TreeMap<Integer,RdmParamResp.SensorDef> sensorDefs,
 					RdmParamResp.PidList supportedPids)
 	{
 		m_uid = uid;
@@ -55,6 +59,8 @@ public class RdmDevice implements Comparable<RdmDevice>
 			softwareVersionLabel = "" + m_deviceInfo.m_softwareVersion;
 		}
 		m_softwareVersionLabel = softwareVersionLabel;
+		m_deviceHours = deviceHours;
+		m_sensorDefs = sensorDefs != null ? sensorDefs : new TreeMap<>();
 		m_stdParamIds = supportedPids != null ? supportedPids.m_stdPids : List.of();
 		m_otherParamIds = supportedPids != null ? supportedPids.m_otherPids : List.of();
 	}
@@ -74,10 +80,13 @@ public class RdmDevice implements Comparable<RdmDevice>
 				+ ",model=" + m_deviceInfo.m_model
 				+ ",swVers=" + m_softwareVersionLabel
 				+ (m_deviceInfo.m_numSubDevs > 0 ? (",#sub=" + m_deviceInfo.m_numSubDevs) : "")
+				+ (m_deviceInfo.m_numSensors > 0 ? (",#sensor=" + m_deviceInfo.m_numSensors) : "")
+				+ (m_deviceHours >= 0 ? "devHrs=" + m_deviceHours : "")
 				+ ",pids=" + m_stdParamIds
 				+ (!m_otherParamIds.isEmpty() ? (",xpids=" + m_otherParamIds) : "")
-				+ ",personalities=" + m_personalities
-				+ ",slots=" + m_slotDescs
+				+ (!m_personalities.isEmpty() ? ",personalities=" + m_slotDescs : "")
+				+ (!m_slotDescs.isEmpty() ? ",slots=" + m_slotDescs : "")
+				+ (!m_sensorDefs.isEmpty() ? ",sensors=" + m_sensorDefs : "")
 				+ ")";
 	}
 	

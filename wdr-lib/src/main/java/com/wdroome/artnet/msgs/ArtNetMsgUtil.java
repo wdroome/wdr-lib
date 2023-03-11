@@ -76,6 +76,14 @@ public class ArtNetMsgUtil
 		return ((buff[off+1] & 0xff) << 8) | (buff[off] & 0xff);
 	}
 	
+	public static int getLittleEndInt32(byte[] buff, int off)
+	{
+		return    ((buff[off+3] & 0xff) << 24)
+				| ((buff[off+2] & 0xff) << 16)
+				| ((buff[off+1] & 0xff) <<  8)
+				| ((buff[off  ] & 0xff)      );
+	}
+	
 	public static int putBigEndInt16(byte[] buff, int off, int v)
 	{
 		buff[off++] = (byte)((v >> 8) & 0xff);

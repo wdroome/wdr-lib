@@ -7,7 +7,7 @@ import com.wdroome.util.ByteAOL;
 
 /**
  * Parameter-specific data for an RDM response message from an RDM device.
- * TO cut down on the number of files, the classes are bundled into this one class.
+ * To cut down on the number of files, the classes are bundled into this one class.
  * @author wdr
  */
 public class RdmParamResp
@@ -205,6 +205,143 @@ public class RdmParamResp
 			m_number = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
 			off += 2;
 			m_desc = getStringRemainder(rdmPacket.m_paramData, off, rdmPacket.m_paramDataLen);
+		}
+	}
+	
+	/**
+	 * Response for a SENSOR_DEFINITION parameter.
+	 */
+	public static class SensorDef extends RdmParamData
+	{
+		public final int m_sensorNum;	// Starts with 0
+		public final int m_type;
+		public final int m_unit;
+		public final int m_prefix;
+		public final int m_min;
+		public final int m_max;
+		public final int m_normMin;
+		public final int m_normMax;
+		public final int m_recordedValueSupport;
+		public final String m_desc;
+		
+		public SensorDef(RdmPacket rdmPacket)
+		{
+			super(rdmPacket.m_paramIdCode, rdmPacket.m_paramData);
+			if (rdmPacket.m_paramDataLen < 13) {
+				throw new IllegalArgumentException("RDM SensorDesc resp: short data "
+						+ rdmPacket.m_paramDataLen);								
+			}
+			int off = 0;
+			m_sensorNum = rdmPacket.m_paramData[off++] & 0xff;
+			m_type = rdmPacket.m_paramData[off++] & 0xff;
+			m_unit = rdmPacket.m_paramData[off++] & 0xff;
+			m_prefix = rdmPacket.m_paramData[off++] & 0xff;
+			m_min = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
+			off += 2;
+			m_max = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
+			off += 2;
+			m_normMin = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
+			off += 2;
+			m_normMax = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
+			off += 2;
+			m_recordedValueSupport = rdmPacket.m_paramData[off++] & 0xff;
+			m_desc = getStringRemainder(rdmPacket.m_paramData, off, rdmPacket.m_paramDataLen);
+		}
+		
+		@Override
+		public String toString()
+		{
+			return "SensorDef("
+					+ m_sensorNum
+					+ ",\"" + m_desc + "\""
+					+ ",type=" + m_type
+					+ ",unit=" + m_unit + ",prefix=" + m_prefix
+					+ ",range=" + m_min + "-" + m_max
+					+ ",norm=" + m_normMin + "-" + m_normMax
+					+ ")";			
+		}
+	}
+	
+	/**
+	 * Response for a SENSOR_VALUE parameter.
+	 */
+	public static class SensorValue extends RdmParamData
+	{
+		public final int m_sensorNum;
+		public final int m_value;
+		public final int m_lowValue;
+		public final int m_highValue;
+		public final int m_recordedValue;
+		public final String m_optName;
+		
+		public SensorValue(RdmPacket rdmPacket, String optName)
+		{
+			super(rdmPacket.m_paramIdCode, rdmPacket.m_paramData);
+			if (rdmPacket.m_paramDataLen < 9) {
+				throw new IllegalArgumentException("RDM SensorValue resp: short data "
+						+ rdmPacket.m_paramDataLen);								
+			}
+			int off = 0;
+			m_sensorNum = rdmPacket.m_paramData[off++] & 0xff;
+			m_value = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
+			off += 2;
+			m_lowValue = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
+			off += 2;
+			m_highValue = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
+			off += 2;
+			m_recordedValue = ArtNetMsgUtil.getBigEndInt16(rdmPacket.m_paramData, off);
+			off += 2;
+			m_optName = optName != null && !optName.isBlank() ? optName.trim() : null;
+		}
+		
+		@Override
+		public String toString()
+		{
+			return "SensorValue("
+					+ (m_optName != null ? m_optName : ("#" + m_sensorNum))
+					+ "=" + m_value
+					+ ",low/hi/rec=" + m_lowValue + "/" + m_highValue + "/" + m_recordedValue
+					+ ")";
+			}
+	}
+	
+	/**
+	 * Response that consists of a single unsigned big-endian 32-bit int.
+	 */
+	public static long bigEndInt32(RdmPacket rdmPacket, long def)
+	{
+		if (rdmPacket.m_paramDataLen >= 4) {
+			return ArtNetMsgUtil.getBigEndInt32(rdmPacket.m_paramData, 0) & 0xffffffffL;
+		} else {
+			return def;
+		}
+	}
+	
+	/**
+	 * Response that consists of a single unsigned little-endian 32-bit int.
+	 */
+	public static long littleEndInt32(RdmPacket rdmPacket, long def)
+	{
+		if (rdmPacket.m_paramDataLen >= 4) {
+			return ArtNetMsgUtil.getLittleEndInt32(rdmPacket.m_paramData, 0) & 0xffffffffL;
+		} else {
+			return def;
+		}
+	}
+	
+	/**
+	 * Response that consists of a single unsigned 32-bit int which can be big- or little-endian.
+	 * If the first two bytes are 0, assume it's big-endian.
+	 * Otherwise assume it's little endian.
+	 */
+	public static long unknownEnd32Int(RdmPacket rdmPacket, long def)
+	{
+		if (rdmPacket.m_paramDataLen < 4) {
+			return def;
+		} else if (rdmPacket.m_paramData[0] == 0 && rdmPacket.m_paramData[1] == 0) {
+			return ArtNetMsgUtil.getBigEndInt32(rdmPacket.m_paramData, 0) & 0xffffffffL;
+		} else {
+			return ArtNetMsgUtil.getLittleEndInt32(rdmPacket.m_paramData, 0) & 0xffffffffL;
 		}
 	}
 	
