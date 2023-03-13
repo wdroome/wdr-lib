@@ -20,15 +20,17 @@ import java.io.File;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import com.wdroome.util.CommandReader;
+
+import com.wdroome.json.JSONValueTypeException;
+import com.wdroome.json.JSONParseException;
+
 import com.wdroome.artnet.msgs.RdmParamId;
 import com.wdroome.artnet.msgs.RdmParamResp;
 import com.wdroome.artnet.msgs.RdmProductCategories;
 import com.wdroome.artnet.msgs.RdmPacket;
 
 import com.wdroome.artnet.util.ArtNetTestNode;
-import com.wdroome.json.JSONParseException;
-import com.wdroome.json.JSONValueTypeException;
-import com.wdroome.util.ArrayToList;
 
 /**
  * Get the standard information for all RDM devices in the DMX network,
@@ -72,22 +74,34 @@ public class ArtNetListDevices
 		}
 
 		try (ArtNetManager manager = makeManager(chan, argList)) {
-			ArrayList<String> errors = new ArrayList<>();
-			Map<ACN_UID, RdmDevice> deviceMap = manager.getDeviceMap(errors);
-			if (argList.isEmpty()) {
-				prtDevices(deviceMap, errors, manager);
+			if (argList.size() >= 1 && argList.get(0).startsWith("-i")) {
+				argList.remove(0);
+				new ReadCmds(chan, manager, argList);
 			} else {
-				String cmd = argList.get(0);
-				if (cmd.equals("-tab")) {
-					prtTabSep(deviceMap, errors);
-				} else if (cmd.equals("-cmp")) {
-					if (argList.size() < 2) {
-						System.err.println("Usage error: -cmp filename");
-					} else {
-						cmpFile(argList.get(1), deviceMap, errors);
+				ArrayList<String> errors = new ArrayList<>();
+				Map<ACN_UID, RdmDevice> deviceMap = manager.getDeviceMap(errors);
+				if (argList.isEmpty()) {
+					System.out.println("Found " + deviceMap.size() + " RDM Devices.");
+					if (!errors.isEmpty()) {
+						System.out.println("  Errors: " + errors);
+						for (String s: errors) {
+							System.out.println("    " + s);
+						}
 					}
+					prtDevices(RdmDevice.sortByAddr(deviceMap.values()), System.out);
 				} else {
-					System.err.println("Unknown argument \"" + cmd + "\"");
+					String cmd = argList.get(0);
+					if (cmd.equals("-tab")) {
+						prtTabSep(deviceMap, errors);
+					} else if (cmd.equals("-cmp")) {
+						if (argList.size() < 2) {
+							System.err.println("Usage error: -cmp filename");
+						} else {
+							cmpFile(argList.get(1), deviceMap, errors);
+						}
+					} else {
+						System.err.println("Unknown argument \"" + cmd + "\"");
+					}
 				}
 			}
 		} catch (IOException e) {
@@ -97,37 +111,35 @@ public class ArtNetListDevices
 	
 	/**
 	 * Pretty-print the device information for direct human consumption.
-	 * @param deviceMap Information for all RDM devices.
-	 * @param errors Any errors that occurred while getting the device information.
+	 * @param devices Information for all RDM devices.
+	 * @param out The output stream. If null, use stdout.
 	 */
-	private static void prtDevices(Map<ACN_UID, RdmDevice> deviceMap, List<String> errors,
-					ArtNetManager manager)
+	private static void prtDevices(List<RdmDevice> devices, PrintStream out)
 	{
-		if (!errors.isEmpty()) {
-			System.out.println("errors: " + errors);
+		if (out == null) {
+			out = System.out;
 		}
-		System.out.println(deviceMap.size() + " devices:");
 		int iDev = 0;
 		String indent = "    ";
-		for (RdmDevice devInfo: RdmDevice.sort(deviceMap.values())) {
+		for (RdmDevice devInfo: devices) {
 			iDev++;
-			System.out.println();
-			System.out.println("Device " + iDev + "  [" + devInfo.m_uid + "]:");
+			out.println();
+			out.println("Device " + iDev + "  [" + devInfo.m_uid + "]:");
 			String devLabel = devInfo.getDeviceLabel();
-			System.out.println(indent + devInfo.m_manufacturer + "/" + devInfo.m_model
+			out.println(indent + devInfo.m_manufacturer + "/" + devInfo.m_model
 						+ "  (" + devInfo.getCategoryName() + ")"
 						+ (devLabel != null && !devLabel.isBlank() ? (" \"" + devLabel + "\"") : ""));
 			
 			if (devInfo.getDmxStartAddr() > 0 || devInfo.getDmxFootprint() > 0) {
-				System.out.println(indent + "dmx addresses: " + devInfo.getDmxStartAddr()
+				out.println(indent + "dmx addresses: " + devInfo.getDmxStartAddr()
 							+ "-" + (devInfo.getDmxStartAddr()
 										+ devInfo.getDmxFootprint() - 1)
 							+ " univ: " + devInfo.m_nodePort);
 			} else {
-				System.out.println(indent + "univ: " + devInfo.m_nodePort);
+				out.println(indent + "univ: " + devInfo.m_nodePort);
 			}
-			System.out.println(indent + "dmx config " + devInfo.getPersonalityDesc());
-			System.out.println(indent + "version: " + devInfo.m_softwareVersionLabel
+			out.println(indent + "dmx config " + devInfo.getPersonalityDesc());
+			out.println(indent + "version: " + devInfo.m_softwareVersionLabel
 							+ " #subdevs: " + devInfo.getDeviceInfo().m_numSubDevs
 							+ " #sensors: " + devInfo.getDeviceInfo().m_numSensors
 							+ " hours: " + devInfo.getDeviceHours()
@@ -135,69 +147,69 @@ public class ArtNetListDevices
 			try {
 				Map<Integer,String> slotDescs = devInfo.getSlotDescs();
 				if (!slotDescs.isEmpty()) {
-					System.out.print(indent + "slots: ");
+					out.print(indent + "slots: ");
 					int lineLen = indent.length() + 6;
 					String sep = " ";
 					for (Map.Entry<Integer,String> ent: slotDescs.entrySet()) {
 						String s = ent.getKey() + ": " + ent.getValue();
 						if (lineLen + s.length() > 75) {
-							System.out.println();
-							System.out.print(indent + indent);
+							out.println();
+							out.print(indent + indent);
 							lineLen = 2*indent.length();
 							sep = "";
 						}
-						System.out.print(sep + s);
+						out.print(sep + s);
 						lineLen += s.length() + sep.length();
 						sep = " ";
 					}
-					System.out.println();
+					out.println();
 				}
 			} catch (IOException e1) {
-				System.out.println("Error getting slotdescs: " + e1);
+				out.println("Error getting slotdescs: " + e1);
 			}
 			
 			if (!devInfo.m_personalities.isEmpty()) {
-				System.out.println(indent + "available configurations:");
+				out.println(indent + "available configurations:");
 				for (int iPers: devInfo.m_personalities.keySet()) {
-					System.out.println(indent + indent + devInfo.getPersonalityDesc(iPers));
+					out.println(indent + indent + devInfo.getPersonalityDesc(iPers));
 				}
 			}
 			if (!devInfo.m_sensorDefs.isEmpty()) {
-				System.out.println(indent + "sensors:");
+				out.println(indent + "sensors:");
 				for (RdmParamResp.SensorDef sensorDef: devInfo.m_sensorDefs.values()) {
-					System.out.println(indent + indent + sensorDef);
-					System.out.println(indent + indent + devInfo.getSensorValue(sensorDef.m_sensorNum));
+					out.println(indent + indent + sensorDef);
+					out.println(indent + indent + devInfo.getSensorValue(sensorDef.m_sensorNum));
 				}
 			}
 			if (!devInfo.m_stdParamIds.isEmpty() || !devInfo.m_otherParamIds.isEmpty()) {
-				System.out.print(indent + "supported parameters:");
+				out.print(indent + "supported parameters:");
 				int lineLen = 1000;
 				String sep = "";
 				for (RdmParamId pid: devInfo.m_stdParamIds) {
 					String s = pid.toString();
 					if (lineLen + s.length() > 75) {
-						System.out.println();
-						System.out.print(indent + indent);
+						out.println();
+						out.print(indent + indent);
 						lineLen = 2*indent.length();
 						sep = "";
 					}
-					System.out.print(sep + s);
+					out.print(sep + s);
 					lineLen += s.length() + sep.length();
 					sep = " ";
 				}
 				for (int pid: devInfo.m_otherParamIds) {
 					String s = "0x" + Integer.toHexString(pid);
 					if (lineLen + s.length() > 75) {
-						System.out.println();
-						System.out.print(indent + indent);
+						out.println();
+						out.print(indent + indent);
 						lineLen = 2*indent.length();
 						sep = "";
 					}
-					System.out.print(sep + s);
+					out.print(sep + s);
 					lineLen += s.length() + sep.length();
 					sep = " ";
 				}
-				System.out.println();
+				out.println();
 			}
 		}		
 	}
@@ -488,6 +500,80 @@ public class ArtNetListDevices
 			return Long.parseLong(arg.substring(prefix.length()));
 		} else {
 			return null;
+		}
+	}
+	
+	private static class ReadCmds extends CommandReader
+	{
+		private final ArtNetChannel m_chan;
+		private final ArtNetManager m_manager;
+		private List<RdmDevice> m_devices;
+		
+		public ReadCmds(ArtNetChannel chan, ArtNetManager manager, List<String> args) throws IOException
+		{
+			super(args);
+			m_chan = chan;
+			m_manager = manager;
+			ArrayList<String> errors = new ArrayList<>();
+			m_waitFlag = true;
+			Map<ACN_UID, RdmDevice> deviceMap = m_manager.getDeviceMap(errors);
+			m_devices = RdmDevice.sortByAddr(deviceMap.values());
+			m_out.println("Found " + m_devices.size() + " RDM Devices.");
+			prtErrors(errors);
+			startAndWaitForCompletion();
+		}
+		
+		@Override
+		public void run()
+		{
+			String[] cmd;
+			while ((cmd = readCmd()) != null) {
+				if (cmd[0].startsWith("q")) {
+					return;
+				} else if (cmd[0].startsWith("refr")) {
+					m_out.println("Refreshing device list ....");
+					List<String> errors = new ArrayList<>();
+					try {
+						Map<ACN_UID, RdmDevice> deviceMap = m_manager.getDeviceMap(errors);
+						m_devices = RdmDevice.sortByAddr(deviceMap.values());
+					} catch (IOException e) {
+						errors.add(e.toString());
+					}
+					m_out.println("Found " + m_devices.size() + " RDM devices.");
+					prtErrors(errors);
+				} else if (cmd[0].startsWith("p")) {
+					prtDevices(m_devices, m_out);
+				} else if (cmd[0].startsWith("d")) {
+					listDevices();
+				} else {
+					m_out.println("Unknown command \"" + cmd[0] + "\"");
+				}
+			}
+		}
+		
+		private void prtErrors(List<String> errors)
+		{
+			if (errors != null && !errors.isEmpty()) {
+				m_out.println("Errors:");
+				for (String err: errors) {
+					m_out.println("   " + err);
+				}				
+			}
+		}
+		
+		private void listDevices()
+		{
+			for (int iDev = 0; iDev < m_devices.size(); iDev++) {
+				RdmDevice dev = m_devices.get(iDev);
+				int startAddr = dev.getDmxStartAddr();
+				int endAddr = startAddr + dev.getDmxFootprint() - 1;
+				m_out.println(iDev+1 + ":"
+						+ " " + dev.m_uid
+						+ " " + dev.m_manufacturer + "/" + dev.m_model
+						+ " " + startAddr + "-" + endAddr
+						+ " " + dev.m_nodePort
+						);
+			}
 		}
 	}
 }

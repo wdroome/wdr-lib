@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 
 import java.util.Queue;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -56,30 +57,30 @@ public abstract class CommandReader extends Thread
 	 *	If -wait is set, set the wait flag in the object. After starting the reader,
 	 *	use waitForEOF() to wait for the reader to finish.
 	 */
-	public CommandReader(String[] args)
+	public CommandReader(List<String> args)
 	{
 		if (getState() != Thread.State.NEW) {
 			System.err.println("ComamndReader.processMainArgs(): Must call method before starting thread.");
 			return;
 		}
 		if (args == null) {
-			args = new String[0];
+			args = List.of();
 		}
 		m_givePrompt = true;
 		m_waitFlag = false;
 		String inFile = "-";
 		String outFile = "-";
-		for (int i = 0; i < args.length; i++) {
-			if (args[i].equals("-noprompt")) {
+		for (int i = 0; i < args.size(); i++) {
+			if (args.get(i).equals("-noprompt")) {
 				m_givePrompt = false;
-			} else if (args[i].equals("-wait")) {
+			} else if (args.get(i).equals("-wait")) {
 				m_waitFlag = true;
-			} else if (args[i].startsWith("-cmd=")) {
-				m_initialCmds.add(args[i].substring(5));
+			} else if (args.get(i).startsWith("-cmd=")) {
+				m_initialCmds.add(args.get(i).substring(5));
 			} else {
-				inFile = args[i];
-				if (i+1 <= args.length-1) {
-					outFile = args[i+1];
+				inFile = args.get(i);
+				if (i+1 <= args.size()-1) {
+					outFile = args.get(i+1);
 				}
 			}
 		}
@@ -111,6 +112,15 @@ public abstract class CommandReader extends Thread
 				return;
 			}
 		}
+	}
+	
+	/**
+	 * Like {@link #CommandReader(List)}, except with an array of strings.
+	 * @param args Command-line arguments.
+	 */
+	public CommandReader(String[] args)
+	{
+		this(Arrays.asList(args));
 	}
 	
 	/**
