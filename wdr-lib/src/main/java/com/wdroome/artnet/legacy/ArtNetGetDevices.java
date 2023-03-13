@@ -60,17 +60,15 @@ public class ArtNetGetDevices implements Closeable
 		}
 	}
 
-	public Map<ACN_UID, RdmDevice> getDeviceMap(List<String> errors)
+	public Map<ACN_UID, RdmDevice> getDeviceMap(List<String> errors) throws IOException
 	{
+		ArtNetRdmRequest rdmRequest = new ArtNetRdmRequest(m_channel, m_manager.getUidsToPortAddrs());
+
 		Map<ACN_UID, RdmDevice> deviceInfoMap = new HashMap<>();
 		for (ACN_UID uid: m_uidMap.keySet()) {
 			try {
-				RdmDevice info = getDevice(uid);
-				if (info != null) {
-					deviceInfoMap.put(uid, info);
-				} else if (errors != null) {
-					errors.add("Cannot get DeviceInfo for " + uid);
-				}
+				RdmDevice info = new RdmDevice(uid, m_manager.getUidsToPortAddrs().get(uid), rdmRequest);
+				deviceInfoMap.put(uid, info);
 			} catch (Exception e) {
 				if (errors != null) {
 					errors.add("Exception getting UID " + uid + ": " + e);
@@ -78,56 +76,6 @@ public class ArtNetGetDevices implements Closeable
 			}
 		}
 		return deviceInfoMap;
-	}
-	
-	public RdmDevice getDevice(ACN_UID uid) throws IOException
-	{
-		ArtNetPortAddr nodePort = findNodePort(uid);
-		if (nodePort == null) {
-			return null;
-		}
-		RdmPacket devInfoReply = m_manager.sendRdmRequest(uid, false, RdmParamId.DEVICE_INFO, null);
-		if (devInfoReply == null || !devInfoReply.isRespAck()) {
-			return null;
-		}
-		RdmParamResp.DeviceInfo devInfo = new RdmParamResp.DeviceInfo(devInfoReply);
-		
-		RdmPacket supportedPidsReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
-												nodePort.m_port, uid,
-												false, RdmParamId.SUPPORTED_PARAMETERS, null);
-		RdmParamResp.PidList supportedPids = new RdmParamResp.PidList(supportedPidsReply);
-		
-		RdmPacket swVerLabelReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
-											nodePort.m_port, uid,
-											false, RdmParamId.SOFTWARE_VERSION_LABEL, null);
-		String swVerLabel = "[" + devInfo.m_softwareVersion + "]";
-		if (swVerLabelReply != null) {
-			swVerLabel = new RdmParamResp.StringReply(swVerLabelReply).m_string;
-		}
-		
-		String manufacturer = String.format("0x%04x", uid.getManufacturer());
-		if (isSupported(RdmParamId.MANUFACTURER_LABEL, supportedPids)) {
-			RdmPacket manufacturerReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
-													nodePort.m_port, uid, false,
-													RdmParamId.MANUFACTURER_LABEL, null);
-			if (manufacturerReply != null && manufacturerReply.isRespAck()) {
-				manufacturer = new RdmParamResp.StringReply(manufacturerReply).m_string;
-			} 
-		}
-		
-		String model = String.format("0x%04x", devInfo.m_model);
-		if (isSupported(RdmParamId.DEVICE_MODEL_DESCRIPTION, supportedPids)) {
-			RdmPacket modelReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port, uid, false,
-					RdmParamId.DEVICE_MODEL_DESCRIPTION, null);
-			if (modelReply != null && modelReply.isRespAck()) {
-				model = new RdmParamResp.StringReply(modelReply).m_string;
-			} 
-		}
-		
-		return new RdmDevice(uid, nodePort, devInfo,
-							getPersonalities(nodePort, uid, devInfo.m_nPersonalities, supportedPids),
-							getSlotDescs(nodePort, uid, devInfo.m_dmxFootprint, supportedPids),
-							manufacturer, model, swVerLabel, -1, null, supportedPids);
 	}
 	
 	private ArtNetPortAddr findNodePort(ACN_UID uid)
@@ -223,18 +171,19 @@ public class ArtNetGetDevices implements Closeable
 				System.out.println();
 				System.out.println("Device " + iDev + "  [" + devInfo.m_uid + "]:");
 				System.out.println(indent + devInfo.m_manufacturer + "/" + devInfo.m_model + "  ("
-							+ RdmProductCategories.getCategoryName(devInfo.m_deviceInfo.m_category) + ")");
+							+ RdmProductCategories.getCategoryName(devInfo.getDeviceInfo().m_category) + ")");
 				
-				if (devInfo.m_deviceInfo.m_startAddr > 0 || devInfo.m_deviceInfo.m_dmxFootprint > 0) {
-					System.out.println(indent + "dmx addresses: " + devInfo.m_deviceInfo.m_startAddr
-								+ "-" + (devInfo.m_deviceInfo.m_startAddr
-											+ devInfo.m_deviceInfo.m_dmxFootprint - 1)
+				if (devInfo.getDeviceInfo().m_startAddr > 0 || devInfo.getDeviceInfo().m_dmxFootprint > 0) {
+					System.out.println(indent + "dmx addresses: " + devInfo.getDeviceInfo().m_startAddr
+								+ "-" + (devInfo.getDeviceInfo().m_startAddr
+											+ devInfo.getDeviceInfo().m_dmxFootprint - 1)
 								+ " univ: " + devInfo.m_nodePort);
 				} else {
 					System.out.println(indent + "univ: " + devInfo.m_nodePort);
 				}
 				System.out.println(indent + "dmx config " + devInfo.getPersonalityDesc());
 				System.out.println(indent + "version: " + devInfo.m_softwareVersionLabel);
+				/*
 				if (!devInfo.m_slotDescs.isEmpty()) {
 					System.out.print(indent + "slots: ");
 					int lineLen = indent.length() + 6;
@@ -253,6 +202,7 @@ public class ArtNetGetDevices implements Closeable
 					}
 					System.out.println();
 				}
+				*/
 				if (!devInfo.m_personalities.isEmpty()) {
 					System.out.println(indent + "available configurations:");
 					for (int iPers: devInfo.m_personalities.keySet()) {

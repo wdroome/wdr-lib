@@ -3,6 +3,7 @@ package com.wdroome.artnet;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.Set;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Collection;
@@ -11,6 +12,8 @@ import java.util.Comparator;
 import com.wdroome.artnet.msgs.RdmParamId;
 import com.wdroome.artnet.msgs.RdmParamResp;
 import com.wdroome.artnet.msgs.RdmProductCategories;
+import com.wdroome.artnet.msgs.ArtNetMsgUtil;
+import com.wdroome.artnet.msgs.RdmPacket;
 
 /**
  * Standard information about an RDM device in the network.
@@ -22,85 +25,176 @@ public class RdmDevice implements Comparable<RdmDevice>
 	
 	public final ACN_UID m_uid;
 	public final ArtNetPortAddr m_nodePort;
-	public final RdmParamResp.DeviceInfo m_deviceInfo;
 	public final String m_manufacturer;
 	public final String m_model;
 	public final String m_softwareVersionLabel;
 	public final TreeMap<Integer, RdmParamResp.PersonalityDesc> m_personalities;
-	public final TreeMap<Integer, String> m_slotDescs;
 	public final TreeMap<Integer,RdmParamResp.SensorDef> m_sensorDefs;
-	public final long m_deviceHours;
 	public final List<RdmParamId> m_stdParamIds;
 	public final List<Integer> m_otherParamIds;
 	
-	public RdmDevice(ACN_UID uid,
-					ArtNetPortAddr nodePort,
-					RdmParamResp.DeviceInfo deviceInfo,
-					TreeMap<Integer, RdmParamResp.PersonalityDesc> personalities,
-					TreeMap<Integer, String> slotDescs,
-					String manufacturer,
-					String model,
-					String softwareVersionLabel,
-					long deviceHours,
-					TreeMap<Integer,RdmParamResp.SensorDef> sensorDefs,
-					RdmParamResp.PidList supportedPids)
+	private final ArtNetRdmRequest m_rdmRequest;
+
+	private RdmParamResp.DeviceInfo m_deviceInfo;
+	
+	public RdmDevice(ACN_UID uid, ArtNetPortAddr nodePort, ArtNetRdmRequest rdmRequest)
+							throws IOException
 	{
+		m_rdmRequest = rdmRequest;
 		m_uid = uid;
 		m_nodePort = nodePort;
-		m_deviceInfo = deviceInfo;
-		m_personalities = personalities != null ? personalities : new TreeMap<>();
-		m_slotDescs = slotDescs != null ? slotDescs : new TreeMap<>();
-		m_manufacturer = manufacturer;
-		m_model = model;
-		if (softwareVersionLabel != null) {
-			softwareVersionLabel = softwareVersionLabel.trim();
+		if (m_nodePort == null) {
+			throw new IllegalStateException("RdmDevice c'tor: " + m_uid + " no portaddr");
 		}
-		if (softwareVersionLabel.isBlank()) {
-			softwareVersionLabel = "" + m_deviceInfo.m_softwareVersion;
-		}
-		m_softwareVersionLabel = softwareVersionLabel;
-		m_deviceHours = deviceHours;
-		m_sensorDefs = sensorDefs != null ? sensorDefs : new TreeMap<>();
+		refreshDeviceInfo();
+		
+		RdmPacket supportedPidsReply = sendRdmRequest(false, RdmParamId.SUPPORTED_PARAMETERS, null);
+		RdmParamResp.PidList supportedPids = new RdmParamResp.PidList(supportedPidsReply);
 		m_stdParamIds = supportedPids != null ? supportedPids.m_stdPids : List.of();
 		m_otherParamIds = supportedPids != null ? supportedPids.m_otherPids : List.of();
-	}
-	
-	@Override
-	public String toString()
-	{
-		return	"RdmDevice(" + m_uid
-				+ "@" + m_nodePort
-				+ getManModel(",")
-				+ ",dmx=" + m_deviceInfo.m_startAddr + "-"
-						+ (m_deviceInfo.m_startAddr + m_deviceInfo.m_dmxFootprint - 1)
-				+ ",config=" + m_deviceInfo.m_currentPersonality + "/"
-						+ m_deviceInfo.m_nPersonalities
-				+ ",cat=0x" + String.format("%04x", m_deviceInfo.m_category)
-						+ "/" + RdmProductCategories.getCategoryName(m_deviceInfo.m_category)
-				+ ",model=" + m_deviceInfo.m_model
-				+ ",swVers=" + m_softwareVersionLabel
-				+ (m_deviceInfo.m_numSubDevs > 0 ? (",#sub=" + m_deviceInfo.m_numSubDevs) : "")
-				+ (m_deviceInfo.m_numSensors > 0 ? (",#sensor=" + m_deviceInfo.m_numSensors) : "")
-				+ (m_deviceHours >= 0 ? "devHrs=" + m_deviceHours : "")
-				+ ",pids=" + m_stdParamIds
-				+ (!m_otherParamIds.isEmpty() ? (",xpids=" + m_otherParamIds) : "")
-				+ (!m_personalities.isEmpty() ? ",personalities=" + m_slotDescs : "")
-				+ (!m_slotDescs.isEmpty() ? ",slots=" + m_slotDescs : "")
-				+ (!m_sensorDefs.isEmpty() ? ",sensors=" + m_sensorDefs : "")
-				+ ")";
-	}
-	
-	private String getManModel(String prefix)
-	{
-		if (!isUnknownDesc(m_manufacturer) && !isUnknownDesc(m_model)) {
-			return prefix + m_manufacturer + "/" + m_model;
-		} else if (!isUnknownDesc(m_manufacturer) && isUnknownDesc(m_model)) {
-			return prefix + m_manufacturer + "/" + UNKNOWN_DESC;
-		} else if (isUnknownDesc(m_manufacturer) && !isUnknownDesc(m_model)) {
-			return prefix + UNKNOWN_DESC + "/" + m_model;
-		} else {
-			return "";
+
+		String manufacturer = String.format("0x%04x", uid.getManufacturer());
+		if (isParamSupported(RdmParamId.MANUFACTURER_LABEL)) {
+			RdmPacket manufacturerReply = sendRdmRequest(false, RdmParamId.MANUFACTURER_LABEL, null);
+			if (manufacturerReply != null && manufacturerReply.isRespAck()) {
+				manufacturer = new RdmParamResp.StringReply(manufacturerReply).m_string;
+			} 
 		}
+		m_manufacturer = manufacturer;
+		
+		String model = String.format("0x%04x", m_deviceInfo.m_model);
+		if (isParamSupported(RdmParamId.DEVICE_MODEL_DESCRIPTION)) {
+			RdmPacket modelReply = sendRdmRequest(false, RdmParamId.DEVICE_MODEL_DESCRIPTION, null);
+			if (modelReply != null && modelReply.isRespAck()) {
+				model = new RdmParamResp.StringReply(modelReply).m_string;
+			} 
+		}
+		m_model = model;
+
+		RdmPacket swVerLabelReply = sendRdmRequest(false, RdmParamId.SOFTWARE_VERSION_LABEL, null);
+		String swVerLabel = "[" + m_deviceInfo.m_softwareVersion + "]";
+		if (swVerLabelReply != null) {
+			swVerLabel = new RdmParamResp.StringReply(swVerLabelReply).m_string;
+		}
+		m_softwareVersionLabel = swVerLabel;
+		
+		m_personalities = getPersonalities();
+		m_sensorDefs = getSensorDefs();
+	}
+	
+	private RdmPacket sendRdmRequest(boolean isSet, RdmParamId paramId, byte[] reqData)
+			throws IOException
+	{
+		return m_rdmRequest.sendRequest(m_uid, isSet, paramId, reqData);
+	}
+	
+	private boolean isParamSupported(RdmParamId paramId)
+	{
+		return paramId.isRequired() || m_stdParamIds.contains(paramId);
+	}
+	
+	private void refreshDeviceInfo() throws IOException
+	{
+		RdmPacket devInfoReply = sendRdmRequest(false, RdmParamId.DEVICE_INFO, null);
+		if (devInfoReply == null || !devInfoReply.isRespAck()) {
+			throw new IOException("RdmDevice(" + m_uid + "): get DEVICE_INFO failed");
+		} else {
+			m_deviceInfo = new RdmParamResp.DeviceInfo(devInfoReply);
+		}
+	}
+	
+	private TreeMap<Integer,RdmParamResp.PersonalityDesc> getPersonalities() throws IOException
+	{
+		TreeMap<Integer,RdmParamResp.PersonalityDesc> personalities = new TreeMap<>();
+		boolean ok = isParamSupported(RdmParamId.DMX_PERSONALITY_DESCRIPTION);
+		if (ok) {
+			for (int iPersonality = 1; iPersonality <= m_deviceInfo.m_nPersonalities; iPersonality++) {
+				RdmPacket personalityDescReply = null;
+				if (ok) {
+					personalityDescReply = sendRdmRequest(false, RdmParamId.DMX_PERSONALITY_DESCRIPTION,
+														new byte[] {(byte)iPersonality});
+					if (personalityDescReply == null) {
+						ok = false;
+					}
+				}
+				RdmParamResp.PersonalityDesc desc;
+				if (personalityDescReply != null && personalityDescReply.isRespAck()) {
+					desc = new RdmParamResp.PersonalityDesc(personalityDescReply);
+				} else {
+					desc = new RdmParamResp.PersonalityDesc(iPersonality, 1, RdmDevice.UNKNOWN_DESC);
+				}
+				personalities.put(iPersonality, desc);
+			} 
+		}
+		return personalities;
+	}
+	
+	private TreeMap<Integer,RdmParamResp.SensorDef> getSensorDefs() throws IOException
+	{
+		TreeMap<Integer,RdmParamResp.SensorDef> sensorDefs = new TreeMap<>();
+		boolean ok = isParamSupported(RdmParamId.SENSOR_DEFINITION);
+		if (ok) {
+			for (int iSensor = 0; iSensor < m_deviceInfo.m_numSensors; iSensor++) {
+				RdmPacket sensorDefReply = null;
+				if (ok) {
+					sensorDefReply = sendRdmRequest(false, RdmParamId.SENSOR_DEFINITION,
+														new byte[] { (byte) iSensor });
+				}
+				RdmParamResp.SensorDef defn = null;
+				if (sensorDefReply != null && sensorDefReply.isRespAck()) {
+					defn = new RdmParamResp.SensorDef(sensorDefReply);
+					sensorDefs.put(iSensor, defn);
+				} else {
+					ok = false;
+				}
+			}
+		}
+		return sensorDefs;
+	}
+	
+	public TreeMap<Integer,String> getSlotDescs() throws IOException
+	{
+		TreeMap<Integer,String> slotDescs = new TreeMap<>();
+		boolean ok = isParamSupported(RdmParamId.SLOT_DESCRIPTION);
+		if (ok) {
+			for (int iSlot = 0; iSlot < m_deviceInfo.m_dmxFootprint; iSlot++) {
+				slotDescs.put(iSlot, RdmDevice.UNKNOWN_DESC);
+			}
+			for (int iSlot = 0; iSlot < m_deviceInfo.m_dmxFootprint; iSlot++) {
+				if (ok) {
+					byte[] iSlotAsBytes = new byte[] {(byte)((iSlot >> 8) & 0xff), (byte)(iSlot & 0xff)};
+					RdmPacket slotDescReply = sendRdmRequest(false,
+													RdmParamId.SLOT_DESCRIPTION, iSlotAsBytes);
+					if (slotDescReply != null && slotDescReply.isRespAck()) {
+						RdmParamResp.SlotDesc slotDesc = new RdmParamResp.SlotDesc(slotDescReply);
+						slotDescs.put(slotDesc.m_number, slotDesc.m_desc);
+					} else {
+						ok = false;
+					}
+				}
+			} 
+		}
+		return slotDescs;
+	}
+	
+	public void refresh() throws IOException
+	{
+		refreshDeviceInfo();
+	}
+
+	public RdmParamResp.DeviceInfo getDeviceInfo()
+	{
+		return m_deviceInfo;
+	}
+	
+	public int getDmxStartAddr()
+	{
+		return m_deviceInfo.m_startAddr;
+	}
+	
+	public int getDmxFootprint()
+	{
+		return m_deviceInfo.m_dmxFootprint;
 	}
 	
 	/**
@@ -131,6 +225,24 @@ public class RdmDevice implements Comparable<RdmDevice>
 		}
 		buff.append("]");
 		return buff.toString();
+	}
+	
+	/**
+	 * Get the current personality number.
+	 * @return The current personality number.
+	 */
+	public int getPersonality()
+	{
+		return m_deviceInfo.m_currentPersonality;
+	}
+	
+	/**
+	 * Get the number of personalities.
+	 * @return The number of personalities.
+	 */
+	public int getNumPersonalities()
+	{
+		return m_deviceInfo.m_nPersonalities;
 	}
 	
 	/**
@@ -188,6 +300,214 @@ public class RdmDevice implements Comparable<RdmDevice>
 	{
 		return RdmProductCategories.getCategoryName(m_deviceInfo.m_category);
 	}
+	
+	/**
+	 * Get the value of the DEVICE_HOURS parameter.
+	 * @return The value of the DEVICE_HOURS parameter, or -1 if not supported or an error occurs.
+	 * @throws IOException If an I/O error occurs.
+	 */
+	public long getDeviceHours()
+	{
+		long devHours = -1;
+		if (isParamSupported(RdmParamId.DEVICE_HOURS)) {
+			try {
+				RdmPacket devHoursReply = sendRdmRequest(false, RdmParamId.DEVICE_HOURS, null);
+				if (devHoursReply != null && devHoursReply.isRespAck()) {
+					devHours = RdmParamResp.unknownEnd32Int(devHoursReply, devHours);
+				}
+			} catch (Exception e) {
+				devHours = -1;
+			}		
+		}
+		return devHours;
+	}
+	
+	/**
+	 * Get the value of the DEVICE_LABEL parameter.
+	 * @return The value of the DEVICE_LABEL parameter, or null if an error occurs.
+	 */
+	public String getDeviceLabel()
+	{
+		String label = null;
+		if (isParamSupported(RdmParamId.DEVICE_LABEL)) {
+			try {
+				RdmPacket devLabelReply = sendRdmRequest(false, RdmParamId.DEVICE_LABEL, null);
+				if (devLabelReply != null && devLabelReply.isRespAck()) {
+					label = new RdmParamResp.StringReply(devLabelReply).m_string;
+				}
+			} catch (Exception e) {
+				label = null;
+			}		
+		}
+		return label;
+	}
+	
+	/**
+	 * Set the DEVICE_LABEL parameter.
+	 * @param label The new label.
+	 * @return True iff the label was set.
+	 */
+	public boolean setDeviceLabel(String label)
+	{
+		boolean succeeded = false;
+		if (label == null) {
+			label = "";
+		}
+		if (isParamSupported(RdmParamId.DEVICE_LABEL)) {
+			try {
+				RdmPacket devLabelReply = sendRdmRequest(true, RdmParamId.DEVICE_LABEL, label.getBytes());
+				if (devLabelReply != null && devLabelReply.isRespAck()) {
+					succeeded = true;
+				}
+			} catch (Exception e) {
+				succeeded = false;
+			}		
+		}
+		return succeeded;
+	}
+	
+	/**
+	 * Get the value of a sensor.
+	 * @param iSensor The sensor number.
+	 * @return The sensor's value, or null if iSensor isn't a supported sensor
+	 * 			or if an error occurs.
+	 */
+	public RdmParamResp.SensorValue getSensorValue(int iSensor)
+	{
+		RdmParamResp.SensorValue value = null;
+		String sensorName = "";
+		RdmParamResp.SensorDef sensorDef = m_sensorDefs.get(iSensor);
+		if (sensorDef != null) {
+			sensorName = sensorDef.m_desc;
+		}
+		if (isParamSupported(RdmParamId.SENSOR_VALUE)) {
+			try {
+				RdmPacket sensorValueReply = sendRdmRequest(false, RdmParamId.SENSOR_VALUE,
+												new byte[] {(byte)iSensor});
+				if (sensorValueReply != null && sensorValueReply.isRespAck()) {
+					value = new RdmParamResp.SensorValue(sensorValueReply, sensorName);
+				}
+			} catch (Exception e) {
+				value = null;
+			}		
+		}
+		return value;
+	}
+	
+	/**
+	 * Set the DMX address.
+	 * @param dmxAddress The new address.
+	 * @return True iff the address was set.
+	 */
+	public boolean setDmxAddress(int dmxAddress)
+	{
+		boolean succeeded = false;
+		byte[] reqData = new byte[2];
+		ArtNetMsgUtil.putBigEndInt16(reqData, 0, dmxAddress);
+		if (dmxAddress >= 0 && dmxAddress <= 512) {
+			try {
+				RdmPacket setDmxReply = sendRdmRequest(true, RdmParamId.DMX_START_ADDRESS,
+										reqData);
+				if (setDmxReply != null && setDmxReply.isRespAck()) {
+					succeeded = true;
+				}
+			} catch (Exception e) {
+				succeeded = false;
+			}
+			try {
+				refresh();
+			} catch (IOException e) {
+				System.err.println("RdmDevice.setDmxAddress: set succeeded, but refresh failed: " + e);
+			}
+		}
+		return succeeded;
+	}
+	
+	/**
+	 * Set the DMX personality.
+	 * @param dmxPersonality The new personality number.
+	 * @return True iff the personality was set.
+	 */
+	public boolean setPersonality(int dmxPersonality)
+	{
+		boolean succeeded = false;
+		byte[] reqData = new byte[] {(byte)dmxPersonality};
+		try {
+			RdmPacket setPersonalityReply = sendRdmRequest(true, RdmParamId.DMX_PERSONALITY, reqData);
+			if (setPersonalityReply != null && setPersonalityReply.isRespAck()) {
+				succeeded = true;
+			}
+		} catch (Exception e) {
+			succeeded = false;
+		}
+		try {
+			refresh();
+		} catch (IOException e) {
+			System.err.println("RdmDevice.setPersonality: set succeeded, but refresh failed: " + e);
+		}
+		return succeeded;
+	}
+	
+	/**
+	 * Get the value of the IDENTIFY_DEVICE parameter.
+	 * @return True if the IDENTIFY_DEVICE parameter is ON.
+	 * @throws IOException If an I/O error occurs.
+	 */
+	public boolean getIdentifyDevice()
+	{
+		boolean on = false;
+		if (isParamSupported(RdmParamId.IDENTIFY_DEVICE)) {
+			try {
+				RdmPacket identifyReply = sendRdmRequest(false, RdmParamId.IDENTIFY_DEVICE, null);
+				if (identifyReply != null && identifyReply.isRespAck()
+						&& identifyReply.m_paramDataLen >= 1 && identifyReply.m_paramData != null) {
+					on = identifyReply.m_paramData[0] != 0;
+				}
+			} catch (Exception e) {
+				on = false;
+			}		
+		}
+		return on;
+	}
+	
+	/**
+	 * Set the IDENTIFY_DEVICE parameter.
+	 * @param on The new state: true for on, false for off..
+	 * @return True iff the parameter was set.
+	 */
+	public boolean setIdentifyDevice(boolean on)
+	{
+		boolean succeeded = false;
+		byte[] reqData = new byte[] {(byte)(on ? 1 : 0)};
+		try {
+			RdmPacket setIdentifyReply = sendRdmRequest(true, RdmParamId.IDENTIFY_DEVICE, reqData);
+			if (setIdentifyReply != null && setIdentifyReply.isRespAck()) {
+				succeeded = true;
+			}
+		} catch (Exception e) {
+			succeeded = false;
+		}
+		return succeeded;
+	}
+	
+	/**
+	 * Broadcast a "Set IDENTIFY_DEVICE off" request to the wildcard UID for all ArtNet ports.
+	 * @param manager The ArtNet manager (has the mechanism to send the request).
+	 * @return True if all broadcasts succeeded.
+	 */
+	public static boolean resetIdentifyDevice(ArtNetManager manager)
+	{
+		boolean succeeded = false;
+		byte[] reqData = new byte[] {0};
+		if (manager != null) {
+			try {
+				succeeded = manager.getRdmRequest().bcastRequest(manager.getAllPorts(),
+									ACN_UID.BROADCAST_UID, true, RdmParamId.IDENTIFY_DEVICE, reqData);
+			} catch (IOException e) {
+			}
+		}
+		return succeeded;
+	}
 
 	/**
 	 * Compare on Manufacturer, Model, DMX Universe (ArtNet Port) and DMX Start Address.
@@ -238,7 +558,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 	}
 	
 	/**
-	 * Compare devices by DMX universe and address.
+	 * Compare devices by DMX universe, dmx start address, and finally UID.
 	 */
 	public static class CompareAddress implements Comparator<RdmDevice>
 	{
@@ -258,7 +578,48 @@ public class RdmDevice implements Comparable<RdmDevice>
 			if (cmp != 0) {
 				return cmp;
 			}
-			return Integer.compare(o1.m_deviceInfo.m_startAddr, o2.m_deviceInfo.m_startAddr);
+			cmp = Integer.compare(o1.getDmxStartAddr(), o2.getDmxStartAddr());
+			if (cmp != 0) {
+				return cmp;
+			}
+			return o1.m_uid.compareTo(o2.m_uid);
+		}
+	}
+	
+	@Override
+	public String toString()
+	{
+		return	"RdmDevice(" + m_uid
+				+ "@" + m_nodePort
+				+ getManModel(",")
+				+ ",dmx=" + m_deviceInfo.m_startAddr + "-"
+						+ (m_deviceInfo.m_startAddr + m_deviceInfo.m_dmxFootprint - 1)
+				+ ",config=" + m_deviceInfo.m_currentPersonality + "/"
+						+ m_deviceInfo.m_nPersonalities
+				+ ",cat=0x" + String.format("%04x", m_deviceInfo.m_category)
+						+ "/" + RdmProductCategories.getCategoryName(m_deviceInfo.m_category)
+				+ ",model=" + m_deviceInfo.m_model
+				+ ",swVers=" + m_softwareVersionLabel
+				+ (m_deviceInfo.m_numSubDevs > 0 ? (",#sub=" + m_deviceInfo.m_numSubDevs) : "")
+				+ (m_deviceInfo.m_numSensors > 0 ? (",#sensor=" + m_deviceInfo.m_numSensors) : "")
+				+ ",pids=" + m_stdParamIds
+				+ (!m_otherParamIds.isEmpty() ? (",xpids=" + m_otherParamIds) : "")
+				+ (!m_personalities.isEmpty() ? ",personalities=" + m_personalities : "")
+				+ (!m_sensorDefs.isEmpty() ? ",sensors=" + m_sensorDefs : "")
+				// + (!m_slotDescs.isEmpty() ? ",slots=" + m_slotDescs : "")
+				+ ")";
+	}
+	
+	private String getManModel(String prefix)
+	{
+		if (!isUnknownDesc(m_manufacturer) && !isUnknownDesc(m_model)) {
+			return prefix + m_manufacturer + "/" + m_model;
+		} else if (!isUnknownDesc(m_manufacturer) && isUnknownDesc(m_model)) {
+			return prefix + m_manufacturer + "/" + UNKNOWN_DESC;
+		} else if (isUnknownDesc(m_manufacturer) && !isUnknownDesc(m_model)) {
+			return prefix + UNKNOWN_DESC + "/" + m_model;
+		} else {
+			return "";
 		}
 	}
 }

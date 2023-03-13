@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.ListIterator;
 import java.util.EnumMap;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import java.io.IOException;
@@ -112,41 +113,49 @@ public class ArtNetListDevices
 			iDev++;
 			System.out.println();
 			System.out.println("Device " + iDev + "  [" + devInfo.m_uid + "]:");
-			System.out.println(indent + devInfo.m_manufacturer + "/" + devInfo.m_model + "  ("
-						+ RdmProductCategories.getCategoryName(devInfo.m_deviceInfo.m_category) + ")");
+			String devLabel = devInfo.getDeviceLabel();
+			System.out.println(indent + devInfo.m_manufacturer + "/" + devInfo.m_model
+						+ "  (" + devInfo.getCategoryName() + ")"
+						+ (devLabel != null && !devLabel.isBlank() ? (" \"" + devLabel + "\"") : ""));
 			
-			if (devInfo.m_deviceInfo.m_startAddr > 0 || devInfo.m_deviceInfo.m_dmxFootprint > 0) {
-				System.out.println(indent + "dmx addresses: " + devInfo.m_deviceInfo.m_startAddr
-							+ "-" + (devInfo.m_deviceInfo.m_startAddr
-										+ devInfo.m_deviceInfo.m_dmxFootprint - 1)
+			if (devInfo.getDmxStartAddr() > 0 || devInfo.getDmxFootprint() > 0) {
+				System.out.println(indent + "dmx addresses: " + devInfo.getDmxStartAddr()
+							+ "-" + (devInfo.getDmxStartAddr()
+										+ devInfo.getDmxFootprint() - 1)
 							+ " univ: " + devInfo.m_nodePort);
 			} else {
 				System.out.println(indent + "univ: " + devInfo.m_nodePort);
 			}
 			System.out.println(indent + "dmx config " + devInfo.getPersonalityDesc());
 			System.out.println(indent + "version: " + devInfo.m_softwareVersionLabel
-							+ " #subdevs: " + devInfo.m_deviceInfo.m_numSubDevs
-							+ " #sensors: " + devInfo.m_deviceInfo.m_numSensors
-							+ (devInfo.m_deviceHours >= 0 ? (" hours: " + devInfo.m_deviceHours) : "")
+							+ " #subdevs: " + devInfo.getDeviceInfo().m_numSubDevs
+							+ " #sensors: " + devInfo.getDeviceInfo().m_numSensors
+							+ " hours: " + devInfo.getDeviceHours()
 							);
-			if (!devInfo.m_slotDescs.isEmpty()) {
-				System.out.print(indent + "slots: ");
-				int lineLen = indent.length() + 6;
-				String sep = " ";
-				for (Map.Entry<Integer,String> ent: devInfo.m_slotDescs.entrySet()) {
-					String s = ent.getKey() + ": " + ent.getValue();
-					if (lineLen + s.length() > 75) {
-						System.out.println();
-						System.out.print(indent + indent);
-						lineLen = 2*indent.length();
-						sep = "";
+			try {
+				Map<Integer,String> slotDescs = devInfo.getSlotDescs();
+				if (!slotDescs.isEmpty()) {
+					System.out.print(indent + "slots: ");
+					int lineLen = indent.length() + 6;
+					String sep = " ";
+					for (Map.Entry<Integer,String> ent: slotDescs.entrySet()) {
+						String s = ent.getKey() + ": " + ent.getValue();
+						if (lineLen + s.length() > 75) {
+							System.out.println();
+							System.out.print(indent + indent);
+							lineLen = 2*indent.length();
+							sep = "";
+						}
+						System.out.print(sep + s);
+						lineLen += s.length() + sep.length();
+						sep = " ";
 					}
-					System.out.print(sep + s);
-					lineLen += s.length() + sep.length();
-					sep = " ";
+					System.out.println();
 				}
-				System.out.println();
+			} catch (IOException e1) {
+				System.out.println("Error getting slotdescs: " + e1);
 			}
+			
 			if (!devInfo.m_personalities.isEmpty()) {
 				System.out.println(indent + "available configurations:");
 				for (int iPers: devInfo.m_personalities.keySet()) {
@@ -157,16 +166,7 @@ public class ArtNetListDevices
 				System.out.println(indent + "sensors:");
 				for (RdmParamResp.SensorDef sensorDef: devInfo.m_sensorDefs.values()) {
 					System.out.println(indent + indent + sensorDef);
-					try {
-						RdmPacket valueReply = manager.sendRdmRequest(devInfo.m_uid, false,
-										RdmParamId.SENSOR_VALUE, new byte[] {(byte)sensorDef.m_sensorNum});
-						if (valueReply != null) {
-							System.out.println(indent + indent + "  "
-										+ new RdmParamResp.SensorValue(valueReply, sensorDef.m_desc));
-						}
-					} catch (IOException e) {
-						System.err.println(indent + indent + "  error getting value: " + e);
-					}
+					System.out.println(indent + indent + devInfo.getSensorValue(sensorDef.m_sensorNum));
 				}
 			}
 			if (!devInfo.m_stdParamIds.isEmpty() || !devInfo.m_otherParamIds.isEmpty()) {
@@ -441,15 +441,15 @@ public class ArtNetListDevices
 		ColNameMap map = new ColNameMap();
 		map.put(ColName.UID, deviceInfo.m_uid.toString());		
 		map.put(ColName.Univ, deviceInfo.m_nodePort.m_port.toString());
-		map.put(ColName.DmxAddr, deviceInfo.m_deviceInfo.m_startAddr + "");
-		map.put(ColName.DmxSlots, deviceInfo.m_deviceInfo.m_dmxFootprint + "");
-		map.put(ColName.ConfigNum, deviceInfo.m_deviceInfo.m_currentPersonality + "");
+		map.put(ColName.DmxAddr, deviceInfo.getDeviceInfo().m_startAddr + "");
+		map.put(ColName.DmxSlots, deviceInfo.getDeviceInfo().m_dmxFootprint + "");
+		map.put(ColName.ConfigNum, deviceInfo.getDeviceInfo().m_currentPersonality + "");
 		map.put(ColName.Version, deviceInfo.m_softwareVersionLabel);
-		map.put(ColName.CategoryId, String.format("0x%04x", deviceInfo.m_deviceInfo.m_category));
+		map.put(ColName.CategoryId, String.format("0x%04x", deviceInfo.getDeviceInfo().m_category));
 		map.put(ColName.CategoryName, deviceInfo.getCategoryName());
 		map.put(ColName.MakeId, String.format("0x%04x", deviceInfo.m_uid.getManufacturer()));
 		map.put(ColName.MakeName, deviceInfo.m_manufacturer);
-		map.put(ColName.ModelId, String.format("0x%04x", deviceInfo.m_deviceInfo.m_model));
+		map.put(ColName.ModelId, String.format("0x%04x", deviceInfo.getDeviceInfo().m_model));
 		map.put(ColName.ModelName, deviceInfo.m_model);
 		map.put(ColName.ConfigName, deviceInfo.getPersonalityDesc());
 		return map;

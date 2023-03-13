@@ -303,6 +303,19 @@ public class ArtNetManager implements Closeable
 	}
 	
 	/**
+	 * Return an ArtNetRdmRequest, which can be used to send RDM requests.
+	 * @return
+	 * @throws IOException 
+	 */
+	public ArtNetRdmRequest getRdmRequest() throws IOException
+	{
+		if (m_rdmRequest == null) {
+			m_rdmRequest = new ArtNetRdmRequest(m_channel, getUidsToPortAddrs());
+		}
+		return m_rdmRequest;
+	}
+	
+	/**
 	 * Send an RDM request to a device and return the response.
 	 * This uses the UID map ({@link #getUidsToPortAddrs()} to find the node address and port for the UID.
 	 * @param destUid The device UID.
@@ -316,21 +329,19 @@ public class ArtNetManager implements Closeable
 	public RdmPacket sendRdmRequest(ACN_UID destUid, boolean isSet, RdmParamId paramId, byte[] requestData)
 			throws IOException
 	{
-		if (m_rdmRequest == null) {
-			m_rdmRequest = new ArtNetRdmRequest(m_channel, getUidsToPortAddrs());
-		}
-		return m_rdmRequest.sendRequest(destUid, isSet, paramId, requestData);
+		return  getRdmRequest().sendRequest(destUid, isSet, paramId, requestData);
 	}
-	
+		
 	/**
-	 * Get the standard information for all RDM devices.
+	 * Get the device information for all RDM devices.
 	 * Note: This method does not cache the results;
 	 * each time it's called it gets fresh information for each device.
 	 * @param errors If errors occur, append a message to this list for each error.
 	 * 				If the list is null, ignore errors.  
 	 * @return A sorted map from UIDs to RdmDevice descriptions.
+	 * @throws IOException 
 	 */
-	public Map<ACN_UID, RdmDevice> getDeviceMap(List<String> errors)
+	public Map<ACN_UID, RdmDevice> getDeviceMap(List<String> errors) throws IOException
 	{
 		Map<ACN_UID, RdmDevice> deviceInfoMap = new TreeMap<>();
 		Set<ACN_UID> uids = getUidsToPortAddrs().keySet();
@@ -338,12 +349,8 @@ public class ArtNetManager implements Closeable
 		for (ACN_UID uid: uids) {
 			try {
 				// System.err.println("XXX: pre getDeviceInfo: " + uid);
-				RdmDevice info = getDevice(uid);
-				if (info != null) {
-					deviceInfoMap.put(uid, info);
-				} else if (errors != null) {
-					errors.add("ArtNetManger: Cannot get DeviceInfo for " + uid);
-				}
+				RdmDevice info = new RdmDevice(uid, getUidsToPortAddrs().get(uid), getRdmRequest());
+				deviceInfoMap.put(uid, info);
 			} catch (Exception e) {
 				if (errors != null) {
 					errors.add("ArtNetManger: Exception getting UID " + uid + ": " + e);
@@ -351,153 +358,6 @@ public class ArtNetManager implements Closeable
 			}
 		}
 		return deviceInfoMap;
-	}
-
-	/**
-	 * Get the standard information for an RDM device.
-	 * @param uid The device UID.
-	 * @return The device information, or null if the TOD requests did not
-	 * 			give the node with that UID, or the device does not reply.
-	 * @throws IOException If an I//O error occurs.
-	 */
-	public RdmDevice getDevice(ACN_UID uid) throws IOException
-	{
-		ArtNetPortAddr portAddr = getUidsToPortAddrs().get(uid);
-		if (portAddr == null) {
-			// System.out.println("XXX " + uid + " no portaddr");
-			return null;
-		}
-		RdmPacket devInfoReply = sendRdmRequest(uid, false, RdmParamId.DEVICE_INFO, null);
-		if (devInfoReply == null || !devInfoReply.isRespAck()) {
-			System.out.println("XXX " + uid + " no devinfo");
-			return null;
-		}
-		RdmParamResp.DeviceInfo devInfo = new RdmParamResp.DeviceInfo(devInfoReply);
-		
-		RdmPacket supportedPidsReply = sendRdmRequest(uid, false, RdmParamId.SUPPORTED_PARAMETERS, null);
-		RdmParamResp.PidList supportedPids = new RdmParamResp.PidList(supportedPidsReply);
-		
-		RdmPacket swVerLabelReply = sendRdmRequest(uid, false, RdmParamId.SOFTWARE_VERSION_LABEL, null);
-		String swVerLabel = "[" + devInfo.m_softwareVersion + "]";
-		if (swVerLabelReply != null) {
-			swVerLabel = new RdmParamResp.StringReply(swVerLabelReply).m_string;
-		}
-		
-		String manufacturer = String.format("0x%04x", uid.getManufacturer());
-		if (isParamSupported(RdmParamId.MANUFACTURER_LABEL, supportedPids)) {
-			RdmPacket manufacturerReply = sendRdmRequest(uid, false, RdmParamId.MANUFACTURER_LABEL, null);
-			if (manufacturerReply != null && manufacturerReply.isRespAck()) {
-				manufacturer = new RdmParamResp.StringReply(manufacturerReply).m_string;
-			} 
-		}
-		
-		String model = String.format("0x%04x", devInfo.m_model);
-		if (isParamSupported(RdmParamId.DEVICE_MODEL_DESCRIPTION, supportedPids)) {
-			RdmPacket modelReply = sendRdmRequest(uid, false, RdmParamId.DEVICE_MODEL_DESCRIPTION, null);
-			if (modelReply != null && modelReply.isRespAck()) {
-				model = new RdmParamResp.StringReply(modelReply).m_string;
-			} 
-		}
-		
-		long devHours = -1;
-		if (isParamSupported(RdmParamId.DEVICE_HOURS, supportedPids)) {
-			RdmPacket devHoursReply = sendRdmRequest(uid, false, RdmParamId.DEVICE_HOURS, null);
-			if (devHoursReply != null && devHoursReply.isRespAck()) {
-				devHours = RdmParamResp.unknownEnd32Int(devHoursReply, devHours);
-			}
-		}
-		
-		return new RdmDevice(uid, portAddr, devInfo,
-							getPersonalities(uid, devInfo.m_nPersonalities, supportedPids),
-							getSlotDescs(uid, devInfo.m_dmxFootprint, supportedPids),
-							manufacturer, model, swVerLabel, devHours,
-							getSensorDefs(uid, devInfo.m_numSensors, supportedPids),
-							supportedPids);
-	}
-	
-	
-	private TreeMap<Integer,RdmParamResp.PersonalityDesc> getPersonalities(ACN_UID uid, int nPersonalities,
-													 RdmParamResp.PidList supportedPids) throws IOException
-	{
-		TreeMap<Integer,RdmParamResp.PersonalityDesc> personalities = new TreeMap<>();
-		boolean ok = isParamSupported(RdmParamId.DMX_PERSONALITY_DESCRIPTION, supportedPids);
-		if (ok) {
-			for (int iPersonality = 1; iPersonality <= nPersonalities; iPersonality++) {
-				RdmPacket personalityDescReply = null;
-				if (ok) {
-					personalityDescReply = sendRdmRequest(uid, false,
-														RdmParamId.DMX_PERSONALITY_DESCRIPTION,
-														new byte[] { (byte) iPersonality });
-					if (personalityDescReply == null) {
-						ok = false;
-					}
-				}
-				RdmParamResp.PersonalityDesc desc;
-				if (personalityDescReply != null && personalityDescReply.isRespAck()) {
-					desc = new RdmParamResp.PersonalityDesc(personalityDescReply);
-				} else {
-					desc = new RdmParamResp.PersonalityDesc(iPersonality, 1, RdmDevice.UNKNOWN_DESC);
-				}
-				personalities.put(iPersonality, desc);
-			} 
-		}
-		return personalities;
-	}
-	
-	private TreeMap<Integer,RdmParamResp.SensorDef> getSensorDefs(ACN_UID uid, int nSensors,
-													RdmParamResp.PidList supportedPids) throws IOException
-	{
-		TreeMap<Integer,RdmParamResp.SensorDef> sensorDefs = new TreeMap<>();
-		boolean ok = isParamSupported(RdmParamId.SENSOR_DEFINITION, supportedPids);
-		if (ok) {
-			for (int iSensor = 0; iSensor < nSensors; iSensor++) {
-				RdmPacket sensorDefReply = null;
-				if (ok) {
-					sensorDefReply = sendRdmRequest(uid, false,
-														RdmParamId.SENSOR_DEFINITION,
-														new byte[] { (byte) iSensor });
-				}
-				RdmParamResp.SensorDef defn = null;
-				if (sensorDefReply != null && sensorDefReply.isRespAck()) {
-					defn = new RdmParamResp.SensorDef(sensorDefReply);
-					sensorDefs.put(iSensor, defn);
-				} else {
-					ok = false;
-				}
-			}
-		}
-		return sensorDefs;
-	}
-	
-	private TreeMap<Integer,String> getSlotDescs(ACN_UID uid, int nSlots,
-												 RdmParamResp.PidList supportedPids) throws IOException
-	{
-		TreeMap<Integer,String> slotDescs = new TreeMap<>();
-		boolean ok = isParamSupported(RdmParamId.SLOT_DESCRIPTION, supportedPids);
-		if (ok) {
-			for (int iSlot = 0; iSlot < nSlots; iSlot++) {
-				slotDescs.put(iSlot, RdmDevice.UNKNOWN_DESC);
-			}
-			for (int iSlot = 0; iSlot < nSlots; iSlot++) {
-				if (ok) {
-					byte[] iSlotAsBytes = new byte[] {(byte)((iSlot >> 8) & 0xff), (byte)(iSlot & 0xff)};
-					RdmPacket slotDescReply = sendRdmRequest(uid, false,
-													RdmParamId.SLOT_DESCRIPTION, iSlotAsBytes);
-					if (slotDescReply != null && slotDescReply.isRespAck()) {
-						RdmParamResp.SlotDesc slotDesc = new RdmParamResp.SlotDesc(slotDescReply);
-						slotDescs.put(slotDesc.m_number, slotDesc.m_desc);
-					} else {
-						ok = false;
-					}
-				}
-			} 
-		}
-		return slotDescs;
-	}
-	
-	private boolean isParamSupported(RdmParamId paramId, RdmParamResp.PidList supportedPids)
-	{
-		return paramId.isRequired() || (supportedPids != null && supportedPids.isSupported(paramId));
 	}
 
 	/**
@@ -1053,7 +913,14 @@ public class ArtNetManager implements Closeable
 				System.out.println("UID to port map:");
 				for (Map.Entry<ACN_UID, ArtNetPortAddr> ent : uidsToPortAddrs.entrySet()) {
 					System.out.println(indent + ent.getKey() + ": " + ent.getValue());
-				} 
+				}
+				
+				List<String> errors = new ArrayList<>();
+				Map<ACN_UID, RdmDevice> map = mgr.getDeviceMap(errors);
+				System.out.println("RdmDevice2 errors: " + errors);
+				for (RdmDevice rdmDev: map.values()) {
+					System.out.println("Device:\n   " + rdmDev);
+				}
 			}
 		}
 	}

@@ -98,7 +98,7 @@ public class RdmProductCategories
 	/**
 	 * Get the product category name for a code.
 	 * @param code A product category code.
-	 * @return The name of that code.
+	 * @return The name of that code, or the hex code if unknown.
 	 */
 	public static String getCategoryName(int code)
 	{
@@ -110,7 +110,7 @@ public class RdmProductCategories
 		if (name != null) {
 			return name;
 		}
-		return "UNKNOWN";
+		return String.format("0x%04x", code);
 	}
 	
 	/**

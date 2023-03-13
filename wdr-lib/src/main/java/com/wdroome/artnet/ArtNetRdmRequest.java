@@ -5,6 +5,7 @@ import java.util.Set;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.Collection;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -172,6 +173,36 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		}
 		return sendRequest(portAddr.m_nodeAddr.m_nodeAddr, portAddr.m_port, destUid,
 									isSet, paramId, requestData);
+	}
+	
+	/**
+	 * Broadcast an RDM request. Do not return the device response(s).
+	 * @param ports The art-net ports to broadcast it to.
+	 * @param destUid The destination UID. Usually this is a wildcard.
+	 * @param isSet True if this is an RDM SET request.
+	 * @param paramId The parameter ID.
+	 * @param requestData The parameter data to send.
+	 * @return True if all broadcasts succeeded.
+	 */
+	public boolean bcastRequest(Collection<ArtNetPort> ports, ACN_UID destUid, boolean isSet,
+							RdmParamId paramId, byte[] requestData)
+	{
+		boolean success = true;
+		for (ArtNetPort port: ports) {
+			ArtNetRdm req = new ArtNetRdm();
+			req.m_net = port.m_net;
+			req.m_subnetUniv = port.subUniv();
+			RdmPacket rdmPacket = new RdmPacket(destUid, isSet ? RdmPacket.CMD_SET : RdmPacket.CMD_GET,
+												paramId, requestData);
+			rdmPacket.m_transNum = m_transNum++;
+			rdmPacket.m_srcUid = m_srcUid;
+			req.m_rdmPacket = rdmPacket;
+			try {
+				m_channel.broadcast(req);
+			} catch (IOException e) {
+				success = false;			}
+		}
+		return success;
 	}
 
 	public Map<ACN_UID, ArtNetPortAddr> getUidMap() {
