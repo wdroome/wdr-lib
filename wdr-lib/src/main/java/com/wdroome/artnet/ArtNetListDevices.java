@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.ListIterator;
 import java.util.EnumMap;
 import java.util.Set;
@@ -21,6 +22,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import com.wdroome.util.CommandReader;
+import com.wdroome.util.EnumFinder;
 
 import com.wdroome.json.JSONValueTypeException;
 import com.wdroome.json.JSONParseException;
@@ -42,8 +44,15 @@ import com.wdroome.artnet.util.ArtNetTestNode;
 public class ArtNetListDevices
 {
 	private static boolean g_printOkDevs = false;
+	private ArtNetChannel m_channel = null;
+	private ArtNetManager m_manager = null;
+	
+	public static void main(String[] args) throws JSONParseException, JSONValueTypeException, IOException
+	{
+		ArtNetListDevices listDevs = new ArtNetListDevices(args);
+	}
 
-	public static void main(String[] args)
+	public ArtNetListDevices(String[] args)
 			throws IOException, JSONParseException, JSONValueTypeException
 	{
 		List<String> argList = new ArrayList<>();
@@ -53,7 +62,6 @@ public class ArtNetListDevices
 			}
 		}
 
-		ArtNetChannel chan = null;
 		boolean useTestNode = false;
 		File testNodeParamFile = null;
 		for (ListIterator<String> iter = argList.listIterator(); iter.hasNext(); ) {
@@ -69,26 +77,22 @@ public class ArtNetListDevices
 		}
 		ArtNetTestNode testNode = null;
 		if (useTestNode) {
-			chan = new ArtNetChannel();
-			testNode = new ArtNetTestNode(chan, null, testNodeParamFile, testNodeParamFile);
+			m_channel = new ArtNetChannel();
+			testNode = new ArtNetTestNode(m_channel, null, testNodeParamFile, testNodeParamFile);
 		}
 
-		try (ArtNetManager manager = makeManager(chan, argList)) {
+		try {
+			m_manager = makeManager(argList);
 			if (argList.size() >= 1 && argList.get(0).startsWith("-i")) {
 				argList.remove(0);
-				new ReadCmds(chan, manager, argList);
+				new ReadCmds(argList);
 			} else {
 				ArrayList<String> errors = new ArrayList<>();
-				Map<ACN_UID, RdmDevice> deviceMap = manager.getDeviceMap(errors);
+				Map<ACN_UID, RdmDevice> deviceMap = m_manager.getDeviceMap(errors);
 				if (argList.isEmpty()) {
 					System.out.println("Found " + deviceMap.size() + " RDM Devices.");
-					if (!errors.isEmpty()) {
-						System.out.println("  Errors: " + errors);
-						for (String s: errors) {
-							System.out.println("    " + s);
-						}
-					}
-					prtDevices(RdmDevice.sortByAddr(deviceMap.values()), System.out);
+					prtErrors(errors, null);
+					prtDevices(RdmDevice.sortByAddr(deviceMap.values()), System.out, null);
 				} else {
 					String cmd = argList.get(0);
 					if (cmd.equals("-tab")) {
@@ -106,7 +110,29 @@ public class ArtNetListDevices
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-		}	
+		} finally {
+			if (m_manager != null) {
+				try {
+					m_manager.close();
+					m_manager = null;
+				} catch (Exception e) {
+					// ignore
+				}
+			}
+		}
+	}
+	
+	private void prtErrors(List<String> errors, PrintStream out)
+	{
+		if (out == null) {
+			out = System.out;
+		}
+		if (errors != null && !errors.isEmpty()) {
+			out.println("Errors:");
+			for (String err: errors) {
+				out.println("   " + err);
+			}				
+		}
 	}
 	
 	/**
@@ -114,15 +140,22 @@ public class ArtNetListDevices
 	 * @param devices Information for all RDM devices.
 	 * @param out The output stream. If null, use stdout.
 	 */
-	private static void prtDevices(List<RdmDevice> devices, PrintStream out)
+	private void prtDevices(List<RdmDevice> devices, PrintStream out, List<Integer> devNums)
 	{
 		if (out == null) {
 			out = System.out;
 		}
-		int iDev = 0;
+		if (devNums == null || devNums.isEmpty()) {
+			devNums = makeIntList(1, devices.size());
+		}
 		String indent = "    ";
-		for (RdmDevice devInfo: devices) {
-			iDev++;
+		// for (RdmDevice devInfo: devices) {
+		for (int iDev: devNums) {
+			if (!(iDev >= 1 && iDev <= devices.size())) {
+				out.println("Device " + iDev + ": Invalid device number.");
+				continue;
+			}
+			RdmDevice devInfo = devices.get(iDev-1);
 			out.println();
 			out.println("Device " + iDev + "  [" + devInfo.m_uid + "]:");
 			String devLabel = devInfo.getDeviceLabel();
@@ -215,12 +248,42 @@ public class ArtNetListDevices
 	}
 	
 	/**
+	 * Print a one-line summary of all devices.
+	 * @param devices The devices.
+	 * @param out The output stream.
+	 */
+	private void listDevices(List<RdmDevice> devices, PrintStream out, List<Integer> devNums)
+	{
+		if (out == null) {
+			out = System.out;
+		}
+		if (devNums == null || devNums.isEmpty()) {
+			devNums = makeIntList(1, devices.size());
+		}
+		for (int iDev: devNums) {
+			if (!(iDev >= 1 && iDev <= devices.size())) {
+				out.println(iDev + ": Invalid device number");
+				continue;
+			}
+			RdmDevice dev = devices.get(iDev-1);
+			int startAddr = dev.getDmxStartAddr();
+			int endAddr = startAddr + dev.getDmxFootprint() - 1;
+			out.println(iDev + ":"
+					+ " " + dev.m_uid
+					+ " " + dev.m_manufacturer + "/" + dev.m_model
+					+ " " + startAddr + "-" + endAddr
+					+ " " + dev.m_nodePort
+					);
+		}
+	}
+	
+	/**
 	 * Print the primary fields in tab-sep format, with column names in the first line.
 	 * @param deviceMap The discovered devices.
 	 * @param errors The errors encountered when discovering the devices.
 	 * 		If there were no errors, this will be null or empty.
 	 */
-	private static void prtTabSep(Map<ACN_UID, RdmDevice> deviceMap, List<String> errors)
+	private void prtTabSep(Map<ACN_UID, RdmDevice> deviceMap, List<String> errors)
 	{
 		if (!errors.isEmpty()) {
 			System.err.println("errors: " + errors);
@@ -254,7 +317,7 @@ public class ArtNetListDevices
 	 * @param errors The errors encountered when discovering the devices.
 	 * 		If there were no errors, this will be null or empty.
 	 */
-	private static void cmpFile(String fname, Map<ACN_UID, RdmDevice> deviceMap, List<String> errors)
+	private void cmpFile(String fname, Map<ACN_UID, RdmDevice> deviceMap, List<String> errors)
 	{
 		Map<ACN_UID, ColNameMap> fileUidMap = readCmpFile(fname);
 		if (fileUidMap == null) {
@@ -296,7 +359,7 @@ public class ArtNetListDevices
 					+ "  New: " + nNew + "  Missing: " + nMissing);
 	}
 	
-	private static void prtUidBasics(PrintStream out, String prefix, ACN_UID uid, ColNameMap devInfo)
+	private void prtUidBasics(PrintStream out, String prefix, ACN_UID uid, ColNameMap devInfo)
 	{
 		String prefixFmt = "%-8s ";
 		out.println(String.format(prefixFmt, prefix) + uid + ":"
@@ -306,7 +369,7 @@ public class ArtNetListDevices
 					);
 	}
 	
-	private static String fmtDmxAddr(ColNameMap devInfo)
+	private String fmtDmxAddr(ColNameMap devInfo)
 	{
 		String s = devInfo.get(ColName.DmxAddr);
 		try {
@@ -316,7 +379,7 @@ public class ArtNetListDevices
 		}
 	}
 	
-	private static List<String> cmpDevInfo(ColNameMap curInfo, ColNameMap prevInfo)
+	private List<String> cmpDevInfo(ColNameMap curInfo, ColNameMap prevInfo)
 	{
 		ArrayList<String> diffs = new ArrayList<>();
 		for (ColName col: ColName.values()) {
@@ -325,7 +388,7 @@ public class ArtNetListDevices
 		return diffs;
 	}
 	
-	private static void cmpCol(List<String> diffs, ColName col, ColNameMap curInfo, ColNameMap prevInfo)
+	private void cmpCol(List<String> diffs, ColName col, ColNameMap curInfo, ColNameMap prevInfo)
 	{
 		String cur = curInfo.get(col);
 		String prev = prevInfo.get(col);
@@ -334,7 +397,7 @@ public class ArtNetListDevices
 		}
 	}
 	
-	private static Map<ACN_UID, ColNameMap> readCmpFile(String fname)
+	private Map<ACN_UID, ColNameMap> readCmpFile(String fname)
 	{
 		Map<ACN_UID, ColNameMap> uidMap = new HashMap<>();
 		try (LineNumberReader rdr = new LineNumberReader(new FileReader(fname))) {
@@ -467,9 +530,9 @@ public class ArtNetListDevices
 		return map;
 	}
 	
-	private static ArtNetManager makeManager(ArtNetChannel chan, List<String> args) throws IOException
+	private ArtNetManager makeManager(List<String> args) throws IOException
 	{
-		ArtNetManager mgr = new ArtNetManager(chan);
+		ArtNetManager mgr = new ArtNetManager(m_channel);
 		Long longVal;
 		List<InetAddress> pollAddrs = new ArrayList<>();
 		for (ListIterator<String> iter = args.listIterator(); iter.hasNext(); ) {
@@ -503,77 +566,367 @@ public class ArtNetListDevices
 		}
 	}
 	
-	private static class ReadCmds extends CommandReader
+	private boolean addDevice(RdmDevice rdmDevice, List<RdmDevice> list)
 	{
-		private final ArtNetChannel m_chan;
-		private final ArtNetManager m_manager;
-		private List<RdmDevice> m_devices;
+		if (!listContains(rdmDevice, list)) {
+			list.add(rdmDevice);
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	private boolean addDevNumber(int devNum, List<Integer> list)
+	{
+		if (!list.contains(devNum)) {
+			list.add(devNum);
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	private boolean listContains(RdmDevice rdmDevice, List<RdmDevice> list)
+	{
+		for (RdmDevice listDev: list) {
+			if (rdmDevice.m_uid.equals(listDev.m_uid)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private enum Command implements EnumFinder.AltNames
+	{
+		SORT,
+		SELECT,
+		ADD(),
+		PRINT("PRT"),
+		LIST("LS"),
+		NODES(),
+		ADDRESS("DMX"),
+		CONFIG("PERSONALITY"),
+		NAME(),
+		IDENTIFY(),
+		REFRESH(),
+		HELP("?"),
+		QUIT();
 		
-		public ReadCmds(ArtNetChannel chan, ArtNetManager manager, List<String> args) throws IOException
+		private Command() { m_altNames = null; }
+		
+		private final String[] m_altNames;
+		
+		private Command(String altName) { m_altNames = new String[] {altName}; }
+		
+		private Command(String[] altNames) { m_altNames = altNames; }
+		
+		@Override
+		public String toString() { return name().toLowerCase(); }
+		
+		@Override
+		public String[] altNames() { return m_altNames; }
+	}
+	
+	private final EnumFinder<Command> m_cmdFinder = new EnumFinder<>(Command.values());
+	
+	/**
+	 * Give a list of tokens for a command, return a new List with the tokens before the command,
+	 * and remove them from the original List. When done, the original list starts with
+	 * a command, or is empty.
+	 * @param args Tokens for a command.
+	 * @return The non-command tokens that preceed the command token.
+	 */
+	private List<String> extractCmdPrefix(List<String> args)
+	{
+		List<String> prefix = new ArrayList<>();
+		for (Iterator<String> iter = args.iterator(); iter.hasNext(); ) {
+			String arg = iter.next();
+			if (m_cmdFinder.find(arg) != null) {
+				break;
+			} else {
+				prefix.add(arg);
+				iter.remove();
+			}
+		}
+		return prefix;
+	}
+	
+	private List<String> array2List(String[] arr)
+	{
+		ArrayList<String> list = new ArrayList<>();
+		for (String s: arr) {
+			list.add(s);
+		}
+		return list;
+	}
+	
+	private List<Integer> makeIntList(int from, int to)
+	{
+		List<Integer> list = new ArrayList<>();
+		for (int i = from; i <= to; i++) {
+			list.add(i);
+		}
+		return list;
+	}
+	
+	private int[] parseFromTo(String fromToStr)
+	{
+		String[] fromToArr = fromToStr.split("-", 2);
+		int from;
+		int to;
+		if (fromToArr.length == 1) {
+			from = Integer.parseInt(fromToArr[0]);
+			to = from;
+		} else {
+			from = Integer.parseInt(fromToArr[0]);
+			to = Integer.parseInt(fromToArr[1]);
+		}
+		return new int[] {from, to};
+	}
+	
+	private class ReadCmds extends CommandReader
+	{
+		private List<RdmDevice> m_allDevices;
+		private List<Integer> m_selectedDevNums = null;
+		
+		public ReadCmds(List<String> args) throws IOException
 		{
 			super(args);
-			m_chan = chan;
-			m_manager = manager;
 			ArrayList<String> errors = new ArrayList<>();
 			m_waitFlag = true;
 			Map<ACN_UID, RdmDevice> deviceMap = m_manager.getDeviceMap(errors);
-			m_devices = RdmDevice.sortByAddr(deviceMap.values());
-			m_out.println("Found " + m_devices.size() + " RDM Devices.");
-			prtErrors(errors);
+			m_allDevices = RdmDevice.sortByAddr(deviceMap.values());
+			m_out.println("Found " + m_allDevices.size() + " RDM Devices.");
+			m_selectedDevNums = makeIntList(1, m_allDevices.size());
+			prtErrors(errors, m_out);
 			startAndWaitForCompletion();
 		}
 		
 		@Override
 		public void run()
 		{
-			String[] cmd;
-			while ((cmd = readCmd()) != null) {
-				if (cmd[0].startsWith("q")) {
+			String[] argsArr;
+			while ((argsArr = readCmd()) != null) {
+				List<String> args = array2List(argsArr);
+				if (args.isEmpty()) {
+					continue;	// blank line
+				}
+				// List<RdmDevice> devices = parseDevList(args, false);
+				List<Integer> devNums = parseDevList(args, false);
+				if (devNums.isEmpty()) {
+					devNums = m_selectedDevNums;
+				}
+				if (args.isEmpty()) {
+					m_out.println("Missing command");
+					continue;
+				}
+				Command cmd = m_cmdFinder.find(args.get(0));
+				if (cmd == null) {
+					Set<Command> matches = m_cmdFinder.findMatches(args.get(0));
+					if (matches.isEmpty()) {
+						m_out.println("Unknown command \"" + args.get(0) + "\"");
+					} else {
+						m_out.println("Ambiquous command \"" + args.get(0) + "\". Could be " + matches);
+					}
+					continue;
+				}
+				args.remove(0);
+				switch (cmd) {
+				case QUIT:
 					return;
-				} else if (cmd[0].startsWith("refr")) {
+				case REFRESH:
 					m_out.println("Refreshing device list ....");
 					List<String> errors = new ArrayList<>();
 					try {
 						Map<ACN_UID, RdmDevice> deviceMap = m_manager.getDeviceMap(errors);
-						m_devices = RdmDevice.sortByAddr(deviceMap.values());
+						m_allDevices = RdmDevice.sortByAddr(deviceMap.values());
 					} catch (IOException e) {
 						errors.add(e.toString());
 					}
-					m_out.println("Found " + m_devices.size() + " RDM devices.");
-					prtErrors(errors);
-				} else if (cmd[0].startsWith("p")) {
-					prtDevices(m_devices, m_out);
-				} else if (cmd[0].startsWith("d")) {
-					listDevices();
-				} else {
-					m_out.println("Unknown command \"" + cmd[0] + "\"");
+					m_selectedDevNums = makeIntList(1, m_allDevices.size());
+					m_out.println("Found " + m_allDevices.size() + " RDM devices.");
+					prtErrors(errors, m_out);
+					break;
+				case PRINT:
+					prtDevices(m_allDevices, m_out, devNums);
+					break;
+				case LIST:
+					listDevices(m_allDevices, m_out, devNums);
+					break;
+				case SELECT:
+					m_selectedDevNums = devNums;
+					break;
+				case ADD:
+					for (int devNum: devNums) {
+					 	addDevNumber(devNum, m_selectedDevNums);
+					}
+					break;
+				case NODES:
+					Set<ArtNetNode> uniqueNodes = m_manager.getUniqueNodes();
+					m_out.println(uniqueNodes.size() + " Unique Nodes:");
+					String indent = "    ";
+					for (ArtNetNode node : uniqueNodes) {
+						m_out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
+					}
+					m_out.println();
+					break;
+				case NAME:
+					doName(devNums, args);
+					break;
+				case ADDRESS:
+					doAddress(devNums, args);
+					break;
+				default:
+					m_out.println("XXX: Unimplemented command!!");
+					break;
+				}
+			}
+		}
+
+		private void doName(List<Integer> devNums, List<String> args)
+		{
+			if (devNums.isEmpty()) {
+				m_out.println("No Devices selected");
+			} else if (args.isEmpty()) {
+				for (int iDev: devNums) {
+					m_out.println(iDev + ": \"" + m_allDevices.get(iDev-1).getDeviceLabel() + "\"");
+				}
+			} else if (devNums.size() > 1) {
+				m_out.println("More than 1 device selected.");
+			} else {
+				StringBuilder name = new StringBuilder();
+				String sep = "";
+				for (String v: args) {
+					name.append(sep);
+					name.append(v);
+					sep = " ";
+				}
+				if (!m_allDevices.get(devNums.get(0)-1).setDeviceLabel(name.toString())) {
+					m_out.println("Set device label failed.");
+				}
+			}
+		}
+
+		private void doAddress(List<Integer> devNums, List<String> args)
+		{
+			if (devNums.isEmpty()) {
+				m_out.println("No Devices selected");
+			} else if (args.isEmpty()) {
+				for (int iDev: devNums) {
+					RdmDevice dev = m_allDevices.get(iDev-1);
+					int startAddr = dev.getDmxStartAddr();
+					m_out.println(iDev + ": " + startAddr
+							+ "-" + (startAddr + dev.getDmxFootprint()-1)
+							+ " @" + dev.m_nodePort.m_port);
+				}
+			} else if (devNums.size() > 1) {
+				m_out.println("More than 1 device selected.");
+			} else {
+				RdmDevice dev = m_allDevices.get(devNums.get(0) - 1);
+				int newAddr;
+				try {
+					newAddr = Integer.parseInt(args.get(0));
+					if (!(newAddr >= 1 && newAddr + dev.getDmxFootprint()-1 <= 512)) {
+						m_out.println("Illegal address " + newAddr);
+					} else if (!dev.setDmxAddress(newAddr)) {
+						m_out.println("Set dmx address failed.");
+					}
+				} catch (NumberFormatException e) {
+					m_out.println("Illegal address " + args.get(0));
 				}
 			}
 		}
 		
-		private void prtErrors(List<String> errors)
+		private List<Integer> parseDevList(List<String> args, boolean parseAll)
 		{
-			if (errors != null && !errors.isEmpty()) {
-				m_out.println("Errors:");
-				for (String err: errors) {
-					m_out.println("   " + err);
-				}				
+			List<Integer> devNumList = new ArrayList<>();
+			for (Iterator<String> iter = args.iterator(); iter.hasNext(); ) {
+				String arg = iter.next();
+				try {
+					if (m_cmdFinder.find(arg) != null) {
+						break;
+					} else if (arg.equals("*")) {
+						// * => all devices.
+						for (int iDev = 1; iDev <= m_allDevices.size(); iDev++) {
+							addDevNumber(iDev, devNumList);
+						}
+					} else if (arg.matches("[0-9]+")) {
+						// Device number in list, 1-n.
+						int iDev = Integer.parseInt(arg);
+						if (iDev >= 1 && iDev <= m_allDevices.size()) {
+							addDevNumber(iDev, devNumList);
+						} else {
+							m_out.println("Invalid device number " + arg);
+						}
+					} else if (arg.matches("[0-9]+-[0-9]+")) {
+						// fromdev-todev
+						int[] fromTo = parseFromTo(arg);
+						for (int iDev = fromTo[0]; iDev <= fromTo[1]; iDev++) {
+							addDevNumber(iDev, devNumList);
+						}
+					} else if (arg.matches("[0-9a-fA-F]+:\\*") || arg.matches("[0-9a-fA-F]+")) {
+						// Vendorcast UID.
+						String[] makeModel = arg.split(":", 2);
+						ACN_UID uid = ACN_UID.vendorcastUid(Integer.parseInt(makeModel[0], 16));
+						for (int iDev = 1; iDev <= m_allDevices.size(); iDev++) {
+							if (m_allDevices.get(iDev-1).m_uid.matches(uid)) {
+								addDevNumber(iDev, devNumList);
+							}
+						}
+					} else if (arg.matches("[0-9a-fA-F]+:[0-9a-fA-F]+")) {
+						// Specific UID.
+						ACN_UID uid = new ACN_UID(arg);
+						for (int iDev = 1; iDev <= m_allDevices.size(); iDev++) {
+							if (m_allDevices.get(iDev-1).m_uid.matches(uid)) {
+								addDevNumber(iDev, devNumList);
+							}
+						}
+					} else if (arg.matches(".+=.*")) {
+						String[] typeValue = arg.split("=", 2);
+						if (typeValue[0].toLowerCase().startsWith("u")) {
+							// Univ=##  or ##.##  or ##.##.##
+							ArtNetPort anPort = new ArtNetPort(typeValue[1]);
+							for (int iDev = 1; iDev <= m_allDevices.size(); iDev++) {
+								if (m_allDevices.get(iDev-1).m_nodePort.m_port.equals(anPort)) {
+									addDevNumber(iDev, devNumList);
+								}
+							}
+						} else if (typeValue[0].toLowerCase().startsWith("a")
+								|| typeValue[0].toLowerCase().startsWith("d")) {
+							// addr=low[-high] or dmx=low[-high]
+							int[] fromToAddr = parseFromTo(typeValue[1]);
+							for (int iDev = 1; iDev <= m_allDevices.size(); iDev++) {
+								int startAddr = m_allDevices.get(iDev-1).getDmxStartAddr();
+								if (startAddr >= fromToAddr[0] && startAddr <= fromToAddr[1]) {
+									addDevNumber(iDev, devNumList);
+								}
+							}
+						} else {
+							m_out.println("Unknown device spec \"" + arg + "\"");
+						}
+					} else if (arg.matches("[^/]+/.*")) {
+						// Make/model string
+						String[] makeModel = arg.split("/", 2);
+						for (int iDev = 1; iDev <= m_allDevices.size(); iDev++) {
+							RdmDevice rdmDevice = m_allDevices.get(iDev-1);
+							if (makeModel[0].equalsIgnoreCase(rdmDevice .m_manufacturer)
+									&& (makeModel[1].isBlank()
+											|| rdmDevice .m_model.matches(makeModel[1]))) {
+								addDevNumber(iDev, devNumList);
+							}
+						}
+					} else if (!parseAll) {
+						m_out.println("Unknown device spec \"" + arg + "\"");
+					} else {
+						break;
+					}
+					iter.remove();
+				} catch (Exception e) {
+					m_out.println("Invalid device spec " + arg);
+					iter.remove();
+				}
 			}
-		}
-		
-		private void listDevices()
-		{
-			for (int iDev = 0; iDev < m_devices.size(); iDev++) {
-				RdmDevice dev = m_devices.get(iDev);
-				int startAddr = dev.getDmxStartAddr();
-				int endAddr = startAddr + dev.getDmxFootprint() - 1;
-				m_out.println(iDev+1 + ":"
-						+ " " + dev.m_uid
-						+ " " + dev.m_manufacturer + "/" + dev.m_model
-						+ " " + startAddr + "-" + endAddr
-						+ " " + dev.m_nodePort
-						);
-			}
+			return devNumList;
 		}
 	}
 }

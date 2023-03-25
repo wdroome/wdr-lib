@@ -136,7 +136,7 @@ public class ACN_UID implements Comparable<ACN_UID>
 	 * Test if another UID matches this one.
 	 * The other uid may be a wildcard.
 	 * @param uid Another uid, possibly a wildcard.
-	 * @return
+	 * @return True if this uid matches the other.
 	 */
 	public boolean matches(ACN_UID uid)
 	{

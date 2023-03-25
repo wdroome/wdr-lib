@@ -71,7 +71,7 @@ public class ArtNetPort implements Comparable<ArtNetPort>
 	
 	/**
 	 * Create an ArtNetPort from a string of the form
-	 * net.subNet.univ or subNet.univ.
+	 * net.subNet.univ, subNet.univ or just a big number with the net, subnet and univ.
 	 * @param portStr An Art-Net port string.
 	 * @throws IllegalArgumentException
 	 * 		If portStr is not in the correct format.
@@ -91,6 +91,12 @@ public class ArtNetPort implements Comparable<ArtNetPort>
 				m_subNet = Integer.parseInt(parts[0]);
 				m_universe = Integer.parseInt(parts[1]);
 				return;
+			case 1:
+				int netSubUniv = Integer.parseInt(parts[0]);
+				m_net = (netSubUniv & 0x7f00) >> 8;
+				m_subNet = (netSubUniv & 0xf0) >> 4;
+				m_universe = netSubUniv & 0x0f;		
+				break;
 			}
 		} catch (Exception e) {
 			// number format exception -- fall thru

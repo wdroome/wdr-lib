@@ -526,7 +526,10 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 					break;					
 				case IDENTIFY_DEVICE:
 					replyRdmData = getIdentifyDevice(device, rdmReq);
-					break;					
+					break;
+				case DEVICE_LABEL:
+					replyRdmData = getDeviceLabel(device, rdmReq);
+					break;
 				default:
 					break;
 				}
@@ -616,7 +619,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 		byte[] data = null;
 		if (rdmReq.m_command == RdmPacket.CMD_SET) {
 			if (rdmReq.m_paramDataLen >= 2 && rdmReq.m_paramData != null) {
-				int dmxAddr = ArtNetMsgUtil.getBigEndInt16(data, 0);
+				int dmxAddr = ArtNetMsgUtil.getBigEndInt16(rdmReq.m_paramData, 0);
 				if (dmxAddr >= 1 && dmxAddr <= 512) {
 					device.m_dmx = dmxAddr;
 				}
