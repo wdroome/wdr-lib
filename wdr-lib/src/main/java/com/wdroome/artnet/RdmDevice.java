@@ -441,6 +441,11 @@ public class RdmDevice implements Comparable<RdmDevice>
 			succeeded = false;
 		}
 		try {
+			try {
+				Thread.sleep(100);
+			} catch (Exception e) {
+				// ignore
+			}
 			refresh();
 		} catch (IOException e) {
 			System.err.println("RdmDevice.setPersonality: set succeeded, but refresh failed: " + e);
@@ -522,7 +527,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 		if (cmp != 0) {
 			return cmp;
 		}
-		cmp = m_model.compareTo(o.m_manufacturer);
+		cmp = m_model.compareTo(o.m_model);
 		if (cmp != 0) {
 			return cmp;
 		}
@@ -583,6 +588,48 @@ public class RdmDevice implements Comparable<RdmDevice>
 				return cmp;
 			}
 			return o1.m_uid.compareTo(o2.m_uid);
+		}
+	}
+	
+	/**
+	 * Compare devices by UID.
+	 */
+	public static class CompareUID implements Comparator<RdmDevice>
+	{
+		@Override
+		public int compare(RdmDevice o1, RdmDevice o2)
+		{
+			if (o1 == null && o2 == null) {
+				return 0;
+			}
+			if (o1 == null) {
+				return -1;
+			}
+			if (o2 == null) {
+				return 1;
+			}
+			return o1.m_uid.compareTo(o2.m_uid);
+		}
+	}
+	
+	/**
+	 * Compare devices by ArtNet Node and Port.
+	 */
+	public static class CompareNodePort implements Comparator<RdmDevice>
+	{
+		@Override
+		public int compare(RdmDevice o1, RdmDevice o2)
+		{
+			if (o1 == null && o2 == null) {
+				return 0;
+			}
+			if (o1 == null) {
+				return -1;
+			}
+			if (o2 == null) {
+				return 1;
+			}
+			return o1.m_nodePort.compareTo(o2.m_nodePort);
 		}
 	}
 	

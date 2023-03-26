@@ -1,6 +1,7 @@
 package com.wdroome.artnet;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -598,58 +599,42 @@ public class ArtNetListDevices
 	
 	private enum Command implements EnumFinder.AltNames
 	{
-		SORT,
-		SELECT,
-		ADD(),
-		PRINT("PRT"),
-		LIST("LS"),
+		PRINT("PRT", null),
+		LIST("LS", null),
 		NODES(),
-		ADDRESS("DMX"),
-		CONFIG("PERSONALITY"),
-		NAME(),
-		IDENTIFY(),
+		ADDRESS("DMX", "[new-dmx-address]"),
+		CONFIG("PERSONALITY", "[new-personality-number]"),
+		NAME((String)null, "[new-device-label]"),
+		IDENTIFY((String)null, "[on|off]"),
+		SORT((String)null, "make | node | addr | uid"),
+		SELECT(),
+		ADD(),
 		REFRESH(),
-		HELP("?"),
+		HELP("?", null),
 		QUIT();
 		
-		private Command() { m_altNames = null; }
-		
 		private final String[] m_altNames;
+		private final String m_args;
 		
-		private Command(String altName) { m_altNames = new String[] {altName}; }
+		private Command() { m_altNames = null; m_args = ""; }
 		
-		private Command(String[] altNames) { m_altNames = altNames; }
+		private Command(String altName, String args) { this(new String[] {altName}, args); }
+		
+		private Command(String[] altNames, String args) { m_altNames = altNames; m_args = args; }
 		
 		@Override
 		public String toString() { return name().toLowerCase(); }
 		
 		@Override
 		public String[] altNames() { return m_altNames; }
+		
+		public String help()
+		{
+			return name().toLowerCase() + (m_args != null && !m_args.isBlank() ? (" " + m_args) : "");
+		}
 	}
 	
 	private final EnumFinder<Command> m_cmdFinder = new EnumFinder<>(Command.values());
-	
-	/**
-	 * Give a list of tokens for a command, return a new List with the tokens before the command,
-	 * and remove them from the original List. When done, the original list starts with
-	 * a command, or is empty.
-	 * @param args Tokens for a command.
-	 * @return The non-command tokens that preceed the command token.
-	 */
-	private List<String> extractCmdPrefix(List<String> args)
-	{
-		List<String> prefix = new ArrayList<>();
-		for (Iterator<String> iter = args.iterator(); iter.hasNext(); ) {
-			String arg = iter.next();
-			if (m_cmdFinder.find(arg) != null) {
-				break;
-			} else {
-				prefix.add(arg);
-				iter.remove();
-			}
-		}
-		return prefix;
-	}
 	
 	private List<String> array2List(String[] arr)
 	{
@@ -711,7 +696,6 @@ public class ArtNetListDevices
 				if (args.isEmpty()) {
 					continue;	// blank line
 				}
-				// List<RdmDevice> devices = parseDevList(args, false);
 				List<Integer> devNums = parseDevList(args, false);
 				if (devNums.isEmpty()) {
 					devNums = m_selectedDevNums;
@@ -747,6 +731,9 @@ public class ArtNetListDevices
 					m_out.println("Found " + m_allDevices.size() + " RDM devices.");
 					prtErrors(errors, m_out);
 					break;
+				case SORT:
+					doSort(args);
+					break;
 				case PRINT:
 					prtDevices(m_allDevices, m_out, devNums);
 					break;
@@ -775,6 +762,18 @@ public class ArtNetListDevices
 					break;
 				case ADDRESS:
 					doAddress(devNums, args);
+					break;
+				case CONFIG:
+					doConfig(devNums, args);
+					break;
+				case IDENTIFY:
+					doIdentify(devNums, args);
+					break;
+				case HELP:
+					m_out.println("Commands:");
+					for (Command c: Command.values()) {
+						m_out.println("  " + c.help());
+					}
 					break;
 				default:
 					m_out.println("XXX: Unimplemented command!!");
@@ -834,6 +833,72 @@ public class ArtNetListDevices
 				} catch (NumberFormatException e) {
 					m_out.println("Illegal address " + args.get(0));
 				}
+			}
+		}
+		
+		private void doConfig(List<Integer> devNums, List<String>args)
+		{
+			if (devNums.isEmpty()) {
+				m_out.println("No Devices selected");
+			} else if (args.isEmpty()) {
+				for (int iDev: devNums) {
+					RdmDevice dev = m_allDevices.get(iDev-1);
+					m_out.println(iDev + ": " + dev.getPersonality() + " " + dev.getPersonalityDesc());
+				}
+			} else if (devNums.size() > 1) {
+				m_out.println("More than 1 device selected.");
+			} else {
+				RdmDevice dev = m_allDevices.get(devNums.get(0) - 1);
+				int newConfig;
+				try {
+					newConfig = Integer.parseInt(args.get(0));
+					if (!(newConfig >= 1 && newConfig <= dev.getNumPersonalities())) {
+						m_out.println("Illegal configuration number " + newConfig);
+					} else if (!dev.setPersonality(newConfig)) {
+						m_out.println("Set configuration failed.");
+					}
+				} catch (NumberFormatException e) {
+					m_out.println("Illegal configuration number " + args.get(0));
+				}
+			}
+		}
+		
+		private void doIdentify(List<Integer> devNums, List<String> args)
+		{
+			if (devNums.isEmpty()) {
+				m_out.println("No Devices selected");
+			} else if (args.isEmpty()) {
+				for (int iDev: devNums) {
+					m_out.println(iDev + ": " +
+								(m_allDevices.get(iDev-1).getIdentifyDevice() ? "on" : "off"));
+				}
+			} else {
+				String arg = args.get(0).trim().toLowerCase();
+				boolean on = arg.equals("on") || arg.startsWith("1");
+				for (int iDev: devNums) {
+					if (!m_allDevices.get(iDev-1).setIdentifyDevice(on)) {
+						m_out.println(iDev + ": Set IDENTIFY failed.");
+					}
+				}
+			}
+		}
+		
+		private void doSort(List<String> args)
+		{
+			if (args.isEmpty()) {
+				args.add("make");
+			}
+			String spec = args.get(0).toLowerCase();
+			if (spec.startsWith("ma")) {
+				Collections.sort(m_allDevices);
+			} else if (spec.startsWith("ui")) {
+				Collections.sort(m_allDevices, new RdmDevice.CompareUID());
+			} else if (spec.startsWith("no")) {
+				Collections.sort(m_allDevices, new RdmDevice.CompareNodePort());
+			} else if (spec.startsWith("ad") || spec.startsWith("dm")) {
+				Collections.sort(m_allDevices, new RdmDevice.CompareAddress());
+			} else {
+				m_out.println("Unknown sort order. Try make, uid, node, or addr");
 			}
 		}
 		
