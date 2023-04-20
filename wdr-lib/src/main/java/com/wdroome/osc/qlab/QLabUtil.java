@@ -283,6 +283,9 @@ public class QLabUtil
 	 */
 	public static String getCueReq(String numOrId, String request)
 	{
+		if (numOrId.isBlank()) {
+			System.err.println("Internal Error/QLabUtil.getCueReq(): no id for req \"" + request + "\"");
+		}
 		return (isCueId(numOrId) ? CUE_ID_REQ_PREFIX : CUE_NUMBER_REQ_PREFIX)
 									+ numOrId + request;
 	}

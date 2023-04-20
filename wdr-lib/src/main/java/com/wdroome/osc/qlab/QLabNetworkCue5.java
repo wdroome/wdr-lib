@@ -28,8 +28,9 @@ public class QLabNetworkCue5 extends QLabNetworkCue
 				QLabNetworkPatchInfo patchInfo = queryQLab.getNetworkPatchInfo(m_patchNumber);
 				patchType = patchInfo != null
 								? patchInfo.m_patchType : QLabNetworkPatchInfo.PatchType.OSC_MESSAGE;
-				parameterValues = queryQLab.getParameterValues(m_number);
+				parameterValues = queryQLab.getParameterValues(m_uniqueId);
 			} catch (IOException e) {
+				// System.out.println("XXX QLabNetworkCue5 Exception " + e);
 				// ignore
 			}
 		}
@@ -48,7 +49,7 @@ public class QLabNetworkCue5 extends QLabNetworkCue
 				QLabNetworkPatchInfo patchInfo = queryQLab.getNetworkPatchInfo(m_patchNumber);
 				patchType = patchInfo != null
 								? patchInfo.m_patchType : QLabNetworkPatchInfo.PatchType.OSC_MESSAGE;
-				parameterValues = queryQLab.getParameterValues(m_number);
+				parameterValues = queryQLab.getParameterValues(m_uniqueId);
 			} catch (IOException e) {
 				// ignore
 			}
