@@ -126,6 +126,7 @@ public class ArtNetMsg_Test
 		m.m_ipMask = (Inet4Address)InetAddress.getByName("255.0.0.0");
 		m.m_ipPort = ArtNetConst.ARTNET_PORT;
 		m.m_status = 0x40;
+		m.m_defGateway = (Inet4Address)InetAddress.getByAddress(new byte[] {0,0,0,0});
 		
 		if (false) {
 			m.print(System.out, "");
@@ -170,9 +171,12 @@ public class ArtNetMsg_Test
 		m2Prt.flush();
 		String m2Str = m2PrtBuff.toString();
 		
-		if (false) {
+		if (!mStr.equals(m2Str)) {
+			System.out.println("=================");
 			System.out.println(mStr);
+			System.out.println("-----------------");
 			System.out.println(m2Str);
+			System.out.println("=================");
 		}
 		assertEquals(descr, mStr, m2Str);
 	}

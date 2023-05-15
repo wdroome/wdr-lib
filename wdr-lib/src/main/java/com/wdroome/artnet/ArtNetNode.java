@@ -31,6 +31,8 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	/** Node's ArtNet DMX output ports, if any. */
 	public final List<ArtNetPort> m_dmxOutputPorts;
 	
+	public final Set<ArtNetPort> m_dmxRdmPorts;
+	
 	/**
 	 * Create an ArtNetNode.
 	 * @param reply The poll reply.
@@ -42,6 +44,7 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 		m_responseMS = responseMS;
 		m_reply = reply;
 		m_dmxOutputPorts = new ArrayList<>();
+		m_dmxRdmPorts = new HashSet<>();
 		for (int i = 0; i < m_reply.m_numPorts; i++) {
 			int portType = m_reply.m_portTypes[i];
 			ArtNetPort port = m_reply.getOutputPort(i);
@@ -49,6 +52,10 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 					&& ((portType & ArtNetPollReply.PORT_TYPE_PROTO_MASK)
 									== ArtNetPollReply.PORT_TYPE_PROTO_DMX512)) {
 				m_dmxOutputPorts.add(port);
+				if ((m_reply.m_status2 & ArtNetPollReply.STATUS2_ARTNET_3OR4) != 0
+						&& (m_reply.m_goodOutputB[i] & ArtNetPollReply.GOOD_OUTPUTB_RDM_DISABLED) == 0) {
+					m_dmxRdmPorts.add(port);
+				}
 			}
 		}
 	}

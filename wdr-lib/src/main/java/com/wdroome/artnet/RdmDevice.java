@@ -15,6 +15,8 @@ import com.wdroome.artnet.msgs.RdmProductCategories;
 import com.wdroome.artnet.msgs.ArtNetMsgUtil;
 import com.wdroome.artnet.msgs.RdmPacket;
 
+import com.wdroome.util.MiscUtil;
+
 /**
  * Standard information about an RDM device in the network.
  * @author wdr
@@ -49,7 +51,8 @@ public class RdmDevice implements Comparable<RdmDevice>
 		refreshDeviceInfo();
 		
 		RdmPacket supportedPidsReply = sendRdmRequest(false, RdmParamId.SUPPORTED_PARAMETERS, null);
-		RdmParamResp.PidList supportedPids = new RdmParamResp.PidList(supportedPidsReply);
+		RdmParamResp.PidList supportedPids = supportedPidsReply != null
+						? new RdmParamResp.PidList(supportedPidsReply) : null;
 		m_stdParamIds = supportedPids != null ? supportedPids.m_stdPids : List.of();
 		m_otherParamIds = supportedPids != null ? supportedPids.m_otherPids : List.of();
 
@@ -85,6 +88,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 	private RdmPacket sendRdmRequest(boolean isSet, RdmParamId paramId, byte[] reqData)
 			throws IOException
 	{
+		// MiscUtil.sleep(150); // System.out.println("XXX sleep " + paramId);	// XXX -- for Netron EN4 bug
 		return m_rdmRequest.sendRequest(m_uid, isSet, paramId, reqData);
 	}
 	
