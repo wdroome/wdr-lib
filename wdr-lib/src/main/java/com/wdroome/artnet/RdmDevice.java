@@ -1,6 +1,7 @@
 package com.wdroome.artnet;
 
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.Set;
 import java.io.IOException;
@@ -43,6 +44,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 							throws IOException
 	{
 		m_rdmRequest = rdmRequest;
+		m_rdmRequest.resetErrorCounts();
 		m_uid = uid;
 		m_nodePort = nodePort;
 		if (m_nodePort == null) {
@@ -83,6 +85,13 @@ public class RdmDevice implements Comparable<RdmDevice>
 		
 		m_personalities = getPersonalities();
 		m_sensorDefs = getSensorDefs();
+		
+		Map<ArtNetRdmRequest.ErrorCountKey,ArtNetRdmRequest.ErrorCount> errors
+							= rdmRequest.getErrorCounts();
+		if (!errors.isEmpty()) {
+			/*XXX*/
+			System.out.println("RDM retries: " + errors);
+		}
 	}
 	
 	private RdmPacket sendRdmRequest(boolean isSet, RdmParamId paramId, byte[] reqData)

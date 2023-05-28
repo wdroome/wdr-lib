@@ -1,6 +1,7 @@
 package com.wdroome.artnet;
 
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.List;
 import java.util.ArrayList;
@@ -41,7 +42,9 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	private final AtomicReference<ArrayBlockingQueue<ArtNetRdm>> m_replyQueue = new AtomicReference<>(null);
 	private final AtomicReference<ArtNetRdm> m_reqMsg = new AtomicReference<>(null);
 	
-	private long m_timeoutMS = 4000;
+	private long m_timeoutMS = 2000;
+	private int m_maxTries = 3;
+	private HashMap<ErrorCountKey,ErrorCount> m_errorStats = new HashMap<>();
 	
 	/**
 	 * Create an object for sending RDM requests.
@@ -99,35 +102,55 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		req.m_subnetUniv = port.subUniv();
 		RdmPacket rdmPacket = new RdmPacket(destUid, isSet ? RdmPacket.CMD_SET : RdmPacket.CMD_GET,
 											paramId, requestData);
-		rdmPacket.m_transNum = m_transNum++;
 		rdmPacket.m_srcUid = m_srcUid;
 		req.m_rdmPacket = rdmPacket;
-		m_reqMsg.set(req);
-		ArrayBlockingQueue<ArtNetRdm> replyQueue = new ArrayBlockingQueue<>(10);
-		m_replyQueue.set(replyQueue);
-		m_channel.addReceiver(this);
-		if (ipAddr != null) {
-			// System.out.println("XXX: send " + ipAddr.getAddress().getHostAddress() + " " + req);
-			m_channel.send(req, ipAddr);
-		} else {
-			m_channel.broadcast(req);
+		ErrorCountKey errorKey = null;
+		for (int nTries = 1; nTries <= m_maxTries; nTries ++) {
+			m_reqMsg.set(req);
+			rdmPacket.m_transNum = m_transNum++;
+			ArrayBlockingQueue<ArtNetRdm> replyQueue = new ArrayBlockingQueue<>(10);
+			m_replyQueue.set(replyQueue);
+			m_channel.addReceiver(this);
+			if (ipAddr != null) {
+				// System.out.println("XXX: send " + ipAddr.getAddress().getHostAddress() + " " + req);
+				m_channel.send(req, ipAddr);
+			} else {
+				m_channel.broadcast(req);
+			}
+			ArtNetRdm replyMsg = null;
+			try {
+				replyMsg = replyQueue.poll(m_timeoutMS, TimeUnit.MILLISECONDS);
+			} catch (InterruptedException e) {
+			}
+			m_channel.dropReceiver(this);
+			m_reqMsg.set(null);
+			m_replyQueue.set(null);
+			if (replyMsg != null  && replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
+				System.out.println("XXX: sendReq/" + paramId + " msgCount="
+									+ replyMsg.m_rdmPacket.m_msgCount);
+			}
+			if (replyMsg != null) {
+				if (errorKey != null) {
+					ErrorCount cnt = m_errorStats.get(errorKey);
+					if (cnt != null) {
+						cnt.incrNumTries();
+						cnt.setOkay();
+					}
+				}
+				return replyMsg.m_rdmPacket;
+			}
+			if (errorKey == null) {
+				errorKey = new ErrorCountKey(ipAddr, port, paramId, isSet);
+			}
+			ErrorCount cnt = m_errorStats.get(errorKey);
+			if (cnt == null) {
+				cnt = new ErrorCount();
+				m_errorStats.put(errorKey, cnt);
+			}
+			cnt.incrNumTries();
 		}
-		ArtNetRdm replyMsg = null;
-		try {
-			replyMsg = replyQueue.poll(m_timeoutMS, TimeUnit.MILLISECONDS);
-		} catch (InterruptedException e) {
-		}
-		if (replyMsg == null) {
-			System.out.println("XXX: ArtNetRdmRequest.sendRequest timeout " + paramId);
-		}
-		m_channel.dropReceiver(this);
-		m_reqMsg.set(null);
-		m_replyQueue.set(null);
-		if (replyMsg != null  && replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
-			System.out.println("XXX: sendReq/" + paramId + " msgCount="
-								+ replyMsg.m_rdmPacket.m_msgCount);
-		}
-		return replyMsg != null ? replyMsg.m_rdmPacket : null;
+		System.out.println("XXX: ArtNetRdmRequest.sendRequest timeout " + paramId + " ntries=" + m_maxTries);
+		return null;
 	}
 	
 	/**
@@ -204,6 +227,16 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		}
 		return success;
 	}
+	
+	public void resetErrorCounts()
+	{
+		m_errorStats.clear();
+	}
+	
+	public Map<ErrorCountKey,ErrorCount> getErrorCounts()
+	{
+		return m_errorStats;
+	}
 
 	public Map<ACN_UID, ArtNetPortAddr> getUidMap() {
 		return m_uidMap;
@@ -219,6 +252,14 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 
 	public void setTimeoutMS(long timeoutMS) {
 		this.m_timeoutMS = timeoutMS;
+	}
+
+	public int getMaxTries() {
+		return m_maxTries;
+	}
+
+	public void setMaxTries(int maxTries) {
+		this.m_maxTries = maxTries >= 1 ? maxTries : 1;
 	}
 
 	@Override
@@ -262,5 +303,81 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	public void msgArrived(ArtNetChannel chan, byte[] msg, int len,
 			InetSocketAddress sender, InetSocketAddress receiver) {
 		// Ignore
+	}
+	
+	public static class ErrorCount
+	{
+		private int m_numTries = 0;
+		private boolean m_okay = false;
+		
+		public int getNumTries() { return m_numTries; }
+		public int incrNumTries() { return ++m_numTries; }
+		public boolean isOkay() { return m_okay; }
+		public void setOkay() { m_okay = true; }
+		
+		@Override
+		public String toString()
+		{
+			return (m_okay ? "ok" : "fail") + "/tries=" + m_numTries;
+		}
+	}
+	
+	public static class ErrorCountKey
+	{
+		public final InetSocketAddress m_ipAddr;
+		public final ArtNetPort m_port;
+		public final RdmParamId m_paramId;
+		public final boolean m_isSet;
+		
+		public ErrorCountKey(InetSocketAddress ipAddr, ArtNetPort port, RdmParamId paramId, boolean isSet)
+		{
+			m_ipAddr = ipAddr;
+			m_port = port;
+			m_paramId = paramId;
+			m_isSet = isSet;
+		}
+
+		@Override
+		public String toString() {
+			return "ErrorCountKey [ipAddr=" + m_ipAddr + ", port=" + m_port + ", paramId=" + m_paramId
+					+ ", isSet=" + m_isSet + "]";
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((m_ipAddr == null) ? 0 : m_ipAddr.hashCode());
+			result = prime * result + (m_isSet ? 1231 : 1237);
+			result = prime * result + ((m_paramId == null) ? 0 : m_paramId.hashCode());
+			result = prime * result + ((m_port == null) ? 0 : m_port.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			ErrorCountKey other = (ErrorCountKey) obj;
+			if (m_ipAddr == null) {
+				if (other.m_ipAddr != null)
+					return false;
+			} else if (!m_ipAddr.equals(other.m_ipAddr))
+				return false;
+			if (m_isSet != other.m_isSet)
+				return false;
+			if (m_paramId != other.m_paramId)
+				return false;
+			if (m_port == null) {
+				if (other.m_port != null)
+					return false;
+			} else if (!m_port.equals(other.m_port))
+				return false;
+			return true;
+		}
 	}
 }
