@@ -44,7 +44,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 							throws IOException
 	{
 		m_rdmRequest = rdmRequest;
-		m_rdmRequest.resetErrorCounts();
+		m_rdmRequest.resetTimeoutErrors();
 		m_uid = uid;
 		m_nodePort = nodePort;
 		if (m_nodePort == null) {
@@ -86,11 +86,11 @@ public class RdmDevice implements Comparable<RdmDevice>
 		m_personalities = getPersonalities();
 		m_sensorDefs = getSensorDefs();
 		
-		Map<ArtNetRdmRequest.ErrorCountKey,ArtNetRdmRequest.ErrorCount> errors
-							= rdmRequest.getErrorCounts();
+		List<ArtNetRdmRequest.TimeoutError> errors
+							= rdmRequest.getTimeoutErrors();
 		if (!errors.isEmpty()) {
 			/*XXX*/
-			System.out.println("RDM retries: " + errors);
+			System.out.println(errors.size() + " RDM timeout errors: " + errors);
 		}
 	}
 	
