@@ -975,6 +975,7 @@ public class ArtNetManager implements Closeable
 				System.out.println(uniqueNodes.size() + " Unique Nodes:");
 				for (ArtNetNode node : uniqueNodes) {
 					System.out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
+					// XXX System.out.println(indent + node.m_reply.m_nodeReport);
 				}
 				System.out.println();
 				
@@ -988,12 +989,21 @@ public class ArtNetManager implements Closeable
 				System.out.println();
 				System.out.println();
 				
+				int maxPerLine = 5;
+				String indent2 = "          ";
 				Map<ArtNetPort, Set<ArtNetNode>> portsToNodes = mgr.getPortsToNodes();
 				System.out.println(portsToNodes.keySet().size() + " DMX Output Ports: ");
 				for (Map.Entry<ArtNetPort, Set<ArtNetNode>> ent : portsToNodes.entrySet()) {
 					System.out.print(indent + ent.getKey() + ":");
+					int nOnLine = 0;
 					for (ArtNetNode node : ent.getValue()) {
+						if (nOnLine >= maxPerLine) {
+							System.out.println();
+							System.out.print(indent2);
+							nOnLine = 0;
+						}
 						System.out.print(" " + node.m_reply.m_nodeAddr);
+						nOnLine++;
 					}
 					System.out.println();
 				}
@@ -1003,8 +1013,15 @@ public class ArtNetManager implements Closeable
 				System.out.println(portsToIpAddrs.keySet().size() + " DMX Output Ports to node IP addrs: ");
 				for (Map.Entry<ArtNetPort, Set<InetSocketAddress>> ent : portsToIpAddrs.entrySet()) {
 					System.out.print(indent + ent.getKey() + ":");
+					int nOnLine = 0;
 					for (InetSocketAddress addr: ent.getValue()) {
+						if (nOnLine >= maxPerLine) {
+							System.out.println();
+							System.out.print(indent2);
+							nOnLine = 0;
+						}
 						System.out.print(" " + addr.getHostString());
+						nOnLine++;
 					}
 					System.out.println();
 				}
@@ -1024,7 +1041,20 @@ public class ArtNetManager implements Closeable
 				Map<ArtNetPortAddr, Set<ACN_UID>> portAddrsToUids = mgr.getPortAddrsToUids();
 				System.out.println("RDM Device UIDs, by ArtNet Port:");
 				for (Map.Entry<ArtNetPortAddr, Set<ACN_UID>> ent : portAddrsToUids.entrySet()) {
-					System.out.println(indent + ent.getKey() + ": " + ent.getValue());
+					if (!ent.getValue().isEmpty()) {
+						System.out.print(indent + ent.getKey() + ":");
+						int nOnLine = 0;
+						for (ACN_UID uid: ent.getValue()) {
+							if (nOnLine >= maxPerLine) {
+								System.out.println();
+								System.out.print(indent2);
+								nOnLine = 0;
+							}
+							System.out.print(" " + ent.getValue());
+							nOnLine++;
+						}
+						System.out.println();
+					}
 				}
 				System.out.println();
 				
@@ -1033,6 +1063,7 @@ public class ArtNetManager implements Closeable
 				for (Map.Entry<ACN_UID, ArtNetPortAddr> ent : uidsToPortAddrs.entrySet()) {
 					System.out.println(indent + ent.getKey() + ": " + ent.getValue());
 				}
+				System.out.println();
 				
 				List<String> errors = new ArrayList<>();
 				Map<ACN_UID, RdmDevice> map = mgr.getDeviceMap(errors);
