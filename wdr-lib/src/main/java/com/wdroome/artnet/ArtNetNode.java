@@ -119,7 +119,7 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	{
 		TreeSet<ArtNetNode> uniqueNodes = new TreeSet<>();
 		if (nodes != null) {
-			for (ArtNetNode ni : nodes) {
+			for (ArtNetNode ni: nodes) {
 				uniqueNodes.add(ni);
 			} 
 		}
