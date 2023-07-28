@@ -23,6 +23,7 @@ public class SendMidiMessage
 	{
 		if (args.length < 3) {
 			System.out.println("Usage: SendMidiMessage cc|on|off data1 data2 [channel]");
+			System.exit(1);
 		}
 		ArrayList<MidiTools.Device> rcvr = new ArrayList<>();
 		for (MidiDevice.Info info: MidiTools.getMidiDeviceInfo()) {
