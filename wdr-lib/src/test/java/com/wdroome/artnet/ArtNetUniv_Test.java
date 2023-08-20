@@ -3,17 +3,17 @@ package com.wdroome.artnet;
 import static org.junit.Assert.*;
 
 import org.junit.Test;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 
 /**
  * @author wdr
  */
-public class ArtNetPort_Test
+public class ArtNetUniv_Test
 {
 	@Test
 	public void test1()
 	{
-		ArtNetPort p = new ArtNetPort("1.2.3");
+		ArtNetUniv p = new ArtNetUniv("1.2.3");
 		assertEquals("net", 1, p.m_net);
 		assertEquals("subNet", 2, p.m_subNet);
 		assertEquals("universe", 3, p.m_universe);
@@ -23,7 +23,7 @@ public class ArtNetPort_Test
 	@Test
 	public void test2()
 	{
-		ArtNetPort p = new ArtNetPort("1.2");
+		ArtNetUniv p = new ArtNetUniv("1.2");
 		assertEquals("net", 0, p.m_net);
 		assertEquals("subNet", 1, p.m_subNet);
 		assertEquals("universe", 2, p.m_universe);
@@ -33,7 +33,7 @@ public class ArtNetPort_Test
 	@Test
 	public void test3()
 	{
-		ArtNetPort p = new ArtNetPort(1, 0x23);
+		ArtNetUniv p = new ArtNetUniv(1, 0x23);
 		assertEquals("net", 1, p.m_net);
 		assertEquals("subNet", 2, p.m_subNet);
 		assertEquals("universe", 3, p.m_universe);
@@ -43,9 +43,9 @@ public class ArtNetPort_Test
 	@Test
 	public void testEq()
 	{
-		ArtNetPort p1 = new ArtNetPort("1.2.3");
-		ArtNetPort p2 = new ArtNetPort("1.2.3");
-		ArtNetPort p3 = new ArtNetPort("1.1.2");
+		ArtNetUniv p1 = new ArtNetUniv("1.2.3");
+		ArtNetUniv p2 = new ArtNetUniv("1.2.3");
+		ArtNetUniv p3 = new ArtNetUniv("1.1.2");
 		
 		assertTrue("p1==p2", p1.equals(p2));
 		assertTrue("p1!=p3", !p1.equals(p3));

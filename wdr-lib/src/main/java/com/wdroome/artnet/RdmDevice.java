@@ -27,7 +27,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 	public static final String UNKNOWN_DESC = "???";
 	
 	public final ACN_UID m_uid;
-	public final ArtNetPortAddr m_nodePort;
+	public final ArtNetUnivAddr m_nodePort;
 	public final String m_manufacturer;
 	public final String m_model;
 	public final String m_softwareVersionLabel;
@@ -40,7 +40,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 
 	private RdmParamResp.DeviceInfo m_deviceInfo;
 	
-	public RdmDevice(ACN_UID uid, ArtNetPortAddr nodePort, ArtNetRdmRequest rdmRequest)
+	public RdmDevice(ACN_UID uid, ArtNetUnivAddr nodePort, ArtNetRdmRequest rdmRequest)
 							throws IOException
 	{
 		m_rdmRequest = rdmRequest;

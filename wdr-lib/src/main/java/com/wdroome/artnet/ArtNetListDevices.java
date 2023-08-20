@@ -950,7 +950,7 @@ public class ArtNetListDevices
 						String[] typeValue = arg.split("=", 2);
 						if (typeValue[0].toLowerCase().startsWith("u")) {
 							// Univ=##  or ##.##  or ##.##.##
-							ArtNetPort anPort = new ArtNetPort(typeValue[1]);
+							ArtNetUniv anPort = new ArtNetUniv(typeValue[1]);
 							for (int iDev = 1; iDev <= m_allDevices.size(); iDev++) {
 								if (m_allDevices.get(iDev-1).m_nodePort.m_port.equals(anPort)) {
 									addDevNumber(iDev, devNumList);

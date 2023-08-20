@@ -19,12 +19,12 @@ import com.wdroome.util.inet.InetInterface;
 import com.wdroome.util.inet.InetUtil;
 
 import com.wdroome.artnet.ArtNetConst;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.artnet.ArtNetNode;
 import com.wdroome.artnet.ArtNetNodeAddr;
 import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.artnet.ArtNetChannel;
-import com.wdroome.artnet.ArtNetPortAddr;
+import com.wdroome.artnet.ArtNetUnivAddr;
 
 import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetPoll;
@@ -52,12 +52,12 @@ public class ArtNetFindNodes implements ArtNetChannel.Receiver
 		public final Set<ArtNetNode> m_uniqueNodes;
 		
 		/** Map from ArtNet Ports to Nodes. */
-		public final Map<ArtNetPort, Set<ArtNetNode>> m_portsToNodes;
+		public final Map<ArtNetUniv, Set<ArtNetNode>> m_portsToNodes;
 		
 		/** Set of all nodes, sorted. */
-		public final Set<ArtNetPort> m_allPorts;
+		public final Set<ArtNetUniv> m_allPorts;
 		
-		public final List<ArtNetPortAddr> m_allNodePorts;
+		public final List<ArtNetUnivAddr> m_allNodePorts;
 				
 		public Results(List<ArtNetNode> allNodes)
 		{
@@ -65,7 +65,7 @@ public class ArtNetFindNodes implements ArtNetChannel.Receiver
 			m_uniqueNodes = ArtNetNode.getUniqueNodes(allNodes);
 			m_portsToNodes = ArtNetNode.getDmxPort2NodeMap(allNodes);
 			m_allPorts = m_portsToNodes.keySet();
-			m_allNodePorts = ArtNetNode.getNodePorts(allNodes);
+			m_allNodePorts = ArtNetNode.getUnivAddrs(allNodes);
 		}
 	}
 	
@@ -346,7 +346,7 @@ public class ArtNetFindNodes implements ArtNetChannel.Receiver
 			System.out.println();
 			
 			System.out.println(results.m_portsToNodes.keySet().size() + " DMX Output Ports: ");
-			for (Map.Entry<ArtNetPort, Set<ArtNetNode>> ent: results.m_portsToNodes.entrySet()) {
+			for (Map.Entry<ArtNetUniv, Set<ArtNetNode>> ent: results.m_portsToNodes.entrySet()) {
 				System.out.print("  " + ent.getKey() + ":");
 				for (ArtNetNode ni: ent.getValue()) {
 					System.out.print(" " + ni.m_reply.m_nodeAddr);

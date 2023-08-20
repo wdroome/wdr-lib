@@ -12,7 +12,6 @@ import java.net.UnknownHostException;
 import com.wdroome.util.inet.InetUtil;
 import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.artnet.ArtNetConst;
-import com.wdroome.artnet.ArtNetPort;
 
 /**
  * Base class for Art-Net messages.

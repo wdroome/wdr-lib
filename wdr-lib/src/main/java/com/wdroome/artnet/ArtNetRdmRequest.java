@@ -32,7 +32,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 {
 	private final ArtNetChannel m_channel;
 	private final boolean m_isSharedChannel;
-	private Map<ACN_UID, ArtNetPortAddr> m_uidMap = null;
+	private Map<ACN_UID, ArtNetUnivAddr> m_uidMap = null;
 	
 	private int m_transNum = 0;
 	private int m_srcUidManufacturer = 0x6975;
@@ -55,7 +55,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	 * 			uses this map to locate the UID's node.
 	 * @throws IOException If an error occurs when creating the channel.
 	 */
-	public ArtNetRdmRequest(ArtNetChannel channel, Map<ACN_UID, ArtNetPortAddr> uidMap)
+	public ArtNetRdmRequest(ArtNetChannel channel, Map<ACN_UID, ArtNetUnivAddr> uidMap)
 						throws IOException
 	{
 		if (channel != null) {
@@ -94,7 +94,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	 * @return The RdmPacket with the device's reply, or null if the request timed out.
 	 * @throws IOException If an IO error occurs when sending the request.
 	 */
-	public RdmPacket sendRequest(InetSocketAddress ipAddr, ArtNetPort port, ACN_UID destUid,
+	public RdmPacket sendRequest(InetSocketAddress ipAddr, ArtNetUniv port, ACN_UID destUid,
 									boolean isSet, RdmParamId paramId, byte[] requestData) throws IOException
 	{
 		ArtNetRdm req = new ArtNetRdm();
@@ -150,7 +150,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	 * @return The RdmPacket with the device's reply, or null if the request timed out.
 	 * @throws IOException If an IO error occurs when sending the request.
 	 */
-	public RdmPacket sendRequest(ArtNetPortAddr portAddr, ACN_UID destUid, boolean isSet,
+	public RdmPacket sendRequest(ArtNetUnivAddr portAddr, ACN_UID destUid, boolean isSet,
 								 RdmParamId paramId, byte[] requestData) throws IOException
 	{
 		return sendRequest(portAddr.m_nodeAddr.m_nodeAddr, portAddr.m_port, destUid,
@@ -176,7 +176,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			throw new IllegalStateException("ArtNetRdmRequest: no uid map");
 		}
 		// System.err.println("XXX ArtNetRdmRequest uidMap: " + m_uidMap.entrySet());
-		ArtNetPortAddr portAddr = m_uidMap.get(destUid);
+		ArtNetUnivAddr portAddr = m_uidMap.get(destUid);
 		// System.err.println("XXX ArtNetRdmRequest portAddr: " + destUid + " " + portAddr);
 		if (portAddr == null) {
 			return null;
@@ -194,11 +194,11 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	 * @param requestData The parameter data to send.
 	 * @return True if all broadcasts succeeded.
 	 */
-	public boolean bcastRequest(Collection<ArtNetPort> ports, ACN_UID destUid, boolean isSet,
+	public boolean bcastRequest(Collection<ArtNetUniv> ports, ACN_UID destUid, boolean isSet,
 							RdmParamId paramId, byte[] requestData)
 	{
 		boolean success = true;
-		for (ArtNetPort port: ports) {
+		for (ArtNetUniv port: ports) {
 			ArtNetRdm req = new ArtNetRdm();
 			req.m_net = port.m_net;
 			req.m_subnetUniv = port.subUniv();
@@ -225,11 +225,11 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		return m_timeoutErrors;
 	}
 
-	public Map<ACN_UID, ArtNetPortAddr> getUidMap() {
+	public Map<ACN_UID, ArtNetUnivAddr> getUidMap() {
 		return m_uidMap;
 	}
 
-	public void setUidMap(Map<ACN_UID, ArtNetPortAddr> uidMap) {
+	public void setUidMap(Map<ACN_UID, ArtNetUnivAddr> uidMap) {
 		this.m_uidMap = uidMap;
 	}
 
@@ -295,13 +295,13 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	public static class TimeoutError
 	{
 		public final InetSocketAddress m_ipAddr;
-		public final ArtNetPort m_port;
+		public final ArtNetUniv m_port;
 		public final RdmParamId m_paramId;
 		public final boolean m_isSet;
 		public final int m_numRetries;
 		public final boolean m_okay;
 		
-		public TimeoutError(InetSocketAddress ipAddr, ArtNetPort port, RdmParamId paramId, boolean isSet,
+		public TimeoutError(InetSocketAddress ipAddr, ArtNetUniv port, RdmParamId paramId, boolean isSet,
 						int numRetries, boolean okay)
 		{
 			m_ipAddr = ipAddr;

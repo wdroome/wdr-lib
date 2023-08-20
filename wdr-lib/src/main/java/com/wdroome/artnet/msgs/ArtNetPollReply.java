@@ -13,7 +13,7 @@ import com.wdroome.util.HexDump;
 import com.wdroome.util.inet.InetUtil;
 
 import com.wdroome.artnet.ArtNetConst;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.artnet.ArtNetOpcode;
 import com.wdroome.artnet.ACN_UID;
 import com.wdroome.artnet.ArtNetNodeAddr;
@@ -99,8 +99,8 @@ public class ArtNetPollReply extends ArtNetMsg
 	public ACN_UID m_defRespUID = new ACN_UID();
 	
 		/** Output and input ArtNet ports for this device's ports. */
-	public ArtNetPort[] m_inPorts = new ArtNetPort[4];
-	public ArtNetPort[] m_outPorts = new ArtNetPort[4];
+	public ArtNetUniv[] m_inPorts = new ArtNetUniv[4];
+	public ArtNetUniv[] m_outPorts = new ArtNetUniv[4];
 	
 	/** For incoming messages, the node's unique address. null for outgoing messages. */
 	public final ArtNetNodeAddr m_nodeAddr;
@@ -183,11 +183,11 @@ public class ArtNetPollReply extends ArtNetMsg
 			off += 15;	// filler
 		}
 		
-		ArtNetPort defPort = new ArtNetPort(0,0,0);
+		ArtNetUniv defPort = new ArtNetUniv(0,0,0);
 		for (int i = 0; i < 4; i++) {
 			if (i < m_numPorts) {
-				m_inPorts[i] = new ArtNetPort(m_netAddr, m_subNetAddr, m_swIn[i]);
-				m_outPorts[i] = new ArtNetPort(m_netAddr, m_subNetAddr, m_swOut[i]);
+				m_inPorts[i] = new ArtNetUniv(m_netAddr, m_subNetAddr, m_swIn[i]);
+				m_outPorts[i] = new ArtNetUniv(m_netAddr, m_subNetAddr, m_swOut[i]);
 			} else {
 				m_inPorts[i] = defPort;
 				m_outPorts[i] = defPort;
@@ -313,18 +313,18 @@ public class ArtNetPollReply extends ArtNetMsg
 	/**
 	 * Return the Art-Net port for an output port of this node.
 	 * @param iPort The physical port number, starting with 0.
-	 * @return The Art-Net port fields, or null if there is no such output port.
+	 * @return The Art-Net universe, or null if there is no such output port.
 	 */
-	public ArtNetPort getOutputPort(int iPort)
+	public ArtNetUniv getOutputPort(int iPort)
 	{
 		if (iPort >= 0
 				&& iPort < ArtNetConst.MAX_PORTS_PER_NODE
 				&& iPort <= m_numPorts
 				&& (m_portTypes[iPort] & 0x80) == 0x80) {
 			if (m_subNetAddr == 0 && (m_swOut[iPort] & 0xf0) != 0) {
-				return new ArtNetPort(m_netAddr, m_swOut[iPort]);
+				return new ArtNetUniv(m_netAddr, m_swOut[iPort]);
 			} else {
-				return new ArtNetPort(m_netAddr, m_subNetAddr, m_swOut[iPort]);
+				return new ArtNetUniv(m_netAddr, m_subNetAddr, m_swOut[iPort]);
 			}
 		} else {
 			return null;
@@ -336,16 +336,16 @@ public class ArtNetPollReply extends ArtNetMsg
 	 * @param iPort The physical port number, starting with 0.
 	 * @return The Art-Net port fields, or null if there is no such input port.
 	 */
-	public ArtNetPort getInputPort(int iPort)
+	public ArtNetUniv getInputPort(int iPort)
 	{
 		if (iPort >= 0
 				&& iPort < ArtNetConst.MAX_PORTS_PER_NODE
 				&& iPort <= m_numPorts
 				&& (m_portTypes[iPort] & 0x40) == 0x40) {
 			if (m_subNetAddr == 0 && (m_swIn[iPort] & 0xf0) != 0) {
-				return new ArtNetPort(m_netAddr, m_swIn[iPort]);
+				return new ArtNetUniv(m_netAddr, m_swIn[iPort]);
 			} else {
-				return new ArtNetPort(m_netAddr, m_subNetAddr, m_swIn[iPort]);
+				return new ArtNetUniv(m_netAddr, m_subNetAddr, m_swIn[iPort]);
 			}
 		} else {
 			return null;

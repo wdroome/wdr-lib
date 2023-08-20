@@ -28,10 +28,14 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	/** Node's response time, in milliseconds. */
 	public final long m_responseMS;
 	
-	/** Node's ArtNet DMX output ports, if any. */
-	public final List<ArtNetPort> m_dmxOutputPorts;
+	/** Node's ArtNet DMX output universes, if any. */
+	public final List<ArtNetUniv> m_dmxOutputUnivs;
 	
-	public final Set<ArtNetPort> m_dmxRdmPorts;
+	/**
+	 * Node's ArtNet universes which support RDM, if any.
+	 * This doesn't mean the universe actually any RDM devices.
+	 */
+	public final Set<ArtNetUniv> m_dmxRdmUnivs;
 	
 	/**
 	 * Create an ArtNetNode.
@@ -43,18 +47,18 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	{
 		m_responseMS = responseMS;
 		m_reply = reply;
-		m_dmxOutputPorts = new ArrayList<>();
-		m_dmxRdmPorts = new HashSet<>();
+		m_dmxOutputUnivs = new ArrayList<>();
+		m_dmxRdmUnivs = new HashSet<>();
 		for (int i = 0; i < m_reply.m_numPorts; i++) {
 			int portType = m_reply.m_portTypes[i];
-			ArtNetPort port = m_reply.getOutputPort(i);
+			ArtNetUniv port = m_reply.getOutputPort(i);
 			if (((portType & ArtNetPollReply.PORT_TYPE_OUTPUT) != 0)
 					&& ((portType & ArtNetPollReply.PORT_TYPE_PROTO_MASK)
 									== ArtNetPollReply.PORT_TYPE_PROTO_DMX512)) {
-				m_dmxOutputPorts.add(port);
+				m_dmxOutputUnivs.add(port);
 				if ((m_reply.m_status2 & ArtNetPollReply.STATUS2_ARTNET_3OR4) != 0
 						&& (m_reply.m_goodOutputB[i] & ArtNetPollReply.GOOD_OUTPUTB_RDM_DISABLED) == 0) {
-					m_dmxRdmPorts.add(port);
+					m_dmxRdmUnivs.add(port);
 				}
 			}
 		}
@@ -130,15 +134,15 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	 * Given a list of discovered nodes, return a sorted map from each distinct ArtNet port
 	 * to the set of the nodes which can output DMX on that port.
 	 * @param nodes The nodes.
-	 * @return A map from each ArtNetPort to a set of nodes that can output DMX on that port.
+	 * @return A map from each ArtNetUniv to a set of nodes that can output DMX on that port.
 	 * 		The map is only defined for ports supported by some node.
 	 */
-	public static Map<ArtNetPort, Set<ArtNetNode>> getDmxPort2NodeMap(Collection<ArtNetNode> nodes)
+	public static Map<ArtNetUniv, Set<ArtNetNode>> getDmxPort2NodeMap(Collection<ArtNetNode> nodes)
 	{
-		Map<ArtNetPort, Set<ArtNetNode>> map = new TreeMap<>();
+		Map<ArtNetUniv, Set<ArtNetNode>> map = new TreeMap<>();
 		if (nodes != null) {
 			for (ArtNetNode ni: nodes) {
-				for (ArtNetPort port: ni.m_dmxOutputPorts) {
+				for (ArtNetUniv port: ni.m_dmxOutputUnivs) {
 					Set<ArtNetNode> portNodes = map.get(port);
 					if (portNodes == null) {
 						portNodes = new HashSet<ArtNetNode>();
@@ -152,24 +156,24 @@ public class ArtNetNode implements Comparable<ArtNetNode>
 	}
 	
 	/**
-	 * Return a sorted list of all node-ports.
+	 * Return a sorted list of all unique universe/node-ip-addr pairs.
 	 * @param nodes The nodes.
-	 * @return A sorted list of all unique node-ports.
+	 * @return A sorted list of all unique universe/node-ip-addr pairs.
 	 */
-	public static List<ArtNetPortAddr> getNodePorts(Collection<ArtNetNode> nodes)
+	public static List<ArtNetUnivAddr> getUnivAddrs(Collection<ArtNetNode> nodes)
 	{
-		ArrayList<ArtNetPortAddr> nodePorts = new ArrayList<>();
+		ArrayList<ArtNetUnivAddr> univAddrs = new ArrayList<>();
 		if (nodes != null) {
 			for (ArtNetNode ni: nodes) {
-				for (ArtNetPort port: ni.m_dmxOutputPorts) {
-					ArtNetPortAddr nodePort = new ArtNetPortAddr(ni.m_reply.m_nodeAddr, port);
-					if (!nodePorts.contains(nodePort)) {
-						nodePorts.add(nodePort);
+				for (ArtNetUniv univ: ni.m_dmxOutputUnivs) {
+					ArtNetUnivAddr univAddr = new ArtNetUnivAddr(ni.m_reply.m_nodeAddr, univ);
+					if (!univAddrs.contains(univAddr)) {
+						univAddrs.add(univAddr);
 					}					
 				}
 			}
 		}
-		Collections.sort(nodePorts);
-		return nodePorts;
+		Collections.sort(univAddrs);
+		return univAddrs;
 	}
 }

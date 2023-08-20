@@ -14,8 +14,8 @@ import java.util.TreeMap;
 import com.wdroome.artnet.ACN_UID;
 import com.wdroome.artnet.ArtNetChannel;
 import com.wdroome.artnet.ArtNetNode;
-import com.wdroome.artnet.ArtNetPortAddr;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUnivAddr;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.artnet.ArtNetRdmRequest;
 import com.wdroome.artnet.RdmDevice;
 import com.wdroome.artnet.ArtNetManager;
@@ -32,9 +32,9 @@ public class ArtNetGetDevices implements Closeable
 	private final ArtNetChannel m_channel;
 	private final boolean m_isSharedChannel;
 	private final ArtNetManager m_manager;
-	private final Map<ACN_UID, ArtNetPortAddr> m_uidMap;
+	private final Map<ACN_UID, ArtNetUnivAddr> m_uidMap;
 	
-	public ArtNetGetDevices(ArtNetChannel channel, Map<ACN_UID, ArtNetPortAddr> uidMap)
+	public ArtNetGetDevices(ArtNetChannel channel, Map<ACN_UID, ArtNetUnivAddr> uidMap)
 						throws IOException
 	{
 		if (channel != null) {
@@ -46,7 +46,7 @@ public class ArtNetGetDevices implements Closeable
 		}
 		m_manager = new ArtNetManager(m_channel);
 		if (uidMap == null) {
-			uidMap = m_manager.getUidsToPortAddrs();
+			uidMap = m_manager.getUidsToUnivAddrs();
 		}
 		m_uidMap = uidMap;
 	}
@@ -62,12 +62,12 @@ public class ArtNetGetDevices implements Closeable
 
 	public Map<ACN_UID, RdmDevice> getDeviceMap(List<String> errors) throws IOException
 	{
-		ArtNetRdmRequest rdmRequest = new ArtNetRdmRequest(m_channel, m_manager.getUidsToPortAddrs());
+		ArtNetRdmRequest rdmRequest = new ArtNetRdmRequest(m_channel, m_manager.getUidsToUnivAddrs());
 
 		Map<ACN_UID, RdmDevice> deviceInfoMap = new HashMap<>();
 		for (ACN_UID uid: m_uidMap.keySet()) {
 			try {
-				RdmDevice info = new RdmDevice(uid, m_manager.getUidsToPortAddrs().get(uid), rdmRequest);
+				RdmDevice info = new RdmDevice(uid, m_manager.getUidsToUnivAddrs().get(uid), rdmRequest);
 				deviceInfoMap.put(uid, info);
 			} catch (Exception e) {
 				if (errors != null) {
@@ -78,7 +78,7 @@ public class ArtNetGetDevices implements Closeable
 		return deviceInfoMap;
 	}
 	
-	private ArtNetPortAddr findNodePort(ACN_UID uid)
+	private ArtNetUnivAddr findNodePort(ACN_UID uid)
 	{
 		return m_uidMap.get(uid);
 	}
@@ -88,7 +88,7 @@ public class ArtNetGetDevices implements Closeable
 		return paramId.isRequired() || (supportedPids != null && supportedPids.isSupported(paramId));
 	}
 	
-	private RdmPacket sendReq(InetSocketAddress ipAddr, ArtNetPort port, ACN_UID destUid,
+	private RdmPacket sendReq(InetSocketAddress ipAddr, ArtNetUniv port, ACN_UID destUid,
 									boolean isSet, RdmParamId paramId, byte[] requestData)
 	{
 		try {
@@ -98,7 +98,7 @@ public class ArtNetGetDevices implements Closeable
 		}
 	}
 	
-	private TreeMap<Integer,RdmParamResp.PersonalityDesc> getPersonalities(ArtNetPortAddr nodePort,
+	private TreeMap<Integer,RdmParamResp.PersonalityDesc> getPersonalities(ArtNetUnivAddr nodePort,
 													 ACN_UID uid, int nPersonalities,
 													 RdmParamResp.PidList supportedPids) throws IOException
 	{
@@ -127,7 +127,7 @@ public class ArtNetGetDevices implements Closeable
 		return personalities;
 	}
 	
-	private TreeMap<Integer,String> getSlotDescs(ArtNetPortAddr nodePort,
+	private TreeMap<Integer,String> getSlotDescs(ArtNetUnivAddr nodePort,
 												 ACN_UID uid, int nSlots,
 												 RdmParamResp.PidList supportedPids) throws IOException
 	{

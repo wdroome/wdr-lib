@@ -7,7 +7,7 @@ import java.net.UnknownHostException;
 
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetOpcode;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.util.ByteAOL;
 
 /**
@@ -124,7 +124,7 @@ public class ArtNetTodRequest extends ArtNetMsg
 				buff.append("\n" + linePrefix + indent);
 			}
 			buff.append(" ");
-			buff.append(new ArtNetPort(m_net, m_subnetUnivs[i]));
+			buff.append(new ArtNetUniv(m_net, m_subnetUnivs[i]));
 		}
 		buff.append("\n");
 		return buff.toString();

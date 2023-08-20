@@ -7,7 +7,7 @@ import java.net.UnknownHostException;
 
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetOpcode;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.util.ByteAOL;
 
 /**
@@ -26,8 +26,8 @@ public class ArtNetPoll extends ArtNetMsg
 	public int m_protoVers = ArtNetConst.PROTO_VERS;
 	public int m_talkToMe = 0;	// Called "Flags" in v4df.
 	public int m_priority = 0;	// Called "DiagPriority" in v4df.
-	public ArtNetPort m_topTarget = ArtNetPort.HIGH_PORT;
-	public ArtNetPort m_bottomTarget = ArtNetPort.LOW_PORT;
+	public ArtNetUniv m_topTarget = ArtNetUniv.HIGH_UNIV;
+	public ArtNetUniv m_bottomTarget = ArtNetUniv.LOW_UNIV;
 
 	/**
 	 * Create a message with the default field values.
@@ -59,9 +59,9 @@ public class ArtNetPoll extends ArtNetMsg
 		m_talkToMe = buff[off++] & 0xff;
 		m_priority = buff[off++] & 0xff;
 		if (off + 4 <= length) {
-			m_topTarget = new ArtNetPort(buff, off);
+			m_topTarget = new ArtNetUniv(buff, off);
 			off += 2;
-			m_bottomTarget = new ArtNetPort(buff, off);
+			m_bottomTarget = new ArtNetUniv(buff, off);
 			off += 2;
 		}
 	}

@@ -22,7 +22,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 	public static final String UNKNOWN_DESC = "???";
 	
 	public final ACN_UID m_uid;
-	public final ArtNetPortAddr m_nodePort;
+	public final ArtNetUnivAddr m_nodePort;
 	public final RdmParamResp.DeviceInfo m_deviceInfo;
 	public final String m_manufacturer;
 	public final String m_model;
@@ -35,7 +35,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 	public final List<Integer> m_otherParamIds;
 	
 	public RdmDevice(ACN_UID uid,
-					ArtNetPortAddr nodePort,
+					ArtNetUnivAddr nodePort,
 					RdmParamResp.DeviceInfo deviceInfo,
 					TreeMap<Integer, RdmParamResp.PersonalityDesc> personalities,
 					TreeMap<Integer, String> slotDescs,

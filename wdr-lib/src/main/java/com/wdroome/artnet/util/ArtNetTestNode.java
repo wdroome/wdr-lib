@@ -26,7 +26,7 @@ import java.net.InetSocketAddress;
 import com.wdroome.artnet.ArtNetChannel;
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetOpcode;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.artnet.ACN_UID;
 
 import com.wdroome.artnet.msgs.ArtNetMsg;
@@ -92,7 +92,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	public interface IdentifyDeviceHandler
 	{
 		// Called when an IDENTIFY_DEVICE request arrives, either turning it on or off.
-		public void handleIdentifyDevice(ACN_UID uid, ArtNetPort anPort, int dmxAddr, boolean isOn);
+		public void handleIdentifyDevice(ACN_UID uid, ArtNetUniv anPort, int dmxAddr, boolean isOn);
 	}
 	
     /** A struct with a DMX message, the time it was received, and the number of DMX msgs received. */
@@ -129,10 +129,10 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	private final File m_outputParamFile;
 	
 	// ArtNet DMX output ports for this node.
-	private final List<ArtNetPort> m_anPorts;
+	private final List<ArtNetUniv> m_anPorts;
 	
 	// Map from ArtNet ports to RDM devices on that port.
-	private final TreeMap<ArtNetPort, List<Device>> m_deviceMap;
+	private final TreeMap<ArtNetUniv, List<Device>> m_deviceMap;
 	
 	// Devices with IDENTIFY_DEVICE set to true.
 	private final Set<ACN_UID> m_identifyingDevices = new HashSet<>();
@@ -142,9 +142,9 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	private final List<ArtNetPollReply> m_pollReplies;
 	
 	// Most recent DMX message for each supported DMX output port.
-	private final Map<ArtNetPort, DmxMsgTS> m_lastDmxMsg = new ConcurrentHashMap<>();
+	private final Map<ArtNetUniv, DmxMsgTS> m_lastDmxMsg = new ConcurrentHashMap<>();
 	
-	private final Map<ArtNetPort, AtomicLong> m_numDmxMsgs = new HashMap<>();
+	private final Map<ArtNetUniv, AtomicLong> m_numDmxMsgs = new HashMap<>();
 	private final AtomicLong m_numBadDmxMsgs = new AtomicLong(0);
 	private final AtomicLong m_numPollMsgs = new AtomicLong(0);
 	
@@ -175,7 +175,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 		}
 		m_deviceMap = readConfig();
 		m_anPorts = new ArrayList<>(m_deviceMap.keySet());
-		for (ArtNetPort port: m_anPorts) {
+		for (ArtNetUniv port: m_anPorts) {
 			m_numDmxMsgs.put(port, new AtomicLong(0));
 		}
 		m_pollReply = makePollReply();
@@ -184,14 +184,14 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 		m_channel.addReceiver(this);
 	}
 	
-	private TreeMap<ArtNetPort, List<Device>> readConfig()
+	private TreeMap<ArtNetUniv, List<Device>> readConfig()
 	{
-		TreeMap<ArtNetPort, List<Device>> map = new TreeMap<>();
+		TreeMap<ArtNetUniv, List<Device>> map = new TreeMap<>();
 		int nextDevSerial = 1;
 		for (String anPortKey: new TreeSet<String>(m_nodeParam.keySet())) {
-			ArtNetPort anPort;
+			ArtNetUniv anPort;
 			try {
-				anPort = new ArtNetPort(anPortKey);
+				anPort = new ArtNetUniv(anPortKey);
 			} catch (Exception e) {
 				// ignore
 				continue;
@@ -215,7 +215,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 		}
 		if (map.isEmpty()) {
 			for (String port: new String[] {"0.0.0", "0.0.1"}) {
-				map.put(new ArtNetPort(port), new ArrayList<>());
+				map.put(new ArtNetUniv(port), new ArrayList<>());
 			}
 		}
 		return map;
@@ -225,7 +225,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	{
 		List<ArtNetPollReply> replies = new ArrayList<>();
 		int iPort = 1;
-		for (ArtNetPort anPort: m_anPorts) {
+		for (ArtNetUniv anPort: m_anPorts) {
 			ArtNetPollReply reply = new ArtNetPollReply();
 			replies.add(reply);
 			reply.m_shortName = getParam(PN_NODE_SHORT_NAME, "ArtNetTestNode");
@@ -325,7 +325,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 		this.m_logger = logger;
 	}
 	
-	public DmxMsgTS getDmxLevels(ArtNetPort port)
+	public DmxMsgTS getDmxLevels(ArtNetUniv port)
 	{
 		return m_lastDmxMsg.get(port);
 	}
@@ -419,7 +419,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 			}
 			boolean ours = false;
 			for (int i = 0; i < m_anPorts.size(); i++) {
-				ArtNetPort anPort = m_anPorts.get(i);
+				ArtNetUniv anPort = m_anPorts.get(i);
 				if (dmx.m_subUni == anPort.subUniv() && dmx.m_net == anPort.m_net) {
 					long numMsgs = m_numDmxMsgs.get(anPort).incrementAndGet();
 					DmxMsgTS prev = m_lastDmxMsg.put(anPort, new DmxMsgTS(dmx, numMsgs));
@@ -437,26 +437,26 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 			if (!ours) {
 				m_numBadDmxMsgs.incrementAndGet();
 				m_logger.logError("ArtNetMonitorWindow: Incorrect ANPort " +
-								new ArtNetPort(dmx.m_net, dmx.m_subUni).toString(), 60000, "");
+								new ArtNetUniv(dmx.m_net, dmx.m_subUni).toString(), 60000, "");
 			}
 		} else if (msg instanceof ArtNetTodRequest) {
 			ArtNetTodRequest todReq = (ArtNetTodRequest)msg;
 			int numSubnetUnivs = Math.min(todReq.m_numSubnetUnivs, todReq.m_subnetUnivs.length);
 			if (todReq.m_command == ArtNetTodRequest.COMMAND_TOD_FULL) {
 				for (int iUniv = 0; iUniv < numSubnetUnivs; iUniv++) {
-					ArtNetPort anPort = new ArtNetPort(todReq.m_net, todReq.m_subnetUnivs[iUniv]);
+					ArtNetUniv anPort = new ArtNetUniv(todReq.m_net, todReq.m_subnetUnivs[iUniv]);
 					sendTodData(anPort);
 				} 
 			}
 		} else if (msg instanceof ArtNetTodControl) {
 			ArtNetTodControl todCtl = (ArtNetTodControl)msg;
-			sendTodData(new ArtNetPort(todCtl.m_net,todCtl.m_subnetUniv));		
+			sendTodData(new ArtNetUniv(todCtl.m_net,todCtl.m_subnetUniv));		
 		} else if (msg instanceof ArtNetRdm) {
 			doRdmMsg((ArtNetRdm)msg, sender);
 		}
 	}
 	
-	private void sendTodData(ArtNetPort anPort)
+	private void sendTodData(ArtNetUniv anPort)
 	{
 		ArtNetTodData todReply = new ArtNetTodData();
 		List<Device> devices = m_deviceMap.get(anPort);
@@ -487,7 +487,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	private void doRdmMsg(ArtNetRdm req, InetSocketAddress sender)
 	{
 		// System.err.println("XXX RDM " + req);
-		ArtNetPort anPort = new ArtNetPort(req.m_net, req.m_subnetUniv);
+		ArtNetUniv anPort = new ArtNetUniv(req.m_net, req.m_subnetUniv);
 		List<Device> devices = m_deviceMap.get(anPort);
 		if (devices == null) {
 			return;
@@ -757,7 +757,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	
 	private static class Device
 	{
-		private final ArtNetPort m_anPort;
+		private final ArtNetUniv m_anPort;
 		private final DeviceType m_type;
 		private final int m_serial;
 		private final ACN_UID m_uid;
@@ -767,7 +767,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 		private String m_label = "";
 		private int m_freq = 0;
 		
-		private Device(ArtNetPort anPort, DeviceType type, int serial)
+		private Device(ArtNetUniv anPort, DeviceType type, int serial)
 		{
 			m_anPort = anPort;
 			m_type = type;
@@ -775,7 +775,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 			m_uid = new ACN_UID(m_type.m_makerId, m_serial);
 		}
 		
-		private Device(ArtNetPort anPort, JSONValue_Object devInfo, int serial)
+		private Device(ArtNetUniv anPort, JSONValue_Object devInfo, int serial)
 		{
 			m_anPort = anPort;
 			DeviceType type;

@@ -9,7 +9,7 @@ import java.util.Arrays;
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetNodeAddr;
 import com.wdroome.artnet.ArtNetOpcode;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.artnet.ACN_UID;
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.inet.InetUtil;
@@ -128,7 +128,7 @@ public class ArtNetRdm extends ArtNetMsg
 		buff.append(linePrefix
 					+ (fromAddr != null ? "from:" + fromAddr.getHostAddress() : "")
 					+ " cmd:" + Integer.toHexString(m_command)
-					+ " ANPort:" + new ArtNetPort(m_net, m_subnetUniv));
+					+ " ANPort:" + new ArtNetUniv(m_net, m_subnetUniv));
 		if (m_rdmPacket != null) {
 			// buff.append("\n" + linePrefix);
 			buff.append(m_rdmPacket.toFmtString(null, linePrefix));

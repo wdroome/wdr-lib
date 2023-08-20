@@ -11,7 +11,7 @@ import com.wdroome.util.MiscUtil;
 import com.wdroome.util.inet.InetInterface;
 
 import com.wdroome.artnet.ArtNetConst;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.artnet.msgs.ArtNetDmx;
 import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetPoll;
@@ -63,13 +63,13 @@ public class ArtNetTestSender extends ArtNetChannel.MsgPrinter
 		
 		private boolean m_running;
 		private InetSocketAddress m_nodeAddr;
-		private ArtNetPort m_anPort;
+		private ArtNetUniv m_anPort;
 		private int m_fromChan;
 		private int m_toChan;
 		private int m_level;
 		private long m_periodMS;
 		
-		private Chaser(InetSocketAddress addr, ArtNetPort anPort, int from, int to, int lvl, long periodMS)
+		private Chaser(InetSocketAddress addr, ArtNetUniv anPort, int from, int to, int lvl, long periodMS)
 		{
 			m_nodeAddr = addr;
 			m_anPort = anPort;
@@ -255,7 +255,7 @@ public class ArtNetTestSender extends ArtNetChannel.MsgPrinter
 					continue;
 				}
 				try {
-					ArtNetPort anPort = new ArtNetPort(cmdArgs[2]);
+					ArtNetUniv anPort = new ArtNetUniv(cmdArgs[2]);
 					int from = Integer.parseInt(cmdArgs[3]);
 					int to = from;
 					int level = 255;

@@ -6,7 +6,7 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 import com.wdroome.artnet.ArtNetConst;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.util.inet.InetUtil;
 
 /**
@@ -206,11 +206,27 @@ public class ArtNetMsgUtil
 		b.append(',');
 	}
 	
+	public static void append(StringBuilder b, String name, long value)
+	{
+		b.append(name);
+		b.append(':');
+		b.append(value);
+		b.append(',');
+	}
+	
 	public static void appendHex(StringBuilder b, String name, int value)
 	{
 		b.append(name);
 		b.append(":x");
 		b.append(Integer.toHexString(value));
+		b.append(',');
+	}
+	
+	public static void append(StringBuilder b, String name, boolean value)
+	{
+		b.append(name);
+		b.append(':');
+		b.append(value ? "T" : "F");
 		b.append(',');
 	}
 	
@@ -274,7 +290,7 @@ public class ArtNetMsgUtil
 		}
 	}
 	
-	public static void append(StringBuilder b, String name, ArtNetPort port)
+	public static void append(StringBuilder b, String name, ArtNetUniv port)
 	{
 		if (port != null) {
 			b.append(name);

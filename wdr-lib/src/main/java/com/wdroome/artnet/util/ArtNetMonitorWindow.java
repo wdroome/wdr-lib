@@ -46,7 +46,7 @@ import com.wdroome.util.inet.InetUtil;
 import com.wdroome.artnet.ArtNetChannel;
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetOpcode;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.artnet.msgs.ArtNetDmx;
 import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetPoll;
@@ -91,7 +91,7 @@ public class ArtNetMonitorWindow extends JFrame implements Closeable
     
     private static class AnPortDisplay
     {
-    	private ArtNetPort m_anPort;
+    	private ArtNetUniv m_anPort;
     	private int m_numActiveChannels;
     	private JPanel m_chanPanel;
     	private JScrollPane m_scrollPane;
@@ -164,7 +164,7 @@ public class ArtNetMonitorWindow extends JFrame implements Closeable
 	private static Font g_chanNumValueFont = Font.decode(DEF_FONT);
 
     private ArrayList<Integer> m_ipPorts = new ArrayList<>();
-	private ArrayList<ArtNetPort> m_anPorts = new ArrayList<>();
+	private ArrayList<ArtNetUniv> m_anPorts = new ArrayList<>();
 	private HashSet<InetAddress> m_bindAddrs = new HashSet<>();
 	private Dimension m_chanBoxSize;
 	private JTabbedPane m_tabPane;
@@ -315,7 +315,7 @@ public class ArtNetMonitorWindow extends JFrame implements Closeable
 				} else if (arg.matches("[0-9]+")) {
 					m_ipPorts.add(Integer.valueOf(arg));
 				} else if (m_anPorts.size() < ArtNetConst.MAX_PORTS_PER_NODE) {
-					m_anPorts.add(new ArtNetPort(arg));
+					m_anPorts.add(new ArtNetUniv(arg));
 				}
 			}
 		} catch (Exception e) {
@@ -326,8 +326,8 @@ public class ArtNetMonitorWindow extends JFrame implements Closeable
     		m_ipPorts.add(ArtNetConst.ARTNET_PORT);
     	}
     	if (m_anPorts.isEmpty()) {
-    		m_anPorts.add(new ArtNetPort("0.0.0"));
-    		m_anPorts.add(new ArtNetPort("0.0.1"));
+    		m_anPorts.add(new ArtNetUniv("0.0.0"));
+    		m_anPorts.add(new ArtNetUniv("0.0.1"));
     	}
     	for (int i = 0; i < m_anPorts.size(); i++) {
 			m_lastDmxMsg.add(new AtomicReference<DmxMsgTS>());
@@ -393,14 +393,14 @@ public class ArtNetMonitorWindow extends JFrame implements Closeable
 		}
 		initMsg.append("\n");
 		initMsg.append("    Art-Net Ports:");
-		for (ArtNetPort p: m_anPorts) {
+		for (ArtNetUniv p: m_anPorts) {
 			initMsg.append("  " + p.toString());
 		}
 		initMsg.append("\n");
         m_logger.logError("ArtNetMonitorWindow config", 0, initMsg.toString());
 	}
     
-    private void setTabTitle(int tabIndex, ArtNetPort anPort, long numMsgs)
+    private void setTabTitle(int tabIndex, ArtNetUniv anPort, long numMsgs)
     {
     	m_tabPane.setTitleAt(tabIndex, "Port: " + anPort + "  #DMX: " + numMsgs);
     }
@@ -555,7 +555,7 @@ public class ArtNetMonitorWindow extends JFrame implements Closeable
 				}
 				boolean ours = false;
 				for (int i = 0; i < m_anPorts.size(); i++) {
-					ArtNetPort anPort = m_anPorts.get(i);
+					ArtNetUniv anPort = m_anPorts.get(i);
 					if (dmx.m_subUni == anPort.subUniv() && dmx.m_net == anPort.m_net) {
 						DmxMsgTS prev = m_lastDmxMsg.get(i).getAndSet(new DmxMsgTS(dmx));
 						m_numDmxMsgs.get(i).incrementAndGet();
@@ -573,7 +573,7 @@ public class ArtNetMonitorWindow extends JFrame implements Closeable
 				if (!ours) {
 					m_numBadDmxMsgs.incrementAndGet();
 					m_logger.logError("ArtNetMonitorWindow: Incorrect ANPort " +
-									new ArtNetPort(dmx.m_net, dmx.m_subUni).toString(), 60000, "");
+									new ArtNetUniv(dmx.m_net, dmx.m_subUni).toString(), 60000, "");
 				}
 			} else {
 				m_logger.logError("ArtNetMonitorWindow: unexpected msg",

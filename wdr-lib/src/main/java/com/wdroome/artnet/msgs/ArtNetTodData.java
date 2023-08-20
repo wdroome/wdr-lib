@@ -8,7 +8,7 @@ import java.net.UnknownHostException;
 import com.wdroome.artnet.ArtNetConst;
 import com.wdroome.artnet.ArtNetNodeAddr;
 import com.wdroome.artnet.ArtNetOpcode;
-import com.wdroome.artnet.ArtNetPort;
+import com.wdroome.artnet.ArtNetUniv;
 import com.wdroome.artnet.ACN_UID;
 import com.wdroome.util.ByteAOL;
 import com.wdroome.util.inet.InetUtil;
@@ -160,7 +160,7 @@ public class ArtNetTodData extends ArtNetMsg
 					+" addr: "
 						+ (m_nodeAddr != null ? InetUtil.toAddrPort(m_nodeAddr.m_nodeAddr) : "(none)")
 					+ " cmd:" + Integer.toHexString(m_command)
-					+ " ANPort:" + new ArtNetPort(m_net, m_subnetUniv)
+					+ " ANPort:" + new ArtNetUniv(m_net, m_subnetUniv)
 					+ " bind/port:" + m_bindIndex + "/" + m_port
 					+ " nUids:" + m_numUids + "/" + m_numUidsTotal + "[" + m_blockCount + "]");
 		for (int i = 0; i < m_numUids; i++) {
