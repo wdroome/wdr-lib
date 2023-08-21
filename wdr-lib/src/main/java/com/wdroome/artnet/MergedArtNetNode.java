@@ -61,6 +61,15 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 		{
 			return "Port[" + m_portNum + "]";
 		}
+		
+		public String toFmtString(StringBuilder b)
+		{
+			if (b == null) {
+				b = new StringBuilder();
+			}
+			b.append("Port[" + m_portNum + "]");
+			return b.toString();
+		}
 
 		@Override
 		public int compareTo(NodePort o)
@@ -113,6 +122,17 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 							+ m_mergeMode.toString().toLowerCase() + (m_supportsRDM ? ",rdm" : "")
 							+ "]";
 		}
+		
+		public String toFmtString(StringBuilder b)
+		{
+			if (b == null) {
+				b = new StringBuilder();
+			}
+			b.append("DmxOutPort[" + m_portNum + "]: " + m_univ
+					+ " " + m_mergeMode.toString().toLowerCase()
+					+ (m_supportsRDM ? " rdm" : ""));
+			return b.toString();
+		}
 	}
 	
 	private MergedArtNetNode(Collection<ArtNetNode> nodes)
@@ -149,10 +169,15 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 							+ sockAddr + " != " + node.getNodeAddr().m_nodeAddr);
 			}
 			for (int iPort = 0; iPort < reply.m_numPorts; iPort++) {
+				int bindIndex = reply.m_bindIndex;
+				if (bindIndex == 0) {
+					System.out.println("XXX bindIndex 0");
+					bindIndex = 1;
+				}
 				if ((reply.m_portTypes[iPort] & ArtNetPollReply.PORT_TYPE_OUTPUT) != 0
 					&& (reply.m_portTypes[iPort] & ArtNetPollReply.PORT_TYPE_PROTO_MASK) ==
 							ArtNetPollReply.PORT_TYPE_PROTO_DMX512) {
-					DMXOutPort outPort = new DMXOutPort(reply.m_bindIndex + iPort, reply, iPort);
+					DMXOutPort outPort = new DMXOutPort(bindIndex + iPort, reply, iPort);
 					if (!outputPorts.contains(outPort)) {
 						outputPorts.add(outPort);
 						allPorts.add(outPort);
@@ -161,7 +186,7 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 						}
 					}
 				} else {
-					NodePort nodePort = new NodePort(reply.m_bindIndex + iPort, reply, iPort);
+					NodePort nodePort = new NodePort(bindIndex + iPort, reply, iPort);
 					if (!allPorts.contains(nodePort)) {
 						allPorts.add(nodePort);
 					}
@@ -210,6 +235,25 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 			sep = ",";
 		}
 		b.append("}");
+		return b.toString();
+	}
+	
+	public String toFmtString(StringBuilder b)
+	{
+		if (b == null) {
+			b = new StringBuilder();
+		}
+		b.append("MergedNode " + InetUtil.toAddrPort(m_socketAddr)
+				+ (!m_name.isBlank() ? (" \"" + m_name + "\"") : "")
+				+ (m_artnet3or4 ? " artNet v3/4" : "")
+				+ (m_usesDHCP ? " dhcp" : "")
+				+ (m_browserConfig ? " browser-config" : "")
+				+ " time: " + m_responseMS + "ms\n");
+		for (NodePort port: m_allPorts) {
+			b.append("    ");
+			port.toFmtString(b);
+			b.append("\n");
+		}
 		return b.toString();
 	}
 	

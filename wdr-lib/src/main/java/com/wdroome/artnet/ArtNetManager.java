@@ -1003,8 +1003,7 @@ public class ArtNetManager implements Closeable
 				Set<MergedArtNetNode> mergedNodes = mgr.getMergedNodes();
 				System.out.println(mergedNodes.size() + " Merged Nodes:");
 				for (MergedArtNetNode node : mergedNodes) {
-					System.out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
-					// XXX System.out.println(indent + node.m_reply.m_nodeReport);
+					System.out.println(indent + node.toFmtString(null).replaceAll("\n", "\n" + indent));
 				}
 				System.out.println();
 				
