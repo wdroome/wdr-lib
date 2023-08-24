@@ -17,6 +17,19 @@ import com.wdroome.artnet.msgs.ArtNetMsgUtil;
 import com.wdroome.artnet.msgs.ArtNetPollReply;
 import com.wdroome.artnet.util.ArtNetTestNode.PollReplyHandler;
 
+/**
+ * A "merged" ArtNet node. That is, all sub-nodes with the same IP address.
+ * In the original ArtNet spec, a node could only describe 4 ports in a Poll Reply messages.
+ * Nodes with more than 4 ports had to send several reply messages,
+ * using the same IP address but different "bind addresses".
+ * Later protocol versions recommended that a node send a separate
+ * Poll Reply for each port. This class "merges" the Poll Reply messages
+ * for a multi-port node into a single object with all of the node's ports.
+ * Note that this class is primarily for nodes with DMX output ports.
+ * @author wdr
+ * @see ArtNetNode
+ * @see ArtNetPollReply
+ */
 public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 {
 	/** Node name. */
@@ -38,6 +51,10 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 	
 	public static enum MergeMode { LTP, HTP };
 	
+	/**
+	 * A physical port (e.g., a DMX connector) for a Merged Node.
+	 * @see DMXOutPort
+	 */
 	public class NodePort implements Comparable<NodePort>
 	{
 		/** Physical port number, starting with 1. */
@@ -94,6 +111,9 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 		}
 	}
 	
+	/**
+	 * A subclass of NodePort for a DMX output port on a Merged Node.
+	 */
 	public class DMXOutPort extends NodePort
 	{
 		// The ArtNet universe for this port.
@@ -135,6 +155,11 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 		}
 	}
 	
+	/**
+	 * Create a Merged Node from all of node's Poll Reply response messages.
+	 * @param nodes The subnodes created from the nodes replies.
+	 * @see MergedArtNetNode#makeMergedNodes(Collection).
+	 */
 	private MergedArtNetNode(Collection<ArtNetNode> nodes)
 	{
 		if (nodes == null || nodes.isEmpty()) {
@@ -210,6 +235,9 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 		m_name = name != null && !name.isBlank() ? name : InetUtil.toAddrPort(m_socketAddr);
 	}
 
+	/**
+	 * Compare by the node's IP Socket Address.
+	 */
 	@Override
 	public int compareTo(MergedArtNetNode o)
 	{
@@ -238,6 +266,12 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 		return b.toString();
 	}
 	
+	/**
+	 * Return a formatted description of this node and it's ports.
+	 * @param b If not null, append the description to this StringBuilder.
+	 * 			If null, append the description to a new StringBuilder
+	 * @return The StringBuilder b, or the newly created one, as a String.
+	 */
 	public String toFmtString(StringBuilder b)
 	{
 		if (b == null) {
