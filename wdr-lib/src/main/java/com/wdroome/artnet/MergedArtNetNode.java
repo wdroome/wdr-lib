@@ -196,7 +196,6 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 			for (int iPort = 0; iPort < reply.m_numPorts; iPort++) {
 				int bindIndex = reply.m_bindIndex;
 				if (bindIndex == 0) {
-					System.out.println("XXX bindIndex 0");
 					bindIndex = 1;
 				}
 				if ((reply.m_portTypes[iPort] & ArtNetPollReply.PORT_TYPE_OUTPUT) != 0
@@ -277,8 +276,8 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 		if (b == null) {
 			b = new StringBuilder();
 		}
-		b.append("MergedNode " + InetUtil.toAddrPort(m_socketAddr)
-				+ (!m_name.isBlank() ? (" \"" + m_name + "\"") : "")
+		b.append((!m_name.isBlank() ? ("\"" + m_name + "\"" + " ") : "")
+				+ InetUtil.toAddrPort(m_socketAddr)
 				+ (m_artnet3or4 ? " artNet v3/4" : "")
 				+ (m_usesDHCP ? " dhcp" : "")
 				+ (m_browserConfig ? " browser-config" : "")

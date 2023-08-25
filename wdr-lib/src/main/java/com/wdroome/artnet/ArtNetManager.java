@@ -32,6 +32,7 @@ import com.wdroome.artnet.msgs.ArtNetTodControl;
 import com.wdroome.artnet.msgs.RdmPacket;
 import com.wdroome.artnet.msgs.RdmParamResp;
 import com.wdroome.artnet.util.ArtNetTestNode;
+
 import com.wdroome.util.IErrorLogger;
 import com.wdroome.util.SystemErrorLogger;
 import com.wdroome.util.ImmutableMap;
@@ -69,6 +70,7 @@ public class ArtNetManager implements Closeable
 	private List<Integer> m_listenPorts = null;
 	
 	private boolean m_findRdmUids = true;
+	private boolean m_useTodControl = true;
 	private boolean m_prtReplies = false;
 	
 	private List<Integer> m_pollPorts = null;
@@ -405,6 +407,23 @@ public class ArtNetManager implements Closeable
 	{
 		this.m_findRdmUids = findRdmUids;
 	}
+	
+	/**
+	 * Control how the manager asks RDM nodes for their TODs (Table of RDM Devices).
+	 * TodControl forces the node to regenerate its TOD, while TodRequest asks the node
+	 * to return the TOD that it last generated.
+	 * The problem is nodes can't always detect when you add or remove an RDM device
+	 * from the DMX chain. Empirically, it seems like some do and some don't.
+	 * Hence TodRequest doesn't reliably get the current set of devices.
+	 * TodControl is more accurate. But it's slower and may cause timeouts.
+	 * The default is to use TodControl.
+	 * @param useTodControl If true, use TodControl to get the nodes' TODs.
+	 * 			If false, use TodRequest.
+	 */
+	public void setUseTodControl(boolean useTodControl)
+	{
+		this.m_useTodControl = useTodControl;
+	}
 
 	/**
 	 * Control whether the manager prints all replies as they arrive.
@@ -637,6 +656,7 @@ public class ArtNetManager implements Closeable
 		private Map<ACN_UID, ArtNetUnivAddr> m_uidsToUnivAddrs = null;
 		private Map<ArtNetUniv, Set<InetSocketAddress>> m_univsToIpAddrs = null;
 		private Map<ArtNetUniv, Set<InetSocketAddress>> m_rdmUnivsToIpAddrs = null;
+		private Set<ArtNetUniv> m_rdmUnivs = null;
 		
 		private boolean m_polling = false;
 		private long m_startPollTS = 0;
@@ -713,6 +733,7 @@ public class ArtNetManager implements Closeable
 			m_uidsToUnivAddrs = new HashMap<>();
 			m_univsToIpAddrs = new HashMap<>();
 			m_rdmUnivsToIpAddrs = new HashMap<>();
+			m_rdmUnivs = new HashSet<>();
 			m_startPollTS = System.currentTimeMillis();
 			m_pollEndTS = m_startPollTS + m_pollReplyWaitMS + (m_findRdmUids ? m_todDataWaitMS : 0);
 			m_polling = true;
@@ -790,45 +811,54 @@ public class ArtNetManager implements Closeable
 						addrs = new HashSet<>();
 						m_rdmUnivsToIpAddrs.put(rdmUniv, addrs);
 					}
-					if (addrs.add(nodeAddr)) {
-						// System.out.println("XXX: Added rdm addr " + nodeAddr + " to " + addrs);
-						ArtNetTodControl todCtlReq = new ArtNetTodControl();
-						todCtlReq.m_net = rdmUniv.m_net;
-						todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
-						todCtlReq.m_subnetUniv = rdmUniv.subUniv();
-						try {
-							if (false) {	// XXX
-								System.out.println("XXX: Send TodControl to " + nodeAddr + " for " + rdmUniv);
+					boolean newRdmUnivIpAddr = addrs.add(nodeAddr);
+					boolean newRdmUniv = m_rdmUnivs.add(rdmUniv);
+					if (m_useTodControl) {
+						// Send a TodControl to the node iff this is the first "RDM supported"
+						// we've gotten for this universe and IP address.
+						// Why? Some multi-port nodes send a PollReply for each port,
+						// and several ports may have the same universe.
+						// This means we only send one TodControl to the node per universe.
+						// Otherwise, we'd send several TodControls in succession.
+						// Besides being inefficient, that seems to confuse the hell out of some nodes.
+						if (newRdmUnivIpAddr) {
+							// System.out.println("XXX: Added rdm addr " + nodeAddr + " to " + addrs);
+							ArtNetTodControl todCtlReq = new ArtNetTodControl();
+							todCtlReq.m_net = rdmUniv.m_net;
+							todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
+							todCtlReq.m_subnetUniv = rdmUniv.subUniv();
+							try {
+								if (false) { // XXX
+									System.out.println("XXX: Send TodControl to " + nodeAddr + " for " + rdmUniv);
+								}
+								if (!m_channel.send(todCtlReq, nodeAddr)) {
+									m_errorLogger.logError("ArtNetManager: send TODControl failed.");
+								}
+							} catch (IOException e1) {
+								m_errorLogger.logError("ArtNetManager: Exception sending TODControl: " + e1);
 							}
-							if (!m_channel.send(todCtlReq, nodeAddr)) {
-								m_errorLogger.logError("ArtNetManager: send TODControl failed.");
-							}
-						} catch (IOException e1) {
-							m_errorLogger.logError("ArtNetManager: Exception sending TODControl: " + e1);
 						} 
+					} else {  // Use TodRequeat.
+						if (newRdmUniv) {
+							// New RDM universe. Broadcast a TodRequest to all nodes.
+							ArtNetTodRequest todReqReq = new ArtNetTodRequest();
+							todReqReq.m_net = rdmUniv.m_net;
+							todReqReq.m_numSubnetUnivs = 1;
+							todReqReq.m_subnetUnivs[0] = (byte)rdmUniv.subUniv(); 
+							try {
+								if (false) { // XXX
+									System.out.println("XXX: Send TodRequest for " + rdmUniv);
+								}
+								if (!m_channel.broadcast(todReqReq)) {
+									m_errorLogger.logError("ArtNetManager: send TODRequest failed.");
+								}
+							} catch (IOException e1) {
+								m_errorLogger.logError("ArtNetManager: Exception sending TODRequest: " + e1);
+							}
+						}
 					}
 				}
 			}
-			
-			// XXX
-			/*XXX
-			if (m_uniqueNodes.add(nodeInfo) && m_findRdmUids) {
-				for (ArtNetUniv univ: nodeInfo.m_dmxRdmPorts) {
-					ArtNetTodControl todCtlReq = new ArtNetTodControl();
-					todCtlReq.m_net = univ.m_net;
-					todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
-					todCtlReq.m_subnetUniv = univ.subUniv();
-					try {
-						System.out.println("XXX: Control to " + nodeInfo.getNodeAddr().m_nodeAddr + " for " + univ);
-						if (!m_channel.send(todCtlReq, nodeInfo.getNodeAddr().m_nodeAddr)) {
-							m_errorLogger.logError("ArtNetManager: send TODControl failed.");
-						}
-					} catch (IOException e1) {
-						m_errorLogger.logError("ArtNetManager: Exception sending TODControl: " + e1);
-					} 
-				}
-			}
-			XXX */
 		}
 		
 		private void handleTodData(ArtNetTodData msg)
@@ -919,6 +949,11 @@ public class ArtNetManager implements Closeable
 		ArtNetChannel chan = null;
 		boolean useTestNode = false;
 		File testNodeParamFile = null;
+		boolean prtAllReplies = false;
+		boolean prtUniqueNodes = false;
+		boolean prtMergedNodes = false;
+		boolean prtDevices = false;
+		long nRepeats = 1;
 		for (ListIterator<String> iter = argList.listIterator(); iter.hasNext(); ) {
 			String arg = iter.next();
 			if (arg.startsWith("-testnode")) {
@@ -928,6 +963,18 @@ public class ArtNetManager implements Closeable
 				}
 				useTestNode = true;
 				iter.remove();
+			} else if (arg.equals("-a")) {
+				prtAllReplies = true;
+				iter.remove();
+			} else if (arg.equals("-n") || arg.equals("-u")) {
+				prtUniqueNodes = true;
+				iter.remove();
+			} else if (arg.equals("-m")) {
+				prtMergedNodes = true;
+				iter.remove();
+			} else if (arg.equals("-d")) {
+				prtDevices = true;
+				iter.remove();
 			}
 		}
 		ArtNetTestNode testNode = null;
@@ -935,15 +982,14 @@ public class ArtNetManager implements Closeable
 			chan = new ArtNetChannel();
 			testNode = new ArtNetTestNode(chan, null, testNodeParamFile, testNodeParamFile);
 		}
-		
-		boolean prtAllReplies = false;
-		long nRepeats = 1;
+		if (!prtUniqueNodes && !prtMergedNodes) {
+			prtMergedNodes = true;
+		}
+
 		try (ArtNetManager mgr = new ArtNetManager(chan)) {
 			Long longVal;
 			for (String arg: argList) {
-				if (arg.equals("-a")) {
-					prtAllReplies = true;
-				} else if (arg.equals("-r")) {
+				if (arg.equals("-r")) {
 					mgr.setPrtReplies(true);
 				} else if ((longVal = parseNumValueArg("-repeat=", arg)) != null) {
 					nRepeats = longVal > 0 ? longVal : 1;
@@ -951,6 +997,10 @@ public class ArtNetManager implements Closeable
 					mgr.setPollReplyWaitMS(longVal);
 				} else if ((longVal = parseNumValueArg("-tod=", arg)) != null) {
 					mgr.setTodDataWaitMS(longVal);
+				} else if (arg.toLowerCase().startsWith("-todreq")) {
+					mgr.setUseTodControl(false);
+				} else if (arg.toLowerCase().startsWith("-todcon") || arg.startsWith("-todctl")) {
+					mgr.setUseTodControl(true);
 				} else if (arg.startsWith("-")) {
 					System.out.println("Unknown flag argument '" + arg + "'");
 				}
@@ -992,21 +1042,29 @@ public class ArtNetManager implements Closeable
 					System.out.println();
 				}
 				
-				Set<ArtNetNode> uniqueNodes = mgr.getUniqueNodes();
-				System.out.println(uniqueNodes.size() + " Unique Nodes:");
-				for (ArtNetNode node : uniqueNodes) {
-					System.out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
-					// XXX System.out.println(indent + node.m_reply.m_nodeReport);
+				if (prtUniqueNodes) {
+					Set<ArtNetNode> uniqueNodes = mgr.getUniqueNodes();
+					System.out.println(uniqueNodes.size() + " Unique Nodes:");
+					for (ArtNetNode node : uniqueNodes) {
+						System.out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
+						// XXX System.out.println(indent + node.m_reply.m_nodeReport);
+					}
+					System.out.println();
 				}
-				System.out.println();
 				
-				Set<MergedArtNetNode> mergedNodes = mgr.getMergedNodes();
-				System.out.println(mergedNodes.size() + " Merged Nodes:");
-				for (MergedArtNetNode node : mergedNodes) {
-					System.out.println(indent + node.toFmtString(null).replaceAll("\n", "\n" + indent));
+				if (prtMergedNodes) {
+					Set<MergedArtNetNode> mergedNodes = mgr.getMergedNodes();
+					System.out.println(mergedNodes.size() + " Merged Nodes:");
+					for (MergedArtNetNode node : mergedNodes) {
+						String desc = node.toFmtString(null);
+						boolean needNL = desc.endsWith("\n");
+						System.out.print(indent + node.toFmtString(null).replaceAll("\n", "\n" + indent));
+						if (needNL) {
+							System.out.println();
+						}
+					}
+					System.out.println();
 				}
-				System.out.println();
-				
 				List<ArtNetUniv> allUnivs = mgr.getAllPorts();
 				System.out.println(allUnivs.size() + " ArtNet Universes:");
 				String sep = indent;
@@ -1093,13 +1151,15 @@ public class ArtNetManager implements Closeable
 				}
 				System.out.println();
 				
-				List<String> errors = new ArrayList<>();
-				Map<ACN_UID, RdmDevice> map = mgr.getDeviceMap(errors);
-				if (!errors.isEmpty()) {
-					System.out.println("RdmDevice2 errors: " + errors);
-				}
-				for (RdmDevice rdmDev: map.values()) {
-					System.out.println("Device:\n   " + rdmDev);
+				if (prtDevices) {
+					List<String> errors = new ArrayList<>();
+					Map<ACN_UID, RdmDevice> map = mgr.getDeviceMap(errors);
+					if (!errors.isEmpty()) {
+						System.out.println("RdmDevice2 errors: " + errors);
+					}
+					for (RdmDevice rdmDev : map.values()) {
+						System.out.println("Device:\n   " + rdmDev);
+					}
 				}
 			}
 		}

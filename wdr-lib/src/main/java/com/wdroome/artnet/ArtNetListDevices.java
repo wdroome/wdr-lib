@@ -601,7 +601,7 @@ public class ArtNetListDevices
 	{
 		PRINT("PRT", null),
 		LIST("LS", null),
-		NODES(),
+		NODES((String)null, "[merged | unique]"),
 		ADDRESS("DMX", "[new-dmx-address]"),
 		CONFIG("PERSONALITY", "[new-personality-number]"),
 		NAME((String)null, "[new-device-label]"),
@@ -749,13 +749,28 @@ public class ArtNetListDevices
 					}
 					break;
 				case NODES:
-					Set<ArtNetNode> uniqueNodes = m_manager.getUniqueNodes();
-					m_out.println(uniqueNodes.size() + " Unique Nodes:");
-					String indent = "    ";
-					for (ArtNetNode node : uniqueNodes) {
-						m_out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
+					if (args.size() >= 1 && args.get(0).toLowerCase().startsWith("u")) {
+						Set<ArtNetNode> uniqueNodes = m_manager.getUniqueNodes();
+						m_out.println(uniqueNodes.size() + " Unique Nodes:");
+						String indent = "    ";
+						for (ArtNetNode node : uniqueNodes) {
+							m_out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
+						}
+						m_out.println();
+					} else {
+						Set<MergedArtNetNode> mergedNodes = m_manager.getMergedNodes();
+						System.out.println(mergedNodes.size() + " Merged Nodes:");
+						String indent = "    ";
+						for (MergedArtNetNode node : mergedNodes) {
+							String desc = node.toFmtString(null);
+							boolean needNL = desc.endsWith("\n");
+							System.out.print(indent + node.toFmtString(null).replaceAll("\n", "\n" + indent));
+							if (needNL) {
+								System.out.println();
+							}
+						}
+						System.out.println();
 					}
-					m_out.println();
 					break;
 				case NAME:
 					doName(devNums, args);
