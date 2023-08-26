@@ -20,6 +20,7 @@ import com.wdroome.util.MiscUtil;
 
 /**
  * Standard information about an RDM device in the network.
+ * THe c'tor uses 
  * @author wdr
  */
 public class RdmDevice implements Comparable<RdmDevice>
@@ -27,7 +28,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 	public static final String UNKNOWN_DESC = "???";
 	
 	public final ACN_UID m_uid;
-	public final ArtNetUnivAddr m_nodePort;
+	public final ArtNetUnivAddr m_univAddr;
 	public final String m_manufacturer;
 	public final String m_model;
 	public final String m_softwareVersionLabel;
@@ -40,14 +41,23 @@ public class RdmDevice implements Comparable<RdmDevice>
 
 	private RdmParamResp.DeviceInfo m_deviceInfo;
 	
-	public RdmDevice(ACN_UID uid, ArtNetUnivAddr nodePort, ArtNetRdmRequest rdmRequest)
+	/**
+	 * Create an object for an RDM device. Get the device's invariant data, like model,
+	 * and save that in final member variables.
+	 * @param uid The device's unique ID.
+	 * @param univAddr The node and port with this device.
+	 * @param rdmRequest An object that can send RDM messages to this
+	 * 			device and return responses.
+	 * @throws IOException
+	 */
+	public RdmDevice(ACN_UID uid, ArtNetUnivAddr univAddr, ArtNetRdmRequest rdmRequest)
 							throws IOException
 	{
 		m_rdmRequest = rdmRequest;
 		m_rdmRequest.resetTimeoutErrors();
 		m_uid = uid;
-		m_nodePort = nodePort;
-		if (m_nodePort == null) {
+		m_univAddr = univAddr;
+		if (m_univAddr == null) {
 			throw new IllegalStateException("RdmDevice c'tor: " + m_uid + " no portaddr");
 		}
 		refreshDeviceInfo();
@@ -97,8 +107,9 @@ public class RdmDevice implements Comparable<RdmDevice>
 	private RdmPacket sendRdmRequest(boolean isSet, RdmParamId paramId, byte[] reqData)
 			throws IOException
 	{
-		// MiscUtil.sleep(150); // System.out.println("XXX sleep " + paramId);	// XXX -- for Netron EN4 bug
-		return m_rdmRequest.sendRequest(m_uid, isSet, paramId, reqData);
+		// This delay was for investigating a bug in the Netron EN4 interface.
+		// MiscUtil.sleep(150); // System.out.println("XXX sleep " + paramId);
+		return m_rdmRequest.sendRequest(m_univAddr, m_uid, isSet, paramId, reqData);
 	}
 	
 	private boolean isParamSupported(RdmParamId paramId)
@@ -165,6 +176,13 @@ public class RdmDevice implements Comparable<RdmDevice>
 		return sensorDefs;
 	}
 	
+	/**
+	 * Get the string descriptions of the device's channels ("slots") for the current personality.
+	 * This sends SLOT_DESCRIPTION requests to the device.
+	 * @return A map from slot number to description. Slot numbers start with 0.
+	 * 		Returns an empty map if the device does not support SLOT_DESCRIPTION requests.
+	 * @throws IOException
+	 */
 	public TreeMap<Integer,String> getSlotDescs() throws IOException
 	{
 		TreeMap<Integer,String> slotDescs = new TreeMap<>();
@@ -190,21 +208,41 @@ public class RdmDevice implements Comparable<RdmDevice>
 		return slotDescs;
 	}
 	
+	/**
+	 * Refresh the "DEV_IFNO" information for the device.
+	 * This includes DMX address and footprint, personality, etc.
+	 * @throws IOException If an IO error occurs when sending the request.
+	 */
 	public void refresh() throws IOException
 	{
 		refreshDeviceInfo();
 	}
 
+	/**
+	 * Return the cached RDM device information (DEV_INFO).
+	 * @see #refresh()
+	 * @return The cached RDM device information (DEV_INFO).
+	 */
 	public RdmParamResp.DeviceInfo getDeviceInfo()
 	{
 		return m_deviceInfo;
 	}
 	
+	/**
+	 * Return the cached DMX start address.
+	 * @see #refresh()
+	 * @return The cached DMX start address.
+	 */
 	public int getDmxStartAddr()
 	{
 		return m_deviceInfo.m_startAddr;
 	}
 	
+	/**
+	 * Return the cached DMX footprint (number of DMX channels).
+	 * @see #refresh()
+	 * @return The cached DMX footprint (number of DMX channels).
+	 */
 	public int getDmxFootprint()
 	{
 		return m_deviceInfo.m_dmxFootprint;
@@ -222,7 +260,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 	
 	/**
 	 * Get a comma-separated list of the non-required Parameter Ids this device supports.
-	 * @return
+	 * @return A comma-separated list of the non-required Parameter Ids this device supports.
 	 */
 	public String supportedPids()
 	{
@@ -241,7 +279,8 @@ public class RdmDevice implements Comparable<RdmDevice>
 	}
 	
 	/**
-	 * Get the current personality number.
+	 * Get the cached personality number.
+	 * @see #refresh()
 	 * @return The current personality number.
 	 */
 	public int getPersonality()
@@ -250,7 +289,8 @@ public class RdmDevice implements Comparable<RdmDevice>
 	}
 	
 	/**
-	 * Get the number of personalities.
+	 * Get the cached number of personalities.
+	 * @see #refresh()
 	 * @return The number of personalities.
 	 */
 	public int getNumPersonalities()
@@ -544,7 +584,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 		if (cmp != 0) {
 			return cmp;
 		}
-		cmp = m_nodePort.m_port.compareTo(o.m_nodePort.m_port);
+		cmp = m_univAddr.m_univ.compareTo(o.m_univAddr.m_univ);
 		if (cmp != 0) {
 			return cmp;
 		}
@@ -592,7 +632,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 			if (o2 == null) {
 				return 1;
 			}
-			int cmp = o1.m_nodePort.m_port.compareTo(o2.m_nodePort.m_port);
+			int cmp = o1.m_univAddr.m_univ.compareTo(o2.m_univAddr.m_univ);
 			if (cmp != 0) {
 				return cmp;
 			}
@@ -642,7 +682,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 			if (o2 == null) {
 				return 1;
 			}
-			return o1.m_nodePort.compareTo(o2.m_nodePort);
+			return o1.m_univAddr.compareTo(o2.m_univAddr);
 		}
 	}
 	
@@ -650,7 +690,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 	public String toString()
 	{
 		return	"RdmDevice(" + m_uid
-				+ "@" + m_nodePort
+				+ "@" + m_univAddr
 				+ getManModel(",")
 				+ ",dmx=" + m_deviceInfo.m_startAddr + "-"
 						+ (m_deviceInfo.m_startAddr + m_deviceInfo.m_dmxFootprint - 1)

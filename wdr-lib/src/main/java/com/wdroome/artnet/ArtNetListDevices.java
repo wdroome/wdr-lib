@@ -168,9 +168,13 @@ public class ArtNetListDevices
 				out.println(indent + "dmx addresses: " + devInfo.getDmxStartAddr()
 							+ "-" + (devInfo.getDmxStartAddr()
 										+ devInfo.getDmxFootprint() - 1)
-							+ " univ: " + devInfo.m_nodePort);
+							+ " univ: " + devInfo.m_univAddr.m_univ
+							+ " node: " + m_manager.getNodeName(devInfo.m_univAddr.m_nodeAddr.m_nodeAddr)
+							+ "[" + devInfo.m_univAddr.m_nodeAddr.m_index + "]");
 			} else {
-				out.println(indent + "univ: " + devInfo.m_nodePort);
+				out.println(indent + "univ: " + devInfo.m_univAddr.m_univ
+						+ " node: " + m_manager.getNodeName(devInfo.m_univAddr.m_nodeAddr.m_nodeAddr)
+						+ "[" + devInfo.m_univAddr.m_nodeAddr.m_index + "]");
 			}
 			out.println(indent + "dmx config " + devInfo.getPersonalityDesc());
 			out.println(indent + "version: " + devInfo.m_softwareVersionLabel
@@ -270,11 +274,19 @@ public class ArtNetListDevices
 			int startAddr = dev.getDmxStartAddr();
 			int endAddr = startAddr + dev.getDmxFootprint() - 1;
 			out.println(iDev + ":"
+					+ " " + dev.m_manufacturer + "/" + dev.m_model
+					+ " " + startAddr + "-" + endAddr + " u" + dev.m_univAddr.m_univ
+					+ " " + m_manager.getNodeName(dev.m_univAddr.m_nodeAddr.m_nodeAddr)
+								+ "[" + dev.m_univAddr.m_nodeAddr.m_index + "]"
+					);
+			/*
+			out.println(iDev + ":"
 					+ " " + dev.m_uid
 					+ " " + dev.m_manufacturer + "/" + dev.m_model
 					+ " " + startAddr + "-" + endAddr
-					+ " " + dev.m_nodePort
+					+ " " + dev.m_univAddr
 					);
+			*/
 		}
 	}
 	
@@ -516,7 +528,7 @@ public class ArtNetListDevices
 		}
 		ColNameMap map = new ColNameMap();
 		map.put(ColName.UID, deviceInfo.m_uid.toString());		
-		map.put(ColName.Univ, deviceInfo.m_nodePort.m_port.toString());
+		map.put(ColName.Univ, deviceInfo.m_univAddr.m_univ.toString());
 		map.put(ColName.DmxAddr, deviceInfo.getDeviceInfo().m_startAddr + "");
 		map.put(ColName.DmxSlots, deviceInfo.getDeviceInfo().m_dmxFootprint + "");
 		map.put(ColName.ConfigNum, deviceInfo.getDeviceInfo().m_currentPersonality + "");
@@ -831,7 +843,7 @@ public class ArtNetListDevices
 					int startAddr = dev.getDmxStartAddr();
 					m_out.println(iDev + ": " + startAddr
 							+ "-" + (startAddr + dev.getDmxFootprint()-1)
-							+ " @" + dev.m_nodePort.m_port);
+							+ " @" + dev.m_univAddr.m_univ);
 				}
 			} else if (devNums.size() > 1) {
 				m_out.println("More than 1 device selected.");
@@ -967,7 +979,7 @@ public class ArtNetListDevices
 							// Univ=##  or ##.##  or ##.##.##
 							ArtNetUniv anPort = new ArtNetUniv(typeValue[1]);
 							for (int iDev = 1; iDev <= m_allDevices.size(); iDev++) {
-								if (m_allDevices.get(iDev-1).m_nodePort.m_port.equals(anPort)) {
+								if (m_allDevices.get(iDev-1).m_univAddr.m_univ.equals(anPort)) {
 									addDevNumber(iDev, devNumList);
 								}
 							}

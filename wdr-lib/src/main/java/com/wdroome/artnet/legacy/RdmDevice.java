@@ -207,7 +207,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 		if (cmp != 0) {
 			return cmp;
 		}
-		cmp = m_nodePort.m_port.compareTo(o.m_nodePort.m_port);
+		cmp = m_nodePort.m_univ.compareTo(o.m_nodePort.m_univ);
 		if (cmp != 0) {
 			return cmp;
 		}
@@ -255,7 +255,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 			if (o2 == null) {
 				return 1;
 			}
-			int cmp = o1.m_nodePort.m_port.compareTo(o2.m_nodePort.m_port);
+			int cmp = o1.m_nodePort.m_univ.compareTo(o2.m_nodePort.m_univ);
 			if (cmp != 0) {
 				return cmp;
 			}

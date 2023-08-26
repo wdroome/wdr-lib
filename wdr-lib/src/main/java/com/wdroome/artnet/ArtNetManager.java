@@ -164,6 +164,45 @@ public class ArtNetManager implements Closeable
 	{
 		return m_monitorSync.getMergedNodes();
 	}
+	
+	/**
+	 * Return the Merged Node with a socket address.
+	 * @param socketAddr A socket address.
+	 * @return The Merged Node with that address, or null.
+	 */
+	public MergedArtNetNode getMergedNode(InetSocketAddress socketAddr)
+	{
+		for (MergedArtNetNode mergedNode: getMergedNodes()) {
+			if (socketAddr.equals(mergedNode.m_socketAddr)) {
+				return mergedNode;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Return the name of the Merged Node with a socket address.
+	 * @param socketAddr A socket address.
+	 * @return The name of the Merged Node with a socket address.
+	 * 		If no such node, return the socket address.
+	 */
+	public String getNodeName(InetSocketAddress socketAddr)
+	{
+		MergedArtNetNode mergedNode = getMergedNode(socketAddr);
+		return mergedNode != null ? mergedNode.m_name : InetUtil.toAddrPort(socketAddr);
+	}
+	
+	/**
+	 * Return the name of the Merged Node with a socket address.
+	 * @param socketAddr A socket address.
+	 * @param def The name of return if no node has that address.
+	 * @return The name of the Merged Node with a socket address.
+	 */
+	public String getNodeName(InetSocketAddress socketAddr, String def)
+	{
+		MergedArtNetNode mergedNode = getMergedNode(socketAddr);
+		return mergedNode != null ? mergedNode.m_name : def;
+	}
 
 	/**
 	 * Return an immutable Map of universes to the nodes handling that universe.
@@ -190,7 +229,7 @@ public class ArtNetManager implements Closeable
 	 */
 	public List<ArtNetUnivAddr> getAllUnivAddrs()
 	{
-		return m_monitorSync.getAlUnivAddrs();
+		return m_monitorSync.getAllUnivAddrs();
 	}
 
 	/**
@@ -340,8 +379,8 @@ public class ArtNetManager implements Closeable
 	}
 	
 	/**
-	 * Return an ArtNetRdmRequest, which can be used to send RDM requests.
-	 * @return
+	 * Return the manager's ArtNetRdmRequest, which clients can use to send RDM requests.
+	 * @return The manager's ArtNetRdmRequest.
 	 * @throws IOException 
 	 */
 	public ArtNetRdmRequest getRdmRequest() throws IOException
@@ -533,7 +572,7 @@ public class ArtNetManager implements Closeable
 			return m_allUnivs;
 		}
 
-		private synchronized List<ArtNetUnivAddr> getAlUnivAddrs()
+		private synchronized List<ArtNetUnivAddr> getAllUnivAddrs()
 		{
 			if (!m_isValid) {
 				refresh();

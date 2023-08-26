@@ -10,12 +10,12 @@ package com.wdroome.artnet;
 public class ArtNetUnivAddr implements Comparable<ArtNetUnivAddr>
 {
 	public final ArtNetNodeAddr m_nodeAddr;
-	public final ArtNetUniv m_port;
+	public final ArtNetUniv m_univ;
 	
 	public ArtNetUnivAddr(ArtNetNodeAddr nodeAddr, ArtNetUniv univ)
 	{
 		m_nodeAddr = nodeAddr;
-		m_port = univ;
+		m_univ = univ;
 	}
 
 	@Override
@@ -25,7 +25,7 @@ public class ArtNetUnivAddr implements Comparable<ArtNetUnivAddr>
 		if (cmp != 0) {
 			return cmp;
 		}
-		return m_port.compareTo(o.m_port);
+		return m_univ.compareTo(o.m_univ);
 	}
 
 	/**
@@ -34,7 +34,7 @@ public class ArtNetUnivAddr implements Comparable<ArtNetUnivAddr>
 	@Override
 	public String toString()
 	{
-		return m_port + "@" + m_nodeAddr;
+		return m_univ + "@" + m_nodeAddr;
 	}
 
 	@Override
@@ -42,7 +42,7 @@ public class ArtNetUnivAddr implements Comparable<ArtNetUnivAddr>
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + ((m_nodeAddr == null) ? 0 : m_nodeAddr.hashCode());
-		result = prime * result + ((m_port == null) ? 0 : m_port.hashCode());
+		result = prime * result + ((m_univ == null) ? 0 : m_univ.hashCode());
 		return result;
 	}
 
@@ -60,10 +60,10 @@ public class ArtNetUnivAddr implements Comparable<ArtNetUnivAddr>
 				return false;
 		} else if (!m_nodeAddr.equals(other.m_nodeAddr))
 			return false;
-		if (m_port == null) {
-			if (other.m_port != null)
+		if (m_univ == null) {
+			if (other.m_univ != null)
 				return false;
-		} else if (!m_port.equals(other.m_port))
+		} else if (!m_univ.equals(other.m_univ))
 			return false;
 		return true;
 	}

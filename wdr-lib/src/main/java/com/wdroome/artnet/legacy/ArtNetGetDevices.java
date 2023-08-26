@@ -108,7 +108,7 @@ public class ArtNetGetDevices implements Closeable
 			for (int iPersonality = 1; iPersonality <= nPersonalities; iPersonality++) {
 				RdmPacket personalityDescReply = null;
 				if (ok) {
-					personalityDescReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_port,
+					personalityDescReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr, nodePort.m_univ,
 									uid, false, RdmParamId.DMX_PERSONALITY_DESCRIPTION,
 									new byte[] { (byte) iPersonality });
 					if (personalityDescReply == null) {
@@ -141,7 +141,7 @@ public class ArtNetGetDevices implements Closeable
 				if (ok) {
 					byte[] iSlotAsBytes = new byte[] { (byte) ((iSlot >> 8) & 0xff), (byte) (iSlot & 0xff) };
 					RdmPacket slotDescReply = sendReq(nodePort.m_nodeAddr.m_nodeAddr,
-													nodePort.m_port, uid, false,
+													nodePort.m_univ, uid, false,
 													RdmParamId.SLOT_DESCRIPTION, iSlotAsBytes);
 					if (slotDescReply != null && slotDescReply.isRespAck()) {
 						RdmParamResp.SlotDesc slotDesc = new RdmParamResp.SlotDesc(slotDescReply);
@@ -177,9 +177,9 @@ public class ArtNetGetDevices implements Closeable
 					System.out.println(indent + "dmx addresses: " + devInfo.getDeviceInfo().m_startAddr
 								+ "-" + (devInfo.getDeviceInfo().m_startAddr
 											+ devInfo.getDeviceInfo().m_dmxFootprint - 1)
-								+ " univ: " + devInfo.m_nodePort);
+								+ " univ: " + devInfo.m_univAddr);
 				} else {
-					System.out.println(indent + "univ: " + devInfo.m_nodePort);
+					System.out.println(indent + "univ: " + devInfo.m_univAddr);
 				}
 				System.out.println(indent + "dmx config " + devInfo.getPersonalityDesc());
 				System.out.println(indent + "version: " + devInfo.m_softwareVersionLabel);

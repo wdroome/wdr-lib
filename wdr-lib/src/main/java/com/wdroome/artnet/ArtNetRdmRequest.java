@@ -21,10 +21,12 @@ import java.net.UnknownHostException;
 import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetRdm;
 import com.wdroome.artnet.msgs.RdmParamId;
+import com.wdroome.util.MiscUtil;
 import com.wdroome.artnet.msgs.RdmPacket;
 
 /**
  * Send an RDM request to a device and return the response.
+ * This class is not thread-safe.
  * Art-Net (TM) Designed by and Copyright Artistic License Holdings Ltd.
  * @author wdr
  */
@@ -44,6 +46,8 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	
 	private long m_timeoutMS = 2000;
 	private int m_maxTries = 3;
+	private long m_retryDelayMS = 500;
+	private boolean m_prtTimeouts = true;
 	private ArrayList<TimeoutError> m_timeoutErrors = new ArrayList<>();
 	
 	/**
@@ -130,12 +134,20 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			}
 			if (replyMsg != null) {
 				if (nTries > 1) {
+					if (m_prtTimeouts) {
+						System.out.println("*** ArtNetRdmRequest.sendRequest: " + paramId + " for " + destUid
+								+ " succeeded after " + (nTries - 1) + " timeouts.");
+					}
 					m_timeoutErrors.add(new TimeoutError(ipAddr, port, paramId, isSet, nTries-1, true));
 				}
 				return replyMsg.m_rdmPacket;
 			}
+			if (m_retryDelayMS > 0) {
+				MiscUtil.sleep(m_retryDelayMS);
+			}
 		}
-		System.out.println("XXX: ArtNetRdmRequest.sendRequest timeout " + paramId + " ntries=" + m_maxTries);
+		System.out.println("*** ArtNetRdmRequest.sendRequest " + paramId + " for " + destUid
+									+ " failed after " + m_maxTries + " attempts");
 		m_timeoutErrors.add(new TimeoutError(ipAddr, port, paramId, isSet, m_maxTries-1, false));
 		return null;
 	}
@@ -153,7 +165,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	public RdmPacket sendRequest(ArtNetUnivAddr portAddr, ACN_UID destUid, boolean isSet,
 								 RdmParamId paramId, byte[] requestData) throws IOException
 	{
-		return sendRequest(portAddr.m_nodeAddr.m_nodeAddr, portAddr.m_port, destUid,
+		return sendRequest(portAddr.m_nodeAddr.m_nodeAddr, portAddr.m_univ, destUid,
 									isSet, paramId, requestData);
 	}
 	
@@ -181,7 +193,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		if (portAddr == null) {
 			return null;
 		}
-		return sendRequest(portAddr.m_nodeAddr.m_nodeAddr, portAddr.m_port, destUid,
+		return sendRequest(portAddr.m_nodeAddr.m_nodeAddr, portAddr.m_univ, destUid,
 									isSet, paramId, requestData);
 	}
 	
@@ -249,6 +261,22 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		this.m_maxTries = maxTries >= 1 ? maxTries : 1;
 	}
 
+	public long getRretryDelayMS() {
+		return m_retryDelayMS;
+	}
+
+	public void setRetryDelayMS(long retryDelayMS) {
+		this.m_retryDelayMS = retryDelayMS;
+	}
+
+	public boolean isPrtTimeouts() {
+		return m_prtTimeouts;
+	}
+
+	public void setPrtTimeouts(boolean prtTimeouts) {
+		this.m_prtTimeouts = prtTimeouts;
+	}
+
 	@Override
 	public void msgArrived(ArtNetChannel chan, ArtNetMsg msg,
 					InetSocketAddress sender, InetSocketAddress receiver)
@@ -292,6 +320,9 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		// Ignore
 	}
 	
+	/**
+	 * Details about an RDM request that timed out.
+	 */
 	public static class TimeoutError
 	{
 		public final InetSocketAddress m_ipAddr;
@@ -299,6 +330,9 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		public final RdmParamId m_paramId;
 		public final boolean m_isSet;
 		public final int m_numRetries;
+		
+		// If false, the request failed after m_numRetries attempts.
+		// If true, the request ultimately succeeded, but the first m_numRetries attempts timed out.
 		public final boolean m_okay;
 		
 		public TimeoutError(InetSocketAddress ipAddr, ArtNetUniv port, RdmParamId paramId, boolean isSet,
