@@ -47,6 +47,8 @@ public class ArtNetListDevices
 	private static boolean g_printOkDevs = false;
 	private ArtNetChannel m_channel = null;
 	private ArtNetManager m_manager = null;
+	private ArtNetRdmRequest m_rdmRequest = null;
+	private ArtNetTestNode m_testNode = null;
 	
 	public static void main(String[] args) throws JSONParseException, JSONValueTypeException, IOException
 	{
@@ -63,33 +65,14 @@ public class ArtNetListDevices
 			}
 		}
 
-		boolean useTestNode = false;
-		File testNodeParamFile = null;
-		for (ListIterator<String> iter = argList.listIterator(); iter.hasNext(); ) {
-			String arg = iter.next();
-			if (arg.startsWith("-testnode")) {
-				arg = arg.substring("-testnode".length());
-				if (arg.startsWith("=")) {
-					testNodeParamFile = new File(arg.substring(1));
-				}
-				useTestNode = true;
-				iter.remove();
-			}
-		}
-		ArtNetTestNode testNode = null;
-		if (useTestNode) {
-			m_channel = new ArtNetChannel();
-			testNode = new ArtNetTestNode(m_channel, null, testNodeParamFile, testNodeParamFile);
-		}
-
 		try {
-			m_manager = makeManager(argList);
+			makeManager(argList);
 			if (argList.size() >= 1 && argList.get(0).startsWith("-i")) {
 				argList.remove(0);
 				new ReadCmds(argList);
 			} else {
 				ArrayList<String> errors = new ArrayList<>();
-				Map<ACN_UID, RdmDevice> deviceMap = m_manager.getDeviceMap(errors);
+				Map<ACN_UID, RdmDevice> deviceMap = getDeviceMap(errors);
 				if (argList.isEmpty()) {
 					System.out.println("Found " + deviceMap.size() + " RDM Devices.");
 					prtErrors(errors, null);
@@ -112,6 +95,14 @@ public class ArtNetListDevices
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
+			if (m_testNode != null) {
+				try {
+					m_testNode.close();
+					m_testNode = null;
+				} catch (Exception e) {
+					// ignore
+				}
+			}
 			if (m_manager != null) {
 				try {
 					m_manager.close();
@@ -121,6 +112,102 @@ public class ArtNetListDevices
 				}
 			}
 		}
+	}
+	
+	/**
+	 * Create the ArtNetManager & ArtNetRdmRequest objects. Only called by c'tor.
+	 * @param args Command-line arguments.
+	 * @throws IOException If a permanent I/O error occurs.
+	 * @throws JSONValueTypeException 
+	 * @throws JSONParseException 
+	 */
+	private void makeManager(List<String> args) throws IOException, JSONParseException, JSONValueTypeException
+	{
+		m_channel = new ArtNetChannel();
+		m_manager = new ArtNetManager(m_channel);
+		m_rdmRequest = new ArtNetRdmRequest(m_channel, null);
+		
+		Long longVal;
+		List<InetAddress> pollAddrs = new ArrayList<>();
+		m_manager.setFindRdmUids(true);
+		for (ListIterator<String> iter = args.listIterator(); iter.hasNext(); ) {
+			String arg = iter.next();
+			if ((longVal = parseNumValueArg("-poll=", arg)) != null) {
+				m_manager.setPollReplyWaitMS(longVal);
+				iter.remove();
+			} else if ((longVal = parseNumValueArg("-tod=", arg)) != null) {
+				m_manager.setTodDataWaitMS(longVal);
+				iter.remove();
+			} else if (arg.matches("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+")) {
+				pollAddrs.add(InetAddress.getByName(arg));
+				iter.remove();
+			} else if (arg.matches("-ok")) {
+				g_printOkDevs = true;
+				iter.remove();
+			} else if (arg.startsWith("-testnode")) {
+				if (m_testNode == null) {
+					File paramFile = null;
+					arg = arg.substring("-testnode".length());
+					if (arg.startsWith("=")) {
+						paramFile = new File(arg.substring(1));
+					}
+					m_testNode = new ArtNetTestNode(m_channel, null, paramFile, paramFile);
+				}
+				iter.remove();
+			} else if (arg.matches("-opt.*:.+")) {
+				setReqOptions(arg.split(":")[1]);
+			}
+		}
+		if (!pollAddrs.isEmpty()) {
+			m_manager.setInetAddrs(pollAddrs);
+		}
+	}
+	
+	private void setReqOptions(String paramStr)
+	{
+		if (paramStr == null) {
+			return;
+		}
+		for (String param: paramStr.split("[ \t,;/]+")) {
+			String[] paramArr = param.split("=", 2);
+			if (paramArr.length >= 1) {
+				paramArr[0] = paramArr[0].toLowerCase();
+				try {
+					if (paramArr[0].startsWith("timeo")) {	// timeoutMS
+						m_rdmRequest.setTimeoutMS(Long.parseLong(paramArr[1]));
+					} else if (paramArr[0].startsWith("max")) {	// maxRetries
+						m_rdmRequest.setMaxTries(Integer.parseInt(paramArr[1]));
+					} else if (paramArr[0].startsWith("retry")) {	// retryDelayMS
+						m_rdmRequest.setRetryDelayMS(Long.parseLong(paramArr[1]));
+					} else if (paramArr[0].startsWith("prtt")) {	// prtTimeouts
+						m_rdmRequest.setPrtTimeouts(myParseBool(paramArr[1]));
+					} else if (paramArr[0].startsWith("todc")) {	// todcontrol
+						m_manager.setUseTodControl(myParseBool(paramArr[1]));
+					} else {
+						System.out.println("Invalid request parameter option \"" + param + "\"");
+					}
+				} catch (Exception e) {
+					System.out.println("Invalid set request parameter option \"" + param + "\"");
+				}
+			}
+		}
+	}
+	
+	private String getReqOptions()
+	{
+		StringBuilder b = new StringBuilder();
+		return
+				"timeoutMS=" + m_rdmRequest.getTimeoutMS() + " " +
+				"maxRetries=" + m_rdmRequest.getMaxTries() + " " +
+				"retryDelayMS=" + m_rdmRequest.getRretryDelayMS() + " " +
+				"prtTimeouts=" + (m_rdmRequest.isPrtTimeouts() ? "t" : "f") + " " +
+				"TodControl=" + (m_manager.isUseTotControl() ? "t" : "f");
+	}
+	
+	private boolean myParseBool(String value)
+	{
+		value = value.toLowerCase();
+		return value.startsWith("t") || value.startsWith("1");
 	}
 	
 	private void prtErrors(List<String> errors, PrintStream out)
@@ -543,33 +630,6 @@ public class ArtNetListDevices
 		return map;
 	}
 	
-	private ArtNetManager makeManager(List<String> args) throws IOException
-	{
-		ArtNetManager mgr = new ArtNetManager(m_channel);
-		Long longVal;
-		List<InetAddress> pollAddrs = new ArrayList<>();
-		for (ListIterator<String> iter = args.listIterator(); iter.hasNext(); ) {
-			String arg = iter.next();
-			if ((longVal = parseNumValueArg("-poll=", arg)) != null) {
-				mgr.setPollReplyWaitMS(longVal);
-				iter.remove();
-			} else if ((longVal = parseNumValueArg("-tod=", arg)) != null) {
-				mgr.setTodDataWaitMS(longVal);
-				iter.remove();
-			} else if (arg.matches("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+")) {
-				pollAddrs.add(InetAddress.getByName(arg));
-				iter.remove();
-			} else if (arg.matches("-ok")) {
-				g_printOkDevs = true;
-				iter.remove();
-			}
-		}
-		if (!pollAddrs.isEmpty()) {
-			mgr.setInetAddrs(pollAddrs);
-		}
-		return mgr;
-	}
-	
 	private static Long parseNumValueArg(String prefix, String arg)
 	{
 		if (arg != null && arg.startsWith(prefix)) {
@@ -622,6 +682,8 @@ public class ArtNetListDevices
 		SELECT(),
 		ADD(),
 		REFRESH(),
+		OPTIONS((String)null, "[timeoutMS=##] [maxRetries=##] [retryDelayMS=##]"
+						+ " [prtTimeoutErrors=[t|f] [todcontrol=[t|f]"),
 		HELP("?", null),
 		QUIT();
 		
@@ -681,6 +743,44 @@ public class ArtNetListDevices
 		return new int[] {from, to};
 	}
 	
+	/**
+	 * Get the device information for all RDM devices.
+	 * Note: This method uses the cached list of UIDs that
+	 * the manager obtained via TodRequest or TodControl reqests,
+	 * but does not cache the detailed data for the devices.
+	 * Each time it's called it gets fresh information for each device.
+	 * @param errors If errors occur, append a message to this list for each error.
+	 * 				If the list is null, ignore errors.  
+	 * @return A sorted map from UIDs to RdmDevice descriptions.
+	 * @throws IOException If an unrecoverable I/O error occurs.
+	 */
+	private Map<ACN_UID, RdmDevice> getDeviceMap(List<String> errors) throws IOException
+	{
+		Map<ACN_UID, RdmDevice> deviceInfoMap = new TreeMap<>();
+		Map<ACN_UID, ArtNetUnivAddr> uidToAddrMap = m_manager.getUidsToUnivAddrs();
+		m_rdmRequest.resetTimeoutErrors();
+		for (ACN_UID uid: uidToAddrMap.keySet()) {
+			try {
+				// System.err.println("XXX: pre getDeviceInfo: " + uid);
+				RdmDevice info = new RdmDevice(uid, uidToAddrMap.get(uid), m_rdmRequest);
+				deviceInfoMap.put(uid, info);
+			} catch (Exception e) {
+				if (errors != null) {
+					errors.add("ArtNetManger: Exception getting UID " + uid + ": " + e);
+				}
+			}
+		}
+		List<ArtNetRdmRequest.TimeoutError> timeoutErrors = m_rdmRequest.getTimeoutErrors();
+		if (timeoutErrors != null && !timeoutErrors.isEmpty()) {
+			System.err.println(timeoutErrors.size() + " errors while getting device information:");
+			for (ArtNetRdmRequest.TimeoutError err: timeoutErrors) {
+				System.out.println("   " + err);
+			}
+		}
+		return deviceInfoMap;
+	}
+
+	
 	private class ReadCmds extends CommandReader
 	{
 		private List<RdmDevice> m_allDevices;
@@ -691,7 +791,7 @@ public class ArtNetListDevices
 			super(args);
 			ArrayList<String> errors = new ArrayList<>();
 			m_waitFlag = true;
-			Map<ACN_UID, RdmDevice> deviceMap = m_manager.getDeviceMap(errors);
+			Map<ACN_UID, RdmDevice> deviceMap = getDeviceMap(errors);
 			m_allDevices = RdmDevice.sortByAddr(deviceMap.values());
 			m_out.println("Found " + m_allDevices.size() + " RDM Devices.");
 			m_selectedDevNums = makeIntList(1, m_allDevices.size());
@@ -734,7 +834,8 @@ public class ArtNetListDevices
 					m_out.println("Refreshing device list ....");
 					List<String> errors = new ArrayList<>();
 					try {
-						Map<ACN_UID, RdmDevice> deviceMap = m_manager.getDeviceMap(errors);
+						m_manager.refresh();
+						Map<ACN_UID, RdmDevice> deviceMap = getDeviceMap(errors);
 						m_allDevices = RdmDevice.sortByAddr(deviceMap.values());
 					} catch (IOException e) {
 						errors.add(e.toString());
@@ -792,6 +893,15 @@ public class ArtNetListDevices
 					break;
 				case CONFIG:
 					doConfig(devNums, args);
+					break;
+				case OPTIONS:
+					if (args.isEmpty()) {
+						System.out.println("Options: " + getReqOptions());
+					} else {
+						for (String arg: args) {
+							setReqOptions(arg);
+						}
+					}
 					break;
 				case IDENTIFY:
 					doIdentify(devNums, args);
@@ -1007,7 +1117,7 @@ public class ArtNetListDevices
 								addDevNumber(iDev, devNumList);
 							}
 						}
-					} else if (!parseAll) {
+					} else if (parseAll) {
 						m_out.println("Unknown device spec \"" + arg + "\"");
 					} else {
 						break;

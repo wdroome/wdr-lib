@@ -244,6 +244,31 @@ public class MergedArtNetNode implements Comparable<MergedArtNetNode>
 	}
 	
 	@Override
+	public int hashCode() {
+		return ((m_socketAddr == null) ? 0 : m_socketAddr.hashCode());
+	}
+
+	/**
+	 * Merged Nodes are equal iff their socket addresses are equal.
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		MergedArtNetNode other = (MergedArtNetNode) obj;
+		if (m_socketAddr == null) {
+			if (other.m_socketAddr != null)
+				return false;
+		} else if (!m_socketAddr.equals(other.m_socketAddr))
+			return false;
+		return true;
+	}
+
+	@Override
 	public String toString()
 	{
 		StringBuilder b = new StringBuilder(300);

@@ -591,6 +591,31 @@ public class RdmDevice implements Comparable<RdmDevice>
 		return Integer.compare(m_deviceInfo.m_startAddr, o.m_deviceInfo.m_startAddr);
 	}
 
+	@Override
+	public int hashCode() {
+		return ((m_uid == null) ? 0 : m_uid.hashCode());
+	}
+
+	/**
+	 * RdmDevices are equal iff they have the same UID.
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		RdmDevice other = (RdmDevice) obj;
+		if (m_uid == null) {
+			if (other.m_uid != null)
+				return false;
+		} else if (!m_uid.equals(other.m_uid))
+			return false;
+		return true;
+	}
+
 	/**
 	 * Sort a collection of devices on Manufacturer, Model, DMX Port and DMX Address.
 	 * @param devices The devices to be sorted. This collection is not changed.

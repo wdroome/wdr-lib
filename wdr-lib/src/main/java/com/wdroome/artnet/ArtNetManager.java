@@ -463,6 +463,15 @@ public class ArtNetManager implements Closeable
 	{
 		this.m_useTodControl = useTodControl;
 	}
+	
+	/**
+	 * Return true iff manager uses TODControl requests to get node's RDM Table of Devices.
+	 * @return True iff manager uses TODControl requests to get node's RDM Table of Devices.
+	 */
+	public boolean isUseTotControl()
+	{
+		return m_useTodControl;
+	}
 
 	/**
 	 * Control whether the manager prints all replies as they arrive.

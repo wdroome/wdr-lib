@@ -129,8 +129,8 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			m_reqMsg.set(null);
 			m_replyQueue.set(null);
 			if (replyMsg != null  && replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
-				System.out.println("XXX: sendReq/" + paramId + " msgCount="
-									+ replyMsg.m_rdmPacket.m_msgCount);
+				System.out.println("XXX: sendReq/" + paramId + " uid=" + destUid
+								+ " msgCount=" + replyMsg.m_rdmPacket.m_msgCount);
 			}
 			if (replyMsg != null) {
 				if (nTries > 1) {
@@ -171,7 +171,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	
 	/**
 	 * Send an RDM request to a device and return the response.
-	 * This uses the UID map ({@link #setUidMap(Map)} to find the node address and port for the UID.
+	 * This uses the UID map ({@link #getUidMap(Map)} to find the node address and port for the UID.
 	 * @param destUid The device UID.
 	 * @param isSet True if this is a SET request, false if it's a GET.
 	 * @param paramId The RMD parameter id.
@@ -227,11 +227,19 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		return success;
 	}
 	
+	/**
+	 * Clear the list of timeout errors.
+	 */
 	public void resetTimeoutErrors()
 	{
 		m_timeoutErrors.clear();
 	}
 	
+	/**
+	 * Return the timeout errors since the last "reset" call.
+	 * @see #resetTimeoutErrors()
+	 * @return The timeout errors. If none, return an empty list rather than null.
+	 */
 	public List<TimeoutError> getTimeoutErrors()
 	{
 		return m_timeoutErrors;
