@@ -184,10 +184,10 @@ public class ArtNetListDevices
 					} else if (paramArr[0].startsWith("todc")) {	// todcontrol
 						m_manager.setUseTodControl(myParseBool(paramArr[1]));
 					} else {
-						System.out.println("Invalid request parameter option \"" + param + "\"");
+						System.out.println("Unknown option \"" + param + "\"");
 					}
 				} catch (Exception e) {
-					System.out.println("Invalid set request parameter option \"" + param + "\"");
+					System.out.println("Invalid option \"" + param + "\"");
 				}
 			}
 		}
