@@ -89,7 +89,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 		RdmPacket swVerLabelReply = sendRdmRequest(false, RdmParamId.SOFTWARE_VERSION_LABEL, null);
 		String swVerLabel = "[" + m_deviceInfo.m_softwareVersion + "]";
 		if (swVerLabelReply != null) {
-			swVerLabel = new RdmParamResp.StringReply(swVerLabelReply).m_string;
+			swVerLabel = new RdmParamResp.StringReply(swVerLabelReply).m_string.trim();
 		}
 		m_softwareVersionLabel = swVerLabel;
 		

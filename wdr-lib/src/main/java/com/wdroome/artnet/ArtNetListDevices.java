@@ -361,19 +361,12 @@ public class ArtNetListDevices
 			int startAddr = dev.getDmxStartAddr();
 			int endAddr = startAddr + dev.getDmxFootprint() - 1;
 			out.println(iDev + ":"
-					+ " " + dev.m_manufacturer + "/" + dev.m_model
-					+ " " + startAddr + "-" + endAddr + " u" + dev.m_univAddr.m_univ
+					+ " \"" + dev.m_manufacturer + "/" + dev.m_model + "\""
+					+ " dmx=" + startAddr + "-" + endAddr + " univ=" + dev.m_univAddr.m_univ
+					+ " vers=" + dev.m_softwareVersionLabel
 					+ " " + m_manager.getNodeName(dev.m_univAddr.m_nodeAddr.m_nodeAddr)
 								+ "[" + dev.m_univAddr.m_nodeAddr.m_index + "]"
 					);
-			/*
-			out.println(iDev + ":"
-					+ " " + dev.m_uid
-					+ " " + dev.m_manufacturer + "/" + dev.m_model
-					+ " " + startAddr + "-" + endAddr
-					+ " " + dev.m_univAddr
-					);
-			*/
 		}
 	}
 	
