@@ -247,32 +247,30 @@ public class ArtNetListDevices
 			out.println();
 			out.println("Device " + iDev + "  [" + devInfo.m_uid + "]:");
 			String devLabel = devInfo.getDeviceLabel();
-			out.println(indent + devInfo.m_manufacturer + "/" + devInfo.m_model
-						+ "  (" + devInfo.getCategoryName() + ")"
+			out.println(indent + "\"" + devInfo.m_manufacturer + "/" + devInfo.m_model
+						+ "\" (" + devInfo.getCategoryName() + ")"
 						+ (devLabel != null && !devLabel.isBlank() ? (" \"" + devLabel + "\"") : ""));
 			
+			out.print(indent);
 			if (devInfo.getDmxStartAddr() > 0 || devInfo.getDmxFootprint() > 0) {
-				out.println(indent + "dmx addresses: " + devInfo.getDmxStartAddr()
+				out.print("addr=" + devInfo.getDmxStartAddr()
 							+ "-" + (devInfo.getDmxStartAddr()
 										+ devInfo.getDmxFootprint() - 1)
-							+ " univ: " + devInfo.m_univAddr.m_univ
-							+ " node: " + m_manager.getNodeName(devInfo.m_univAddr.m_nodeAddr.m_nodeAddr)
-							+ "[" + devInfo.m_univAddr.m_nodeAddr.m_index + "]");
-			} else {
-				out.println(indent + "univ: " + devInfo.m_univAddr.m_univ
-						+ " node: " + m_manager.getNodeName(devInfo.m_univAddr.m_nodeAddr.m_nodeAddr)
-						+ "[" + devInfo.m_univAddr.m_nodeAddr.m_index + "]");
+							+ " ");
 			}
-			out.println(indent + "dmx config " + devInfo.getPersonalityDesc());
-			out.println(indent + "version: " + devInfo.m_softwareVersionLabel
-							+ " #subdevs: " + devInfo.getDeviceInfo().m_numSubDevs
-							+ " #sensors: " + devInfo.getDeviceInfo().m_numSensors
-							+ " hours: " + devInfo.getDeviceHours()
+			out.println("univ=" + devInfo.m_univAddr.m_univ
+					+ " node=\"" + m_manager.getNodeName(devInfo.m_univAddr.m_nodeAddr.m_nodeAddr)
+						+ "[" + devInfo.m_univAddr.m_nodeAddr.m_index + "]\""
+					+ " config=\"" + devInfo.getPersonalityDesc() + "\"");
+			out.println(indent + "version=" + devInfo.m_softwareVersionLabel
+							+ " #subdevs=" + devInfo.getDeviceInfo().m_numSubDevs
+							+ " #sensors=" + devInfo.getDeviceInfo().m_numSensors
+							+ " hours=" + devInfo.getDeviceHours()
 							);
 			try {
 				Map<Integer,String> slotDescs = devInfo.getSlotDescs();
 				if (!slotDescs.isEmpty()) {
-					out.print(indent + "slots: ");
+					out.print(indent + "slots=");
 					int lineLen = indent.length() + 6;
 					String sep = " ";
 					for (Map.Entry<Integer,String> ent: slotDescs.entrySet()) {
