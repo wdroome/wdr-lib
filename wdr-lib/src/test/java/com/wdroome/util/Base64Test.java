@@ -9,7 +9,6 @@ import com.wdroome.util.Base64;
 
 /**
  * @author wdr
- *
  */
 public class Base64Test
 {
