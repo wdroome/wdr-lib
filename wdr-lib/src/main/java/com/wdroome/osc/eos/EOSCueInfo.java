@@ -24,7 +24,7 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 	public static final String GET_CUE_INFO_METHOD = "/eos/get/cue/%d/index/%d";
 	public static final String GET_CUE_INFO_REPLY_PAT
 			= "/eos/out/get/cue/%d/[.0-9]+/[0-9]+(/fx|/links|/actions)?/list/[0-9]+/[0-9]+";
-	
+		
 	public static final int GET_CUE_INFO_REPLY_CUE_NUMBER = 5;
 	public static final int GET_CUE_INFO_REPLY_PART_NUMBER = 6;
 	public static final int GET_CUE_INFO_REPLY_TYPE = 7;
@@ -138,12 +138,16 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 				}
 				// System.out.println("XXX CueInfo Resp: " + msg);
 				int indexArg = (int)msg.getLong(GET_CUE_INFO_REPLY_FLD_INDEX, -1);
-				/* XXX
-				if (indexArg != cueIndex) {
+				
+				/* 
+				 * Sometimes EOS gives the wrong cue index in the reply.
+				 * Dunno why. The cue number in the reply method seems to be ok.
+				 * So we ignore this error. And hope all is well.
+				 */
+				if (false && indexArg != cueIndex) {
 					System.err.println("XXX EOSCueInfo: Bad index " + indexArg + "!=" + cueIndex);
 					continue;
 				}
-				XXX */
 				List<String> cmdTokens = OSCUtil.parseMethod(msg.getMethod(), "",
 							GET_CUE_INFO_REPLY_CUE_NUMBER,
 							GET_CUE_INFO_REPLY_PART_NUMBER,
@@ -207,10 +211,22 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 				}
 				if (listIndex >= 0 && linksIndex >= 0 && fxIndex >= 0 && actionsIndex >= 0) {
 					if (linksIndex == listIndex && fxIndex == listIndex && actionsIndex == listIndex) {
-						if (listIndex != cueIndex) {
+						/**
+						 * This is another cue-index mismatch test (see above).
+						 * We get here if the part replies all have the same index,
+						 * but it doesn't match the request index. We get the cue number from
+						 * the reply method. This gives a warning, rather than ignore the reply.
+						 * And for now, we've disabled the warning.
+						 */
+						if (false && listIndex != cueIndex) {
 							addWarning("EOSCue-by-index mismatch: cue=" + m_cueNumber.toFullString()
 									+ " req#=" + cueIndex + " reply#=" + listIndex);
 						}
+						/**
+						 * This verifies that the reply parts all have the same cue number
+						 * in the reply method. Unlike the index mismatch, this is
+						 * a serious problem.
+						 */
 						if (!m_cueNumber.equals(actionsCueNumber) || !m_cueNumber.equals(linksCueNumber)
 								|| !m_cueNumber.equals(fxCueNumber) || !m_cueNumber.equals(actionsCueNumber)) {
 							addWarning("EOSCue-by-index cue number mismatch: index=#" + cueIndex

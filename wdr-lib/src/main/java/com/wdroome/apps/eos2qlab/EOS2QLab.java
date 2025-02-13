@@ -455,6 +455,7 @@ public class EOS2QLab implements Closeable
 		if (m_notInQLab == null) {
 			if (!notInQLab()) {
 				m_out.println("Cannot connect to QLab or EOS.");
+				return;
 			}
 		}
 		if (m_notInQLab.isEmpty()) {
@@ -506,6 +507,10 @@ public class EOS2QLab implements Closeable
 	{
 		if (m_notInEOS == null) {
 			notInEOS();
+			if (m_notInEOS == null) {
+				m_out.println("Cannot connect to EOS.");
+				return;
+			}
 		}
 		if (m_misorderedNetworkCues != null && !m_misorderedNetworkCues.isEmpty()) {
 			m_out.println(m_misorderedNetworkCues.size() + " QLab Network cues may be out of order.");
