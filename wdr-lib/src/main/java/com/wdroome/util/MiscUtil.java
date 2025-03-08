@@ -137,13 +137,22 @@ public class MiscUtil
 	 */
 	public static String bytesToHex(byte[] bytes)
 	{
+		return bytesToHex(bytes, 0, bytes.length);
+	}
+	
+	/**
+	 *	Return the value of a byte[] as String of 2-digit hex numbers.
+	 *	Uses lower case a-f.
+	 */
+	public static String bytesToHex(byte[] bytes, int offset, int len)
+	{
 		if (bytes == null)
 			return "";
 		char[] hexDigits = {'0', '1', '2', '3', '4', '5', '6', '7',
 							'8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-		char buff[] = new char[2*bytes.length];
-		for (int i = 0; i < bytes.length; i++) {
-			byte b = bytes[i];
+		char buff[] = new char[2*len];
+		for (int i = 0; i < len; i++) {
+			byte b = bytes[i + offset];
 			buff[2*i  ] = hexDigits[(b >> 4) & 0xf];
 			buff[2*i+1] = hexDigits[(b     ) & 0xf];
 		}

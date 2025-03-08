@@ -104,6 +104,36 @@ public class OSCMessage
 			}
 		}
 	}
+
+	/**
+	 * Create an OSCMessage from raw bytes in a byte array.
+	 * @param buff The byte array.
+	 * @param offset The starting offset of the bytes in the message.
+	 * @param len The number of bytes to in the message.
+	 * @param logError If not null, call logError.accept(message)
+	 * 		if there is an unknown argument format.
+	 * @throws NoSuchElementException If there aren't enough bytes in the iterator.
+	 */	
+	public OSCMessage(byte[] buff, int offset, int len, Consumer<String> logError)
+	{
+		this(toByteList(buff, offset, len).iterator(), logError);
+	}
+	
+	/**
+	 * Create a Byte List from (part of) a byte array.
+	 * @param buff The byte array.
+	 * @param offset The starting offset in buff.
+	 * @param len The number of bytes to add to the list.
+	 * @return A List with buff[offset] thru buff[offset+len-1].
+	 */
+	private static List<Byte> toByteList(byte[] buff, int offset, int len)
+	{
+		List<Byte> list = new ArrayList<>(len);
+		for (int i = 0; i < len; i++) {
+			list.add(buff[i+offset]);
+		}
+		return list;
+	}
 	
 	/**
 	 * Return the system time stamp when this message was created or received.
