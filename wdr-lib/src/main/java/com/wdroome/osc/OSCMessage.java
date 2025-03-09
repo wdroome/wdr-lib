@@ -207,7 +207,7 @@ public class OSCMessage
 	}
 	
 	/**
-	 * Return the type of an arugment.
+	 * Return the type of an argument.
 	 * @param index The argument index.
 	 * @return The argument type letter, or "?" if that argument doesn't exist.
 	 */
@@ -343,6 +343,27 @@ public class OSCMessage
 		StringBuilder b = new StringBuilder(100);
 		b.append("OSCMessage [");
 		b.append(m_createTS);
+		b.append(',');
+		b.append(m_method);
+		if (m_args != null) {
+			b.append(',');
+			b.append(m_argTypes);
+			b.append(',');
+			b.append(m_args);
+		}
+		b.append(']');
+		return b.toString();
+	}
+
+	/**
+	 * Like toString(), but give the create time in seconds relative to baseTS.
+	 * @param baseTS The "zero time" for the message's relative time stamp.
+	 * @return
+	 */
+	public String toString(long baseTS) {
+		StringBuilder b = new StringBuilder(100);
+		b.append("OSCMessage [");
+		b.append(String.format("%.03f", ((double)(m_createTS - baseTS))/1000.0));
 		b.append(',');
 		b.append(m_method);
 		if (m_args != null) {
