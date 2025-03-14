@@ -104,13 +104,14 @@ public class EOSCueInfo implements Comparable<EOSCueInfo>
 	private String m_warnings = null;
 
 	/**
-	 * Get the information for a cue list from the EOS server.
-	 * Note that the code assumes cuelist numbers are always simple positive integers
-	 * -- no decimal points, no "number 0".
-	 * @param cuelistIndex The index of the cue list (0 to N-1).
+	 * Get the information from the EOS server for a cue in a cue list.
+	 * @param cueList The cue list number.
+	 * @param cueIndex The index of the desired cue in the cue list (0 to N-1).
+	 * @param isAutoCue True iff this cue is automatically triggered by the previous cue.
+	 * 		I.e., the previous cue has a non-zero hang or follow time.
 	 * @param oscConn A connection to the EOS server.
 	 * @param timeoutMS The timeout to wait for replies.
-	 * @throws IOException If an IO error occurs.
+	 * @throws IOException If an I/O error occurs.
 	 */
 	public EOSCueInfo(int cuelist, int cueIndex, boolean isAutoCue, OSCConnection oscConn, long timeoutMS) throws IOException
 	{
