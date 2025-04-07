@@ -452,11 +452,9 @@ public class EOS2QLab implements Closeable
 	
 	public void prtCuesNotInQLab(boolean prtRanges, boolean prtCues)
 	{
-		if (m_notInQLab == null) {
-			if (!notInQLab()) {
-				m_out.println("Cannot connect to QLab or EOS.");
-				return;
-			}
+		if (m_notInQLab == null && !notInQLab()) {
+			m_out.println("Cannot connect to QLab or EOS.");
+			return;
 		}
 		if (m_notInQLab.isEmpty()) {
 			m_out.println("All EOS Cues are in QLab");
@@ -654,9 +652,10 @@ public class EOS2QLab implements Closeable
 	
 	public boolean add2QLab() throws IOException
 	{
-		if (m_notInQLab == null) {
-			notInQLab();
-		} 
+		if (m_notInQLab == null && !notInQLab()) {
+			m_out.println("Cannot connect to QLab or EOS.");
+			return false;
+		}
 		if (m_notInQLab.isEmpty()) {
 			m_out.println("All EOS Cues are in QLab");
 			return false;
