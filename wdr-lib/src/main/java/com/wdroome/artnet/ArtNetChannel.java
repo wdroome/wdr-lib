@@ -29,6 +29,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 
+import com.wdroome.artnet.ArtNetMsgLogger.SendEvent;
 import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetRdm;
 
@@ -94,13 +95,15 @@ public class ArtNetChannel extends Thread
 	
 	private static class SendBuffer
 	{
-		private final SocketAddress m_target;
+		private final InetSocketAddress m_target;
 		private final ByteBuffer m_buff;
+		private final ArtNetMsg m_msg;	// May be null
 		
-		private SendBuffer(SocketAddress target, ByteBuffer buff)
+		private SendBuffer(InetSocketAddress target, ByteBuffer buff, ArtNetMsg msg)
 		{
 			m_target = target;
 			m_buff = buff;
+			m_msg = msg;
 		}
 	}
 	
@@ -121,6 +124,8 @@ public class ArtNetChannel extends Thread
 	
 	private static final int MAX_SEND_BUFFS = 10;
 	
+	private static AtomicBoolean g_useMsgLogger = new AtomicBoolean(false);
+	
 	private final List<ChannelInfo> m_listenChans;
 	private final Selector m_selector;
 	private final Set<Receiver> m_receivers = new HashSet<>();
@@ -140,7 +145,26 @@ public class ArtNetChannel extends Thread
 	
 	// If true, listen on the wildcard address.
 	// If false, listen on all local IP addresses.
-	private boolean m_listentOnWildcardAddr = true;
+	private boolean m_listenOnWildcardAddr = true;
+	
+	/**
+	 * Control whether to use the global message logger.
+	 * @param useLogger Use logger iff true.
+	 * @return True iff we were using the logger before.
+	 */
+	public static boolean useMsgLogger(boolean useLogger)
+	{
+		return g_useMsgLogger.getAndSet(useLogger);
+	}
+	
+	/**
+	 * Test if using the global message logger.
+	 * @return TRue iff channels use the global message logger.
+	 */
+	public static boolean useMsgLogger()
+	{
+		return g_useMsgLogger.get();
+	}
 
 	/**
 	 * Create a new channel for sending and receiving Art-Net messages.
@@ -385,6 +409,10 @@ public class ArtNetChannel extends Thread
 								InetSocketAddress receiver = (InetSocketAddress)xreceiver;
 								ArtNetMsg msg = ArtNetMsg.make(msgBuff, 0, msgLen, sender);
 								if (msg != null) {
+									if (g_useMsgLogger.get()) {
+										ArtNetMsgLogger.g_msgLogger.addEvent(
+												new ArtNetMsgLogger.RcvEvent(msg, null, sender));
+									}
 									synchronized (m_receivers) {
 										for (Receiver handler: m_receivers) {
 											handler.msgArrived(this, msg, sender, receiver);
@@ -399,6 +427,10 @@ public class ArtNetChannel extends Thread
 									ArtNetOpcode opcode = ArtNetMsg.getOpcode(msgBuff, 0, msgLen);
 									switch (opcode) {
 									case Invalid:
+										if (g_useMsgLogger.get()) {
+											ArtNetMsgLogger.g_msgLogger.addEvent(
+												new ArtNetMsgLogger.RcvUnknownBytes(msgBuff, msgLen, null, sender));
+										}
 										synchronized (m_receivers) {
 											for (Receiver handler: m_receivers) {
 												handler.msgArrived(this, msgBuff, msgLen, sender, receiver);
@@ -406,6 +438,10 @@ public class ArtNetChannel extends Thread
 										}
 										break;
 									default:
+										if (g_useMsgLogger.get()) {
+											ArtNetMsgLogger.g_msgLogger.addEvent(
+												new ArtNetMsgLogger.RcvUnsupportedOpcode(opcode, null, sender));
+										}
 										synchronized (m_receivers) {
 											for (Receiver handler: m_receivers) {
 												handler.msgArrived(this, opcode, msgBuff, msgLen, sender, receiver);
@@ -425,6 +461,10 @@ public class ArtNetChannel extends Thread
 										if (nsent == 0) {
 											chanInfo.m_sendBuffs.addFirst(sendBuff);
 											break;
+										} else if (g_useMsgLogger.get()) {
+											ArtNetMsgLogger.g_msgLogger.addEvent(
+												new ArtNetMsgLogger.SendEvent(
+														sendBuff.m_msg, sendBuff.m_target, (InetSocketAddress)null));
 										}
 									} catch (IOException e) {
 										System.err.println("ArtNetChannel.run(): send err: " + e);
@@ -528,6 +568,10 @@ public class ArtNetChannel extends Thread
 		int nsent = 0;
 		try {
 			nsent = chanInfo.m_channel.send(sendBuff, target);
+			if (nsent != 0 && g_useMsgLogger.get()) {
+				ArtNetMsgLogger.g_msgLogger.addEvent(
+						new ArtNetMsgLogger.SendEvent(msg, target, (InetSocketAddress)null));
+			}
 		} catch (IOException e) {
 			releaseSendBuffer(sendBuff);
 			System.out.println(
@@ -539,7 +583,7 @@ public class ArtNetChannel extends Thread
 		} else {
 			System.out.println("ArtNetChannel.send(): blocked, using thread.");
 			synchronized (chanInfo.m_sendBuffs) {
-				chanInfo.m_sendBuffs.add(new SendBuffer(target, sendBuff));
+				chanInfo.m_sendBuffs.add(new SendBuffer(target, sendBuff, msg));
 				m_selector.wakeup();
 			}
 		}
@@ -632,7 +676,7 @@ public class ArtNetChannel extends Thread
 	private List<InetSocketAddress> getLocalSocketAddrs(Collection<Integer> ports) throws UnknownHostException
 	{
 		List<InetSocketAddress> sockAddrs = new ArrayList<>();	
-		if (m_listentOnWildcardAddr) {
+		if (m_listenOnWildcardAddr) {
 			for (int port: ports) {
 				sockAddrs.add(new InetSocketAddress(port));
 			}

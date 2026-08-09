@@ -60,7 +60,7 @@ public abstract class CommandReader extends Thread
 	public CommandReader(List<String> args)
 	{
 		if (getState() != Thread.State.NEW) {
-			System.err.println("ComamndReader.processMainArgs(): Must call method before starting thread.");
+			System.err.println("CommandReader.processMainArgs(): Must call method before starting thread.");
 			return;
 		}
 		if (args == null) {

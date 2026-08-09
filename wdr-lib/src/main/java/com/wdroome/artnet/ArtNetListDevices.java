@@ -156,6 +156,7 @@ public class ArtNetListDevices
 				iter.remove();
 			} else if (arg.matches("-opt.*:.+")) {
 				setReqOptions(arg.split(":")[1]);
+				iter.remove();
 			}
 		}
 		if (!pollAddrs.isEmpty()) {
@@ -183,6 +184,8 @@ public class ArtNetListDevices
 						m_rdmRequest.setPrtTimeouts(myParseBool(paramArr[1]));
 					} else if (paramArr[0].startsWith("todc")) {	// todcontrol
 						m_manager.setUseTodControl(myParseBool(paramArr[1]));
+					} else if (paramArr[0].startsWith("msglog")) { 	// msglogger
+						ArtNetChannel.useMsgLogger(myParseBool(paramArr[1]));
 					} else {
 						System.out.println("Unknown option \"" + param + "\"");
 					}
@@ -201,7 +204,8 @@ public class ArtNetListDevices
 				"maxRetries=" + m_rdmRequest.getMaxTries() + " " +
 				"retryDelayMS=" + m_rdmRequest.getRretryDelayMS() + " " +
 				"prtTimeouts=" + (m_rdmRequest.isPrtTimeouts() ? "t" : "f") + " " +
-				"TodControl=" + (m_manager.isUseTotControl() ? "t" : "f");
+				"TodControl=" + (m_manager.isUseTotControl() ? "t" : "f") + " " +
+				"MsgLogger=" + (ArtNetChannel.useMsgLogger() ? "t" : "f");
 	}
 	
 	private boolean myParseBool(String value)
@@ -673,8 +677,10 @@ public class ArtNetListDevices
 		SELECT(),
 		ADD(),
 		REFRESH(),
+		MSGLOG((String)null, "[on|off|print|clear]"),
 		OPTIONS((String)null, "[timeoutMS=##] [maxRetries=##] [retryDelayMS=##]"
-						+ " [prtTimeoutErrors=[t|f] [todcontrol=[t|f]"),
+						+ " [prtTimeoutErrors=[t|f]] [todcontrol=[t|f]]"
+						+ " [msgLog=[t|f]]"),
 		HELP("?", null),
 		QUIT();
 		
@@ -771,7 +777,6 @@ public class ArtNetListDevices
 		return deviceInfoMap;
 	}
 
-	
 	private class ReadCmds extends CommandReader
 	{
 		private List<RdmDevice> m_allDevices;
@@ -881,6 +886,9 @@ public class ArtNetListDevices
 					break;
 				case ADDRESS:
 					doAddress(devNums, args);
+					break;
+				case MSGLOG:
+					doMsgLog(args);
 					break;
 				case CONFIG:
 					doConfig(devNums, args);
@@ -1027,6 +1035,30 @@ public class ArtNetListDevices
 				Collections.sort(m_allDevices, new RdmDevice.CompareAddress());
 			} else {
 				m_out.println("Unknown sort order. Try make, uid, node, or addr");
+			}
+		}
+		
+		private void doMsgLog(List<String> args)
+		{
+			if (args.isEmpty()) {
+				m_out.println("Logging: " + (ArtNetChannel.useMsgLogger() ? "on" : "off")
+						+ " #Msgs: " + ArtNetMsgLogger.g_msgLogger.size());
+			} else {
+				String arg = args.get(0).toLowerCase();
+				if (arg.startsWith("on")) {
+					ArtNetChannel.useMsgLogger(true);
+				} else if (arg.startsWith("off")) {
+					ArtNetChannel.useMsgLogger(false);
+				} else if (arg.startsWith("p")) {
+					m_out.println(ArtNetMsgLogger.g_msgLogger.size() + " messages:");
+					for (ArtNetMsgLogger.MsgEvent msg: ArtNetMsgLogger.g_msgLogger.getEvents()) {
+						m_out.println(msg.toString());
+					}
+				} else if (arg.startsWith("c")) {
+					ArtNetMsgLogger.g_msgLogger.clear();
+				} else {
+					m_out.println("Unknown argument. Try on, off, print or clear");
+				}
 			}
 		}
 		
