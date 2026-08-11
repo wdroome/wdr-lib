@@ -128,7 +128,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			m_channel.dropReceiver(this);
 			m_reqMsg.set(null);
 			m_replyQueue.set(null);
-			if (replyMsg != null  && replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
+			if (false && replyMsg != null  && replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
 				System.out.println("XXX: sendReq/" + paramId + " uid=" + destUid
 								+ " msgCount=" + replyMsg.m_rdmPacket.m_msgCount);
 			}
@@ -140,6 +140,9 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 					}
 					m_timeoutErrors.add(new TimeoutError(ipAddr, port, paramId, isSet, nTries-1, true));
 				}
+				if (replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
+					getQueuedMsgs(ipAddr, port, destUid, isSet, paramId, replyMsg.m_rdmPacket.m_msgCount);
+				}
 				return replyMsg.m_rdmPacket;
 			}
 			if (m_retryDelayMS > 0) {
@@ -150,6 +153,43 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 									+ " failed after " + m_maxTries + " attempts");
 		m_timeoutErrors.add(new TimeoutError(ipAddr, port, paramId, isSet, m_maxTries-1, false));
 		return null;
+	}
+	
+	/**
+	 * Read & print queued messages.  Test code to investigate what's going on.
+	 * @param ipAddr
+	 * @param port
+	 * @param destUid
+	 * @param origIsSet
+	 * @param origParamId
+	 * @param origMsgCount
+	 */
+	private void getQueuedMsgs(InetSocketAddress ipAddr, ArtNetUniv port, ACN_UID destUid,
+									boolean origIsSet, RdmParamId origParamId, int origMsgCount)
+	{
+		byte[] paramData = {RdmPacket.STATUS_TYPE_ERROR};
+		ArtNetRdm req = new ArtNetRdm();
+		req.m_net = port.m_net;
+		req.m_subnetUniv = port.subUniv();
+		System.out.println("ArtNetRdmRequest " + (origIsSet ? "GET/" : "SET/")
+						+ origParamId + " reply msgCount=" + origMsgCount + ": getting queue:");
+		while (true) {
+			RdmPacket rdmPacket;
+			try {
+				rdmPacket = sendRequest(ipAddr, port, destUid, true,
+											RdmParamId.QUEUED_MESSAGE, paramData);
+			} catch (IOException e) {
+				System.out.println("ArtNetRmdRequest.getQueuedMsgs IOException " + e.getLocalizedMessage());
+				return;
+			}
+			if (rdmPacket == null) {
+				break;
+			}
+			System.out.println("ArtNetRdmRequest: Queued msg: " + rdmPacket);
+			if (rdmPacket.m_msgCount <= 0) {
+				break;
+			}
+		}
 	}
 	
 	/**

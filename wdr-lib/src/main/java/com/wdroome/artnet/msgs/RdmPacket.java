@@ -20,11 +20,22 @@ public class RdmPacket
 	public static final int RESP_ACK = 0x00;
 	public static final int RESP_ACK_TIMER = 0x01;
 	public static final int RESP_NACK_REASON = 0x02;
+	public static final int RESP_ACK_OVERFLOW = 0x03;
 	
 	public static final int CMD_GET = 0x20;
 	public static final int CMD_GET_RESP = 0x21;
 	public static final int CMD_SET = 0x30;
 	public static final int CMD_SET_RESP = 0x31;
+	
+	// Status types from Table A-4:
+	public static final byte STATUS_TYPE_NONE = 0x00;
+	public static final byte STATUS_TYPE_GET_LAST_MESSAGE = 0x01;
+	public static final byte STATUS_TYPE_ADVISORY = 0x02;
+	public static final byte STATUS_TYPE_WARNING = 0x03;
+	public static final byte STATUS_TYPE_ERROR = 0x04;
+	public static final byte STATUS_TYPE_ADVISORY_CLEARED = 0x12;
+	public static final byte STATUS_TYPE_WARNING_CLEARED = 0x13;
+	public static final byte STATUS_TYPE_ERROR_CLEARED = 0x14;
 	
 	public int m_subStartCode = RDM_SUB_START_CODE;
 	private int m_msgLen = 0;
