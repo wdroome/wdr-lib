@@ -1051,8 +1051,10 @@ public class ArtNetListDevices
 					ArtNetChannel.useMsgLogger(false);
 				} else if (arg.startsWith("p")) {
 					m_out.println(ArtNetMsgLogger.g_msgLogger.size() + " messages:");
+					int iMsg = 0;
 					for (ArtNetMsgLogger.MsgEvent msg: ArtNetMsgLogger.g_msgLogger.getEvents()) {
-						m_out.println(msg.toString());
+						iMsg++;
+						m_out.println("[" + iMsg + "]: " + msg.toString());
 					}
 				} else if (arg.startsWith("c")) {
 					ArtNetMsgLogger.g_msgLogger.clear();

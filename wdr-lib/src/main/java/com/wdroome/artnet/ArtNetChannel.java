@@ -440,7 +440,8 @@ public class ArtNetChannel extends Thread
 									default:
 										if (g_useMsgLogger.get()) {
 											ArtNetMsgLogger.g_msgLogger.addEvent(
-												new ArtNetMsgLogger.RcvUnsupportedOpcode(opcode, null, sender));
+												new ArtNetMsgLogger.RcvUnsupportedOpcode(opcode, msgBuff, msgLen,
+																			null, sender));
 										}
 										synchronized (m_receivers) {
 											for (Receiver handler: m_receivers) {

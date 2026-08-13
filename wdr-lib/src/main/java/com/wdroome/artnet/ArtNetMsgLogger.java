@@ -129,17 +129,22 @@ public class ArtNetMsgLogger
 	public static class RcvUnsupportedOpcode extends MsgEvent
 	{
 		public final ArtNetOpcode m_opCode;
+		public final byte[] m_msgBuff;
+		public final int m_msgLen;
 		
-		public RcvUnsupportedOpcode(ArtNetOpcode opCode, InetSocketAddress toAddr, InetSocketAddress fromAddr)
+		public RcvUnsupportedOpcode(ArtNetOpcode opCode, byte[] msgBuff, int msgLen,
+							InetSocketAddress toAddr, InetSocketAddress fromAddr)
 		{
 			super(0, toAddr, fromAddr);
 			m_opCode = opCode;
+			m_msgBuff = msgBuff;
+			m_msgLen = msgLen;
 		}
 		
 		@Override
 		public String toString()
 		{
-			return baseToString("UnsupOpcode") + " op=" + m_opCode;
+			return baseToString("UnsupOpcode") + " op=" + m_opCode + " len=" + m_msgLen;
 		}
 	}
 	

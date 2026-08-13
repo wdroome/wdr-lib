@@ -146,11 +146,19 @@ public abstract class ArtNetMsg
 	 */
 	public static ArtNetMsg make(byte[] buff, int off, int length, InetSocketAddress sender)
 	{
+		ArtNetOpcode opcode;
 		try {
-			ArtNetOpcode opcode = getOpcode(buff, off, length);
-			return opcode.makeMsg(buff, off, length, getInet4Address(sender));
+			opcode = getOpcode(buff, off, length);
 		} catch (Exception e) {
 			// Message was too short or other error.
+			return null;
+		}
+		try {
+			return opcode.makeMsg(buff, off, length, getInet4Address(sender));
+		} catch (Exception e) {
+			// Some other error.
+			System.out.println("ArtNetMsg.make: opcode=" + opcode
+							+ e.getLocalizedMessage());
 			return null;
 		}
 	}

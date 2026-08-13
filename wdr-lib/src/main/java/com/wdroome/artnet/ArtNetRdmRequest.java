@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -128,10 +129,6 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			m_channel.dropReceiver(this);
 			m_reqMsg.set(null);
 			m_replyQueue.set(null);
-			if (false && replyMsg != null  && replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
-				System.out.println("XXX: sendReq/" + paramId + " uid=" + destUid
-								+ " msgCount=" + replyMsg.m_rdmPacket.m_msgCount);
-			}
 			if (replyMsg != null) {
 				if (nTries > 1) {
 					if (m_prtTimeouts) {
@@ -141,7 +138,9 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 					m_timeoutErrors.add(new TimeoutError(ipAddr, port, paramId, isSet, nTries-1, true));
 				}
 				if (replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
-					getQueuedMsgs(ipAddr, port, destUid, isSet, paramId, replyMsg.m_rdmPacket.m_msgCount);
+					System.out.println("XXX: sendReq/" + paramId + " uid=" + destUid
+							+ " msgCount=" + replyMsg.m_rdmPacket.m_msgCount);
+					// loops! getQueuedMsgs(ipAddr, port, destUid, isSet, paramId, replyMsg.m_rdmPacket.m_msgCount);
 				}
 				return replyMsg.m_rdmPacket;
 			}
@@ -156,23 +155,27 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	}
 	
 	/**
-	 * Read & print queued messages.  Test code to investigate what's going on.
+	 * Read & return queued RDM messages.
 	 * @param ipAddr
 	 * @param port
 	 * @param destUid
+	 * @param prt If != null, print each queued message on this stream.
 	 * @param origIsSet
 	 * @param origParamId
 	 * @param origMsgCount
 	 */
-	private void getQueuedMsgs(InetSocketAddress ipAddr, ArtNetUniv port, ACN_UID destUid,
-									boolean origIsSet, RdmParamId origParamId, int origMsgCount)
+	public List<RdmPacket> getQueuedMsgs(InetSocketAddress ipAddr, ArtNetUniv port, ACN_UID destUid,
+								PrintStream prt, boolean origIsSet, RdmParamId origParamId, int origMsgCount)
 	{
+		ArrayList<RdmPacket> queuedMsgs = new ArrayList<>(origMsgCount);
 		byte[] paramData = {RdmPacket.STATUS_TYPE_ERROR};
 		ArtNetRdm req = new ArtNetRdm();
 		req.m_net = port.m_net;
 		req.m_subnetUniv = port.subUniv();
-		System.out.println("ArtNetRdmRequest " + (origIsSet ? "GET/" : "SET/")
-						+ origParamId + " reply msgCount=" + origMsgCount + ": getting queue:");
+		if (prt != null) {
+			prt.println("ArtNetRdmRequest " + (origIsSet ? "GET/" : "SET/") + origParamId + " reply msgCount="
+					+ origMsgCount + ": getting queue:");
+		}
 		while (true) {
 			RdmPacket rdmPacket;
 			try {
@@ -180,16 +183,20 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 											RdmParamId.QUEUED_MESSAGE, paramData);
 			} catch (IOException e) {
 				System.out.println("ArtNetRmdRequest.getQueuedMsgs IOException " + e.getLocalizedMessage());
-				return;
+				break;
 			}
 			if (rdmPacket == null) {
 				break;
 			}
-			System.out.println("ArtNetRdmRequest: Queued msg: " + rdmPacket);
+			queuedMsgs.add(rdmPacket);
+			if (prt != null) {
+				prt.println("ArtNetRdmRequest: Queued msg: " + rdmPacket);
+			}
 			if (rdmPacket.m_msgCount <= 0) {
 				break;
 			}
 		}
+		return queuedMsgs;
 	}
 	
 	/**

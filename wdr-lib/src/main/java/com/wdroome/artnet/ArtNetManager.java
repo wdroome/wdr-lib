@@ -707,8 +707,11 @@ public class ArtNetManager implements Closeable
 		private Set<ArtNetUniv> m_rdmUnivs = null;
 		
 		private boolean m_polling = false;
+		private boolean m_pollRepliesDone = false;
 		private long m_startPollTS = 0;
-		private long m_pollEndTS = 0;
+		private long XXX_m_pollEndTS = 0;
+		private long m_pollReplyEndTS = 0;
+		private long m_todDataEndTS = 0;
 
 		/**
 		 * Create and start the thread.
@@ -746,8 +749,14 @@ public class ArtNetManager implements Closeable
 						break;
 					}
 					if (cmd == null) {
-						if (m_polling && System.currentTimeMillis() > m_pollEndTS) {
+						long ts = System.currentTimeMillis();
+						if (m_polling && ts > m_todDataEndTS) {
 							stopPolling();
+						} else if (!m_pollRepliesDone && ts > m_pollReplyEndTS) {
+							m_pollRepliesDone = true;
+							if (m_findRdmUids) {
+								sendTodRequest();
+							}
 						}
 					} else if (cmd instanceof MonitorCmd) {
 						switch ((MonitorCmd) cmd) {
@@ -783,8 +792,10 @@ public class ArtNetManager implements Closeable
 			m_rdmUnivsToIpAddrs = new HashMap<>();
 			m_rdmUnivs = new HashSet<>();
 			m_startPollTS = System.currentTimeMillis();
-			m_pollEndTS = m_startPollTS + m_pollReplyWaitMS + (m_findRdmUids ? m_todDataWaitMS : 0);
+			m_pollReplyEndTS = m_startPollTS + m_pollReplyWaitMS;
+			m_todDataEndTS = m_pollReplyEndTS + (m_findRdmUids ? m_todDataWaitMS : 0);		
 			m_polling = true;
+			m_pollRepliesDone = false;
 			for (InetSocketAddress addr: getSockAddrs()) {
 				ArtNetPoll msg = new ArtNetPoll();
 				msg.m_talkToMe |= ArtNetPoll.FLAGS_SEND_REPLY_ON_CHANGE;
@@ -822,6 +833,47 @@ public class ArtNetManager implements Closeable
 		}
 		
 		/**
+		 * Broadcast a request for the table of UIDs to all universes that support RDM.
+		 * Called after we've gotten all the Poll Replies.
+		 */
+		private void sendTodRequest()
+		{
+			for (ArtNetUniv rdmUniv: m_rdmUnivs) {
+				if (m_useTodControl) {
+					ArtNetTodControl todCtlReq = new ArtNetTodControl();
+					todCtlReq.m_net = rdmUniv.m_net;
+					todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
+					todCtlReq.m_subnetUniv = rdmUniv.subUniv();
+					try {
+						if (false) { // XXX
+							System.out.println("XXX: B'cast TodControl for " + rdmUniv);
+						}
+						if (!m_channel.broadcast(todCtlReq)) {
+							m_errorLogger.logError("ArtNetManager: B'cast TODControl failed.");
+						}
+					} catch (IOException e1) {
+						m_errorLogger.logError("ArtNetManager: Exception B'casting TODControl: " + e1);
+					}
+				} else {
+					ArtNetTodRequest todReqReq = new ArtNetTodRequest();
+					todReqReq.m_net = rdmUniv.m_net;
+					todReqReq.m_numSubnetUnivs = 1;
+					todReqReq.m_subnetUnivs[0] = (byte)rdmUniv.subUniv(); 
+					try {
+						if (false) { // XXX
+							System.out.println("XXX: B'cast TodRequest for " + rdmUniv);
+						}
+						if (!m_channel.broadcast(todReqReq)) {
+							m_errorLogger.logError("ArtNetManager: B'cast TODRequest failed.");
+						}
+					} catch (IOException e1) {
+						m_errorLogger.logError("ArtNetManager: Exception b'casting TODRequest: " + e1);
+					}
+				}
+			}
+		}
+		
+		/**
 		 * Process an ArtNetPollReply from a node.
 		 * If this is the first time we've seen this node,
 		 * send it an ArtNetTodControl message to initiate RDM discovery.
@@ -852,7 +904,10 @@ public class ArtNetManager implements Closeable
 				}
 				addrs.add(nodeAddr);
 			}
-			if (m_findRdmUids) {
+			for (ArtNetUniv rdmUniv: nodeInfo.m_dmxRdmUnivs) {
+				m_rdmUnivs.add(rdmUniv);
+			}
+			if (false && m_findRdmUids) {
 				for (ArtNetUniv rdmUniv: nodeInfo.m_dmxRdmUnivs) {
 					Set<InetSocketAddress> addrs = m_rdmUnivsToIpAddrs.get(rdmUniv);
 					if (addrs == null) {
