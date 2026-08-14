@@ -875,9 +875,6 @@ public class ArtNetManager implements Closeable
 		
 		/**
 		 * Process an ArtNetPollReply from a node.
-		 * If this is the first time we've seen this node,
-		 * send it an ArtNetTodControl message to initiate RDM discovery.
-		 * The node will send ArtNetTodData replies when done.
 		 * @param msg The reply message.
 		 */
 		private void handlePollReply(ArtNetPollReply msg)
@@ -905,65 +902,20 @@ public class ArtNetManager implements Closeable
 				addrs.add(nodeAddr);
 			}
 			for (ArtNetUniv rdmUniv: nodeInfo.m_dmxRdmUnivs) {
-				m_rdmUnivs.add(rdmUniv);
-			}
-			if (false && m_findRdmUids) {
-				for (ArtNetUniv rdmUniv: nodeInfo.m_dmxRdmUnivs) {
-					Set<InetSocketAddress> addrs = m_rdmUnivsToIpAddrs.get(rdmUniv);
-					if (addrs == null) {
-						addrs = new HashSet<>();
-						m_rdmUnivsToIpAddrs.put(rdmUniv, addrs);
-					}
-					boolean newRdmUnivIpAddr = addrs.add(nodeAddr);
-					boolean newRdmUniv = m_rdmUnivs.add(rdmUniv);
-					if (m_useTodControl) {
-						// Send a TodControl to the node iff this is the first "RDM supported"
-						// we've gotten for this universe and IP address.
-						// Why? Some multi-port nodes send a PollReply for each port,
-						// and several ports may have the same universe.
-						// This means we only send one TodControl to the node per universe.
-						// Otherwise, we'd send several TodControls in succession.
-						// Besides being inefficient, that seems to confuse the hell out of some nodes.
-						if (newRdmUnivIpAddr) {
-							// System.out.println("XXX: Added rdm addr " + nodeAddr + " to " + addrs);
-							ArtNetTodControl todCtlReq = new ArtNetTodControl();
-							todCtlReq.m_net = rdmUniv.m_net;
-							todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
-							todCtlReq.m_subnetUniv = rdmUniv.subUniv();
-							try {
-								if (false) { // XXX
-									System.out.println("XXX: Send TodControl to " + nodeAddr + " for " + rdmUniv);
-								}
-								if (!m_channel.send(todCtlReq, nodeAddr)) {
-									m_errorLogger.logError("ArtNetManager: send TODControl failed.");
-								}
-							} catch (IOException e1) {
-								m_errorLogger.logError("ArtNetManager: Exception sending TODControl: " + e1);
-							}
-						} 
-					} else {  // Use TodRequeat.
-						if (newRdmUniv) {
-							// New RDM universe. Broadcast a TodRequest to all nodes.
-							ArtNetTodRequest todReqReq = new ArtNetTodRequest();
-							todReqReq.m_net = rdmUniv.m_net;
-							todReqReq.m_numSubnetUnivs = 1;
-							todReqReq.m_subnetUnivs[0] = (byte)rdmUniv.subUniv(); 
-							try {
-								if (false) { // XXX
-									System.out.println("XXX: Send TodRequest for " + rdmUniv);
-								}
-								if (!m_channel.broadcast(todReqReq)) {
-									m_errorLogger.logError("ArtNetManager: send TODRequest failed.");
-								}
-							} catch (IOException e1) {
-								m_errorLogger.logError("ArtNetManager: Exception sending TODRequest: " + e1);
-							}
-						}
-					}
+				Set<InetSocketAddress> addrs = m_rdmUnivsToIpAddrs.get(rdmUniv);
+				if (addrs == null) {
+					addrs = new HashSet<>();
+					m_rdmUnivsToIpAddrs.put(rdmUniv, addrs);
 				}
+				addrs.add(nodeAddr);
+				m_rdmUnivs.add(rdmUniv);
 			}
 		}
 		
+		/**
+		 * Process an ArtNetTodData reply from a node. Add UIDs to the various lists.
+		 * @param msg
+		 */
 		private void handleTodData(ArtNetTodData msg)
 		{
 			if (!m_polling) {

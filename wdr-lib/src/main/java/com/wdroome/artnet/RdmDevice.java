@@ -110,7 +110,7 @@ public class RdmDevice implements Comparable<RdmDevice>
 		// This delay was for investigating a bug in the Netron EN4 interface.
 		// MiscUtil.sleep(150); // System.out.println("XXX sleep " + paramId);
 		RdmPacket rdmPacket = m_rdmRequest.sendRequest(m_univAddr, m_uid, isSet, paramId, reqData);
-		if (rdmPacket.m_msgCount > 0) {
+		if (rdmPacket != null && rdmPacket.m_msgCount > 0) {
 			m_rdmRequest.getQueuedMsgs(m_univAddr.m_nodeAddr.m_nodeAddr, m_univAddr.m_univ, m_uid,
 							System.out, isSet, paramId, rdmPacket.m_msgCount);	
 		}

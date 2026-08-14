@@ -17,3 +17,4 @@ target/
 ## Itellij
 .idea/
 /test-eos2qlab-config.json
+/notes/
