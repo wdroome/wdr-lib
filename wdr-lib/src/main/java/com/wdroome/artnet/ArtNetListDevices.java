@@ -676,7 +676,7 @@ public class ArtNetListDevices
 		SORT((String)null, "make | node | addr | uid"),
 		SELECT(),
 		ADD(),
-		REFRESH(),
+		REFRESH((String)null, "[flush|!flush]"),
 		MSGLOG((String)null, "[on|off|print|clear]"),
 		OPTIONS((String)null, "[timeoutMS=##] [maxRetries=##] [retryDelayMS=##]"
 						+ " [prtTimeoutErrors=[t|f]] [todcontrol=[t|f]]"
@@ -829,12 +829,26 @@ public class ArtNetListDevices
 				case REFRESH:
 					m_out.println("Refreshing device list ....");
 					List<String> errors = new ArrayList<>();
+					boolean saveUseTodControl = m_manager.isUseTotControl();
+					if (!args.isEmpty()) {
+						String flag = args.get(0).toLowerCase();
+						if (flag.startsWith("!fl")) {
+							m_manager.setUseTodControl(false);
+						} else if (flag.startsWith("fl")) {
+							m_manager.setUseTodControl(true);
+						} else {
+							m_out.println("Usage: refresh [![flush]]");
+							break;
+						}
+					}
 					try {
 						m_manager.refresh();
 						Map<ACN_UID, RdmDevice> deviceMap = getDeviceMap(errors);
 						m_allDevices = RdmDevice.sortByAddr(deviceMap.values());
 					} catch (IOException e) {
 						errors.add(e.toString());
+					} finally {
+						m_manager.setUseTodControl(saveUseTodControl);
 					}
 					m_selectedDevNums = makeIntList(1, m_allDevices.size());
 					m_out.println("Found " + m_allDevices.size() + " RDM devices.");
