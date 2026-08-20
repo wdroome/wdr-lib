@@ -167,6 +167,8 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	public List<RdmPacket> getQueuedMsgs(InetSocketAddress ipAddr, ArtNetUniv port, ACN_UID destUid,
 								PrintStream prt, boolean origIsSet, RdmParamId origParamId, int origMsgCount)
 	{
+		// XXX if (true) { return null; }   // XXX
+		int maxTries = 2;  // XXX
 		ArrayList<RdmPacket> queuedMsgs = new ArrayList<>(origMsgCount);
 		byte[] paramData = {RdmPacket.STATUS_TYPE_ERROR};
 		ArtNetRdm req = new ArtNetRdm();
@@ -179,7 +181,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		while (true) {
 			RdmPacket rdmPacket;
 			try {
-				rdmPacket = sendRequest(ipAddr, port, destUid, true,
+				rdmPacket = sendRequest(ipAddr, port, destUid, false,
 											RdmParamId.QUEUED_MESSAGE, paramData);
 			} catch (IOException e) {
 				System.out.println("ArtNetRmdRequest.getQueuedMsgs IOException " + e.getLocalizedMessage());
@@ -192,7 +194,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			if (prt != null) {
 				prt.println("ArtNetRdmRequest: Queued msg: " + rdmPacket);
 			}
-			if (rdmPacket.m_msgCount <= 0) {
+			if (rdmPacket.m_msgCount <= 0 || queuedMsgs.size() > maxTries) {
 				break;
 			}
 		}
