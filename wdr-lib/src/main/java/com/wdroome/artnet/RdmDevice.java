@@ -27,6 +27,10 @@ public class RdmDevice implements Comparable<RdmDevice>
 {
 	public static final String UNKNOWN_DESC = "???";
 	
+	public static final Set<ArtNetRdmRequest.QueuedMsgSkipRule> QUEUED_MSG_SKIP_RULES
+			= Set.of(new ArtNetRdmRequest.QueuedMsgSkipRule(RdmParamId.IDENTIFY_DEVICE,
+															RdmParamId.IDENTIFY_DEVICE));
+	
 	public final ACN_UID m_uid;
 	public final ArtNetUnivAddr m_univAddr;
 	public final String m_manufacturer;
@@ -112,7 +116,8 @@ public class RdmDevice implements Comparable<RdmDevice>
 		RdmPacket rdmPacket = m_rdmRequest.sendRequest(m_univAddr, m_uid, isSet, paramId, reqData);
 		if (rdmPacket != null && rdmPacket.m_msgCount > 0) {
 			m_rdmRequest.getQueuedMsgs(m_univAddr.m_nodeAddr.m_nodeAddr, m_univAddr.m_univ, m_uid,
-							System.out, isSet, paramId, rdmPacket.m_msgCount);	
+							System.out, QUEUED_MSG_SKIP_RULES,
+							isSet, paramId, rdmPacket.m_msgCount);	
 		}
 		return rdmPacket;
 	}

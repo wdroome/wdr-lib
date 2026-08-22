@@ -182,8 +182,10 @@ public class ArtNetListDevices
 						m_rdmRequest.setRetryDelayMS(Long.parseLong(paramArr[1]));
 					} else if (paramArr[0].startsWith("prtt")) {	// prtTimeouts
 						m_rdmRequest.setPrtTimeouts(myParseBool(paramArr[1]));
-					} else if (paramArr[0].startsWith("todc")) {	// todcontrol
+					} else if (paramArr[0].startsWith("todf")) {	// todflush
 						m_manager.setUseTodControl(myParseBool(paramArr[1]));
+					} else if (paramArr[0].startsWith("todb")) {	// todbcast
+						m_manager.setUseTodBcast(myParseBool(paramArr[1]));
 					} else if (paramArr[0].startsWith("msglog")) { 	// msglogger
 						ArtNetChannel.useMsgLogger(myParseBool(paramArr[1]));
 					} else {
@@ -204,7 +206,8 @@ public class ArtNetListDevices
 				"maxRetries=" + m_rdmRequest.getMaxTries() + " " +
 				"retryDelayMS=" + m_rdmRequest.getRretryDelayMS() + " " +
 				"prtTimeouts=" + (m_rdmRequest.isPrtTimeouts() ? "t" : "f") + " " +
-				"TodControl=" + (m_manager.isUseTotControl() ? "t" : "f") + " " +
+				"TodFlush=" + (m_manager.isUseTodControl() ? "t" : "f") + " " +
+				"TodBcasth=" + (m_manager.isUseTodBcast() ? "t" : "f") + " " +
 				"MsgLogger=" + (ArtNetChannel.useMsgLogger() ? "t" : "f");
 	}
 	
@@ -365,6 +368,7 @@ public class ArtNetListDevices
 			out.println(iDev + ":"
 					+ " \"" + dev.m_manufacturer + "/" + dev.m_model + "\""
 					+ " dmx=" + startAddr + "-" + endAddr + " univ=" + dev.m_univAddr.m_univ
+					+ " uid=" + dev.m_uid
 					+ " vers=" + dev.m_softwareVersionLabel
 					+ " " + m_manager.getNodeName(dev.m_univAddr.m_nodeAddr.m_nodeAddr)
 								+ "[" + dev.m_univAddr.m_nodeAddr.m_index + "]"
@@ -829,7 +833,7 @@ public class ArtNetListDevices
 				case REFRESH:
 					m_out.println("Refreshing device list ....");
 					List<String> errors = new ArrayList<>();
-					boolean saveUseTodControl = m_manager.isUseTotControl();
+					boolean saveUseTodControl = m_manager.isUseTodControl();
 					if (!args.isEmpty()) {
 						String flag = args.get(0).toLowerCase();
 						if (flag.startsWith("!fl")) {

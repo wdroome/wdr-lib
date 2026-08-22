@@ -33,6 +33,22 @@ import com.wdroome.artnet.msgs.RdmPacket;
  */
 public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 {
+	/**
+	 * When retrieving queued messages from an RDM device,
+	 * ignore the message if it matches this rule.
+	 */
+	public static class QueuedMsgSkipRule
+	{
+		public final RdmParamId m_sentParamId;	// Originally sent param id
+		public final RdmParamId m_queuedParamId;	// Queued param id
+		
+		public QueuedMsgSkipRule(RdmParamId sentParamId, RdmParamId queuedParamId)
+		{
+			m_sentParamId = sentParamId;
+			m_queuedParamId = queuedParamId;
+		}
+	}
+	
 	private final ArtNetChannel m_channel;
 	private final boolean m_isSharedChannel;
 	private Map<ACN_UID, ArtNetUnivAddr> m_uidMap = null;
@@ -137,7 +153,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 					}
 					m_timeoutErrors.add(new TimeoutError(ipAddr, port, paramId, isSet, nTries-1, true));
 				}
-				if (replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
+				if (false && replyMsg.m_rdmPacket != null && replyMsg.m_rdmPacket.m_msgCount > 0) {
 					System.out.println("XXX: sendReq/" + paramId + " uid=" + destUid
 							+ " msgCount=" + replyMsg.m_rdmPacket.m_msgCount);
 					// loops! getQueuedMsgs(ipAddr, port, destUid, isSet, paramId, replyMsg.m_rdmPacket.m_msgCount);
@@ -156,28 +172,23 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 	
 	/**
 	 * Read & return queued RDM messages.
-	 * @param ipAddr
-	 * @param port
-	 * @param destUid
+	 * @param ipAddr The INET address of the node with the device.
+	 * 				If null, broadcast the request.
+	 * @param port The ArtNet port of the node with this device.
+	 * @param destUid The device UID.
 	 * @param prt If != null, print each queued message on this stream.
-	 * @param origIsSet
-	 * @param origParamId
-	 * @param origMsgCount
+	 * @param skipRules Ignore queued messages that match any of these rules. May be null.
+	 * @param origIsSet True iff the original message was a SET command.
+	 * @param origParamId The param id of the originally sent message.
+	 * @param origMsgCount The message count returned by the original request.
 	 */
 	public List<RdmPacket> getQueuedMsgs(InetSocketAddress ipAddr, ArtNetUniv port, ACN_UID destUid,
-								PrintStream prt, boolean origIsSet, RdmParamId origParamId, int origMsgCount)
+								PrintStream prt, Set<QueuedMsgSkipRule> skipRules,
+								boolean origIsSet, RdmParamId origParamId, int origMsgCount)
 	{
-		// XXX if (true) { return null; }   // XXX
-		int maxTries = 2;  // XXX
+		int maxTries = 3;  // XXX
 		ArrayList<RdmPacket> queuedMsgs = new ArrayList<>(origMsgCount);
 		byte[] paramData = {RdmPacket.STATUS_TYPE_ERROR};
-		ArtNetRdm req = new ArtNetRdm();
-		req.m_net = port.m_net;
-		req.m_subnetUniv = port.subUniv();
-		if (prt != null) {
-			prt.println("ArtNetRdmRequest " + (origIsSet ? "GET/" : "SET/") + origParamId + " reply msgCount="
-					+ origMsgCount + ": getting queue:");
-		}
 		while (true) {
 			RdmPacket rdmPacket;
 			try {
@@ -190,8 +201,15 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			if (rdmPacket == null) {
 				break;
 			}
+			if (skipRules != null && skipRules.contains(new QueuedMsgSkipRule(origParamId, rdmPacket.getParamId()))) {
+				continue;
+			}
 			queuedMsgs.add(rdmPacket);
 			if (prt != null) {
+				if (queuedMsgs.size() == 1) {
+					prt.println("ArtNetRdmRequest " + (origIsSet ? "GET/" : "SET/") + origParamId + " reply msgCount="
+							+ origMsgCount + ": getting queue:");
+				}
 				prt.println("ArtNetRdmRequest: Queued msg: " + rdmPacket);
 			}
 			if (rdmPacket.m_msgCount <= 0 || queuedMsgs.size() > maxTries) {

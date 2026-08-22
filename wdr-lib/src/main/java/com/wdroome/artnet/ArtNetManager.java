@@ -71,6 +71,7 @@ public class ArtNetManager implements Closeable
 	
 	private boolean m_findRdmUids = true;
 	private boolean m_useTodControl = true;
+	private boolean m_useTodBcast = false;
 	private boolean m_prtReplies = false;
 	
 	private List<Integer> m_pollPorts = null;
@@ -468,9 +469,27 @@ public class ArtNetManager implements Closeable
 	 * Return true iff manager uses TODControl requests to get node's RDM Table of Devices.
 	 * @return True iff manager uses TODControl requests to get node's RDM Table of Devices.
 	 */
-	public boolean isUseTotControl()
+	public boolean isUseTodControl()
 	{
 		return m_useTodControl;
+	}
+	
+	/**
+	 * Return whether we broadcast or unicast TodControl/TodRequest messages to nodes.
+	 * @return Broadcast if true. Unicast if false.
+	 */
+	public boolean isUseTodBcast()
+	{
+		return m_useTodBcast;
+	}
+
+	/**
+	 * Set whether we broadcast or unicast TodControl/TodRequest messages to nodes.
+	 * @param useTodBcast Broadcast if true. Unicast if false.
+	 */
+	public void setUseTodBcast(boolean useTodBcast)
+	{
+		m_useTodBcast = useTodBcast;
 	}
 
 	/**
@@ -833,7 +852,7 @@ public class ArtNetManager implements Closeable
 		}
 		
 		/**
-		 * Broadcast a request for the table of UIDs to all universes that support RDM.
+		 * Send a request for the table of UIDs to all universes that support RDM.
 		 * Called after we've gotten all the Poll Replies.
 		 */
 		private void sendTodRequest()
@@ -846,13 +865,24 @@ public class ArtNetManager implements Closeable
 					todCtlReq.m_subnetUniv = rdmUniv.subUniv();
 					try {
 						if (false) { // XXX
-							System.out.println("XXX: B'cast TodControl for " + rdmUniv);
+							System.out.println("XXX: Send TodControl for " + rdmUniv);
 						}
-						if (!m_channel.broadcast(todCtlReq)) {
-							m_errorLogger.logError("ArtNetManager: B'cast TODControl failed.");
+						if (isUseTodBcast()) {
+							if (!m_channel.broadcast(todCtlReq)) {
+								m_errorLogger.logError("ArtNetManager: B'cast TODControl failed.");
+							}
+						} else {
+							Set<InetSocketAddress> nodeAddrs = m_rdmUnivsToIpAddrs.get(rdmUniv);
+							if (nodeAddrs != null) {
+								for (InetSocketAddress nodeAddr: nodeAddrs) {
+									if (!m_channel.send(todCtlReq, nodeAddr)) {
+										m_errorLogger.logError("ArtNetManager: send TODControl failed.");
+									}
+								}
+							}
 						}
 					} catch (IOException e1) {
-						m_errorLogger.logError("ArtNetManager: Exception B'casting TODControl: " + e1);
+						m_errorLogger.logError("ArtNetManager: Exception sendingg TODControl: " + e1);
 					}
 				} else {
 					ArtNetTodRequest todReqReq = new ArtNetTodRequest();
@@ -861,13 +891,24 @@ public class ArtNetManager implements Closeable
 					todReqReq.m_subnetUnivs[0] = (byte)rdmUniv.subUniv(); 
 					try {
 						if (false) { // XXX
-							System.out.println("XXX: B'cast TodRequest for " + rdmUniv);
+							System.out.println("XXX: Send TodRequest for " + rdmUniv);
 						}
-						if (!m_channel.broadcast(todReqReq)) {
-							m_errorLogger.logError("ArtNetManager: B'cast TODRequest failed.");
+						if (isUseTodBcast()) {
+							if (!m_channel.broadcast(todReqReq)) {
+								m_errorLogger.logError("ArtNetManager: B'cast TODRequest failed.");
+							} 
+						} else {
+							Set<InetSocketAddress> nodeAddrs = m_rdmUnivsToIpAddrs.get(rdmUniv);
+							if (nodeAddrs != null) {
+								for (InetSocketAddress nodeAddr: nodeAddrs) {
+									if (!m_channel.send(todReqReq, nodeAddr)) {
+										m_errorLogger.logError("ArtNetManager: send TODRequest failed.");
+									}
+								}
+							}
 						}
 					} catch (IOException e1) {
-						m_errorLogger.logError("ArtNetManager: Exception b'casting TODRequest: " + e1);
+						m_errorLogger.logError("ArtNetManager: Exception sending TODRequest: " + e1);
 					}
 				}
 			}
