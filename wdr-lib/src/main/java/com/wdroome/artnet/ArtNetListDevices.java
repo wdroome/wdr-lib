@@ -207,7 +207,7 @@ public class ArtNetListDevices
 				"retryDelayMS=" + m_rdmRequest.getRretryDelayMS() + " " +
 				"prtTimeouts=" + (m_rdmRequest.isPrtTimeouts() ? "t" : "f") + " " +
 				"TodFlush=" + (m_manager.isUseTodControl() ? "t" : "f") + " " +
-				"TodBcasth=" + (m_manager.isUseTodBcast() ? "t" : "f") + " " +
+				"TodBcast=" + (m_manager.isUseTodBcast() ? "t" : "f") + " " +
 				"MsgLogger=" + (ArtNetChannel.useMsgLogger() ? "t" : "f");
 	}
 	
