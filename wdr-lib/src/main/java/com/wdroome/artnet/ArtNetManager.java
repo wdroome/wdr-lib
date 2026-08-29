@@ -3,6 +3,7 @@ package com.wdroome.artnet;
 import java.io.IOException;
 import java.io.Closeable;
 import java.io.File;
+import java.io.PrintStream;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -73,6 +74,7 @@ public class ArtNetManager implements Closeable
 	private boolean m_useTodControl = true;
 	private boolean m_useTodBcast = false;
 	private boolean m_prtReplies = false;
+	private PrintStream m_verboseDiscovery = System.out; // XXX
 	
 	private List<Integer> m_pollPorts = null;
 	private List<InetAddress> m_pollInetAddrs = null;
@@ -504,6 +506,14 @@ public class ArtNetManager implements Closeable
 		return prevValue;
 	}
 
+	public PrintStream getVerboseDiscovery() {
+		return m_verboseDiscovery;
+	}
+
+	public void setVerboseDiscovery(PrintStream m_verboseDiscovery) {
+		this.m_verboseDiscovery = m_verboseDiscovery;
+	}
+
 	/**
 	 * Setup m_pollSockAddrs, if not already setup.
 	 */
@@ -719,16 +729,18 @@ public class ArtNetManager implements Closeable
 		// Working versions of the lists and maps for the current discovery process.
 		private List<ArtNetNode> m_allNodes = null;
 		private Set<ArtNetNode> m_uniqueNodes = null;
+		private Set<MergedArtNetNode> m_mergedNodes = null;
 		private Map<ArtNetUnivAddr, Set<ACN_UID>> m_portAddrsToUids = null;
 		private Map<ACN_UID, ArtNetUnivAddr> m_uidsToUnivAddrs = null;
 		private Map<ArtNetUniv, Set<InetSocketAddress>> m_univsToIpAddrs = null;
 		private Map<ArtNetUniv, Set<InetSocketAddress>> m_rdmUnivsToIpAddrs = null;
 		private Set<ArtNetUniv> m_rdmUnivs = null;
+		private Set<ArtNetUnivAddr> m_rdmPortAddrs = null;
+		private Map<ArtNetUnivAddr, Integer> m_portAddrsToTotUids = null;
 		
 		private boolean m_polling = false;
 		private boolean m_pollRepliesDone = false;
 		private long m_startPollTS = 0;
-		private long XXX_m_pollEndTS = 0;
 		private long m_pollReplyEndTS = 0;
 		private long m_todDataEndTS = 0;
 
@@ -760,19 +772,27 @@ public class ArtNetManager implements Closeable
 					 * This is slightly wasteful, but simple and reliable.
 					 */
 					try {
-						cmd = m_monitorCmds.poll(1000, TimeUnit.MILLISECONDS);
+						cmd = m_monitorCmds.poll(250, TimeUnit.MILLISECONDS);
 						// System.out.println("XXX: Mgr MonitorThread got " + cmd);
 					} catch (InterruptedException e) {
 						m_errorLogger.logError("ArtNetManager.MonitorThread interrupted: " + e);
 						running = false;
 						break;
 					}
-					if (cmd == null) {
+					if (cmd == null && m_polling) {
 						long ts = System.currentTimeMillis();
-						if (m_polling && ts > m_todDataEndTS) {
-							stopPolling();
-						} else if (!m_pollRepliesDone && ts > m_pollReplyEndTS) {
+						if (m_pollRepliesDone) {
+							if (ts > m_todDataEndTS || haveAllUids()) {
+								stopPolling();
+							}
+						} else if (ts > m_pollReplyEndTS) {
 							m_pollRepliesDone = true;
+							m_mergedNodes = MergedArtNetNode.makeMergedNodes(m_allNodes);
+							if (m_verboseDiscovery != null) {
+								m_verboseDiscovery.println("Found " + m_mergedNodes.size() + " ArtNet nodes"
+												+ " and " + m_uniqueNodes.size() + " DMX ports.");
+								m_verboseDiscovery.flush();
+							}
 							if (m_findRdmUids) {
 								sendTodRequest();
 							}
@@ -798,6 +818,29 @@ public class ArtNetManager implements Closeable
 			}
 		}
 		
+		private boolean haveAllUids()
+		{
+			if (!m_pollRepliesDone) {
+				return false;
+			}
+			if (m_findRdmUids) {
+				for (ArtNetUnivAddr univAddr : m_rdmPortAddrs) {
+					Integer totUids = m_portAddrsToTotUids.get(univAddr);
+					if (totUids == null) {
+						return false;
+					}
+					if (totUids == 0) {
+						continue;
+					}
+					Set<ACN_UID> uids = m_portAddrsToUids.get(univAddr);
+					if (uids == null || uids.size() != totUids) {
+						return false;
+					}
+				} 
+			}
+			return true;
+		}
+		
 		private void startPolling()
 		{
 			if (m_polling) {
@@ -805,16 +848,27 @@ public class ArtNetManager implements Closeable
 			}
 			m_allNodes = new ArrayList<>();
 			m_uniqueNodes = new TreeSet<>();
+			m_mergedNodes = null; 	// Will be set after poll replies are done
 			m_portAddrsToUids = new TreeMap<>();
 			m_uidsToUnivAddrs = new HashMap<>();
 			m_univsToIpAddrs = new HashMap<>();
 			m_rdmUnivsToIpAddrs = new HashMap<>();
 			m_rdmUnivs = new HashSet<>();
+			m_rdmPortAddrs = new HashSet<>();
+			m_portAddrsToTotUids = new HashMap<>();
 			m_startPollTS = System.currentTimeMillis();
 			m_pollReplyEndTS = m_startPollTS + m_pollReplyWaitMS;
 			m_todDataEndTS = m_pollReplyEndTS + (m_findRdmUids ? m_todDataWaitMS : 0);		
 			m_polling = true;
 			m_pollRepliesDone = false;
+			if (m_verboseDiscovery != null) {
+				m_verboseDiscovery.print("Sending ArtNet polls to");
+				for (InetSocketAddress addr: getSockAddrs()) {
+					m_verboseDiscovery.print(" " + InetUtil.toAddrPort(addr));
+				}
+				m_verboseDiscovery.println("....");
+				m_verboseDiscovery.flush();
+			}
 			for (InetSocketAddress addr: getSockAddrs()) {
 				ArtNetPoll msg = new ArtNetPoll();
 				msg.m_talkToMe |= ArtNetPoll.FLAGS_SEND_REPLY_ON_CHANGE;
@@ -848,6 +902,20 @@ public class ArtNetManager implements Closeable
 						new ImmutableMap<ArtNetUniv, Set<InetSocketAddress>>(m_rdmUnivsToIpAddrs)
 						);
 				m_polling = false;
+				if (m_verboseDiscovery != null) {
+					m_verboseDiscovery.print("Discovery complete");
+					if (m_findRdmUids) {
+						int numUids = 0;
+						for (Set<ACN_UID> uids: m_portAddrsToUids.values()) {
+							if (uids != null) {
+								numUids += uids.size();
+							}
+						}
+						m_verboseDiscovery.print(", found " + numUids + " uids");
+					}
+					m_verboseDiscovery.println(".");
+					m_verboseDiscovery.flush();
+				}
 			}
 		}
 		
@@ -984,6 +1052,7 @@ public class ArtNetManager implements Closeable
 							+ " time=" + (System.currentTimeMillis() - m_startPollTS) + "ms");
 				System.out.println("   " + todData.toFmtString(null, "   "));
 			}
+			m_portAddrsToTotUids.put(univAddr, msg.m_numUidsTotal);
 			Set<ACN_UID> uids = m_portAddrsToUids.get(univAddr);
 			if (uids == null) {
 				uids = new HashSet<>();
@@ -1117,12 +1186,7 @@ public class ArtNetManager implements Closeable
 					Thread.sleep(2000);
 					System.out.println("Starting discovery number " + iRepeat);
 				}
-				System.out.print("Sending polls to");
-				for (InetSocketAddress sockAddr : mgr.getSockAddrs()) {
-					System.out.print(" " + InetUtil.toAddrPort(sockAddr));
-				}
-				System.out.println(" ....");
-				System.out.flush();
+				mgr.setVerboseDiscovery(System.out);
 				long ts0 = System.currentTimeMillis();
 				mgr.refresh();
 				System.out.println("Discovery time: " + (System.currentTimeMillis() - ts0)/1000.0 + " sec");

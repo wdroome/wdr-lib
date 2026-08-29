@@ -184,6 +184,23 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 		m_channel.addReceiver(this);
 	}
 	
+	public static void main(String[] args)
+			throws JSONParseException, JSONValueTypeException, IOException, InterruptedException
+	{
+		if (args.length > 1) {
+			System.out.println("Usage: ArtNetTestNode config-file.json");
+			System.exit(1);
+		}
+		File inputParamFile = new File(args[0]);
+		ArtNetChannel channel = new ArtNetChannel();
+		System.out.println("ArtNet Test Node uses config file: " + inputParamFile);
+		new ArtNetTestNode(channel, null, inputParamFile, null);
+		// Wait for channel to terminate. That won't happen,
+		// so the test node runs until someone kills the process,
+		// usually by typing control-C.
+		channel.join();
+	}
+	
 	private TreeMap<ArtNetUniv, List<Device>> readConfig()
 	{
 		TreeMap<ArtNetUniv, List<Device>> map = new TreeMap<>();
