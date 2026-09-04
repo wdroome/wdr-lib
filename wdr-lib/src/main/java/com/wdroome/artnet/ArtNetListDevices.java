@@ -12,6 +12,10 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
 import java.io.IOException;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -49,6 +53,7 @@ public class ArtNetListDevices
 	private ArtNetManager m_manager = null;
 	private ArtNetRdmRequest m_rdmRequest = null;
 	private ArtNetTestNode m_testNode = null;
+	private long m_idHoldMS = 8000;
 	
 	public static void main(String[] args) throws JSONParseException, JSONValueTypeException, IOException
 	{
@@ -188,6 +193,14 @@ public class ArtNetListDevices
 						m_manager.setUseTodBcast(myParseBool(paramArr[1]));
 					} else if (paramArr[0].startsWith("msglog")) { 	// msglogger
 						ArtNetChannel.useMsgLogger(myParseBool(paramArr[1]));
+					} else if (paramArr[0].startsWith("idho")) {	// idHoldMS
+						long ms = Long.parseLong(paramArr[1]);
+						if (ms < 0) {
+							ms = 0;
+						} else if (ms > 0 && ms < 1000) {
+							ms = 1000;
+						}
+						m_idHoldMS = ms;
 					} else {
 						System.out.println("Unknown option \"" + param + "\"");
 					}
@@ -200,8 +213,8 @@ public class ArtNetListDevices
 	
 	private String getReqOptions()
 	{
-		StringBuilder b = new StringBuilder();
 		return
+				"idHoldMS=" + m_idHoldMS + " " +
 				"timeoutMS=" + m_rdmRequest.getTimeoutMS() + " " +
 				"maxRetries=" + m_rdmRequest.getMaxTries() + " " +
 				"retryDelayMS=" + m_rdmRequest.getRretryDelayMS() + " " +
@@ -785,6 +798,8 @@ public class ArtNetListDevices
 	{
 		private List<RdmDevice> m_allDevices;
 		private List<Integer> m_selectedDevNums = null;
+		private ScheduledThreadPoolExecutor m_futureExec = null; 
+		private Map<ACN_UID,ScheduledFuture> m_pendingIdentOff = new HashMap<>(5);
 		
 		public ReadCmds(List<String> args) throws IOException
 		{
@@ -803,135 +818,141 @@ public class ArtNetListDevices
 		public void run()
 		{
 			String[] argsArr;
-			while ((argsArr = readCmd()) != null) {
-				List<String> args = array2List(argsArr);
-				if (args.isEmpty()) {
-					continue;	// blank line
-				}
-				List<Integer> devNums = parseDevList(args, false);
-				if (devNums.isEmpty()) {
-					devNums = m_selectedDevNums;
-				}
-				if (args.isEmpty()) {
-					m_out.println("Missing command");
-					continue;
-				}
-				Command cmd = m_cmdFinder.find(args.get(0));
-				if (cmd == null) {
-					Set<Command> matches = m_cmdFinder.findMatches(args.get(0));
-					if (matches.isEmpty()) {
-						m_out.println("Unknown command \"" + args.get(0) + "\"");
-					} else {
-						m_out.println("Ambiquous command \"" + args.get(0) + "\". Could be " + matches);
+			try {
+				while ((argsArr = readCmd()) != null) {
+					List<String> args = array2List(argsArr);
+					if (args.isEmpty()) {
+						continue; // blank line
 					}
-					continue;
-				}
-				args.remove(0);
-				switch (cmd) {
-				case QUIT:
-					return;
-				case REFRESH:
-					m_out.println("Refreshing device list ....");
-					List<String> errors = new ArrayList<>();
-					boolean saveUseTodControl = m_manager.isUseTodControl();
-					if (!args.isEmpty()) {
-						String flag = args.get(0).toLowerCase();
-						if (flag.startsWith("!fl")) {
-							m_manager.setUseTodControl(false);
-						} else if (flag.startsWith("fl")) {
-							m_manager.setUseTodControl(true);
+					List<Integer> devNums = parseDevList(args, false);
+					if (devNums.isEmpty()) {
+						devNums = m_selectedDevNums;
+					}
+					if (args.isEmpty()) {
+						m_out.println("Missing command");
+						continue;
+					}
+					Command cmd = m_cmdFinder.find(args.get(0));
+					if (cmd == null) {
+						Set<Command> matches = m_cmdFinder.findMatches(args.get(0));
+						if (matches.isEmpty()) {
+							m_out.println("Unknown command \"" + args.get(0) + "\"");
 						} else {
-							m_out.println("Usage: refresh [![flush]]");
-							break;
+							m_out.println("Ambiquous command \"" + args.get(0) + "\". Could be " + matches);
 						}
+						continue;
 					}
-					try {
-						m_manager.refresh();
-						Map<ACN_UID, RdmDevice> deviceMap = getDeviceMap(errors);
-						m_allDevices = RdmDevice.sortByAddr(deviceMap.values());
-					} catch (IOException e) {
-						errors.add(e.toString());
-					} finally {
-						m_manager.setUseTodControl(saveUseTodControl);
-					}
-					m_selectedDevNums = makeIntList(1, m_allDevices.size());
-					m_out.println("Found " + m_allDevices.size() + " RDM devices.");
-					prtErrors(errors, m_out);
-					break;
-				case SORT:
-					doSort(args);
-					break;
-				case PRINT:
-					prtDevices(m_allDevices, m_out, devNums);
-					break;
-				case LIST:
-					listDevices(m_allDevices, m_out, devNums);
-					break;
-				case SELECT:
-					m_selectedDevNums = devNums;
-					break;
-				case ADD:
-					for (int devNum: devNums) {
-					 	addDevNumber(devNum, m_selectedDevNums);
-					}
-					break;
-				case NODES:
-					if (args.size() >= 1 && args.get(0).toLowerCase().startsWith("u")) {
-						Set<ArtNetNode> uniqueNodes = m_manager.getUniqueNodes();
-						m_out.println(uniqueNodes.size() + " Unique Nodes:");
-						String indent = "    ";
-						for (ArtNetNode node : uniqueNodes) {
-							m_out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
-						}
-						m_out.println();
-					} else {
-						Set<MergedArtNetNode> mergedNodes = m_manager.getMergedNodes();
-						System.out.println(mergedNodes.size() + " Merged Nodes:");
-						String indent = "    ";
-						for (MergedArtNetNode node : mergedNodes) {
-							String desc = node.toFmtString(null);
-							boolean needNL = desc.endsWith("\n");
-							System.out.print(indent + node.toFmtString(null).replaceAll("\n", "\n" + indent));
-							if (needNL) {
-								System.out.println();
+					args.remove(0);
+					switch (cmd) {
+					case QUIT:
+						return;
+					case REFRESH:
+						m_out.println("Refreshing device list ....");
+						List<String> errors = new ArrayList<>();
+						boolean saveUseTodControl = m_manager.isUseTodControl();
+						if (!args.isEmpty()) {
+							String flag = args.get(0).toLowerCase();
+							if (flag.startsWith("!fl")) {
+								m_manager.setUseTodControl(false);
+							} else if (flag.startsWith("fl")) {
+								m_manager.setUseTodControl(true);
+							} else {
+								m_out.println("Usage: refresh [![flush]]");
+								break;
 							}
 						}
-						System.out.println();
-					}
-					break;
-				case NAME:
-					doName(devNums, args);
-					break;
-				case ADDRESS:
-					doAddress(devNums, args);
-					break;
-				case MSGLOG:
-					doMsgLog(args);
-					break;
-				case CONFIG:
-					doConfig(devNums, args);
-					break;
-				case OPTIONS:
-					if (args.isEmpty()) {
-						System.out.println("Options: " + getReqOptions());
-					} else {
-						for (String arg: args) {
-							setReqOptions(arg);
+						try {
+							m_manager.refresh();
+							Map<ACN_UID, RdmDevice> deviceMap = getDeviceMap(errors);
+							m_allDevices = RdmDevice.sortByAddr(deviceMap.values());
+						} catch (IOException e) {
+							errors.add(e.toString());
+						} finally {
+							m_manager.setUseTodControl(saveUseTodControl);
 						}
+						m_selectedDevNums = makeIntList(1, m_allDevices.size());
+						m_out.println("Found " + m_allDevices.size() + " RDM devices.");
+						prtErrors(errors, m_out);
+						break;
+					case SORT:
+						doSort(args);
+						break;
+					case PRINT:
+						prtDevices(m_allDevices, m_out, devNums);
+						break;
+					case LIST:
+						listDevices(m_allDevices, m_out, devNums);
+						break;
+					case SELECT:
+						m_selectedDevNums = devNums;
+						break;
+					case ADD:
+						for (int devNum : devNums) {
+							addDevNumber(devNum, m_selectedDevNums);
+						}
+						break;
+					case NODES:
+						if (args.size() >= 1 && args.get(0).toLowerCase().startsWith("u")) {
+							Set<ArtNetNode> uniqueNodes = m_manager.getUniqueNodes();
+							m_out.println(uniqueNodes.size() + " Unique Nodes:");
+							String indent = "    ";
+							for (ArtNetNode node : uniqueNodes) {
+								m_out.println(indent + node.toString().replaceAll("\n", "\n" + indent));
+							}
+							m_out.println();
+						} else {
+							Set<MergedArtNetNode> mergedNodes = m_manager.getMergedNodes();
+							System.out.println(mergedNodes.size() + " Merged Nodes:");
+							String indent = "    ";
+							for (MergedArtNetNode node : mergedNodes) {
+								String desc = node.toFmtString(null);
+								boolean needNL = desc.endsWith("\n");
+								System.out.print(indent + node.toFmtString(null).replaceAll("\n", "\n" + indent));
+								if (needNL) {
+									System.out.println();
+								}
+							}
+							System.out.println();
+						}
+						break;
+					case NAME:
+						doName(devNums, args);
+						break;
+					case ADDRESS:
+						doAddress(devNums, args);
+						break;
+					case MSGLOG:
+						doMsgLog(args);
+						break;
+					case CONFIG:
+						doConfig(devNums, args);
+						break;
+					case OPTIONS:
+						if (args.isEmpty()) {
+							System.out.println("Options: " + getReqOptions());
+						} else {
+							for (String arg : args) {
+								setReqOptions(arg);
+							}
+						}
+						break;
+					case IDENTIFY:
+						doIdentify(devNums, args);
+						break;
+					case HELP:
+						m_out.println("Commands:");
+						for (Command c : Command.values()) {
+							m_out.println("  " + c.help());
+						}
+						break;
+					default:
+						m_out.println("XXX: Unimplemented command!!");
+						break;
 					}
-					break;
-				case IDENTIFY:
-					doIdentify(devNums, args);
-					break;
-				case HELP:
-					m_out.println("Commands:");
-					for (Command c: Command.values()) {
-						m_out.println("  " + c.help());
-					}
-					break;
-				default:
-					m_out.println("XXX: Unimplemented command!!");
-					break;
+				} 
+			} finally {
+				if (m_futureExec != null) {
+					m_futureExec.shutdown();
 				}
 			}
 		}
@@ -1026,15 +1047,35 @@ public class ArtNetListDevices
 					m_out.println(iDev + ": " +
 								(m_allDevices.get(iDev-1).getIdentifyDevice() ? "on" : "off"));
 				}
+			} else if (args.size() != 1) {
+				m_out.println("Just identify 1 device at a time.");
 			} else {
 				String arg = args.get(0).trim().toLowerCase();
 				boolean on = arg.equals("on") || arg.startsWith("1");
 				for (int iDev: devNums) {
-					if (!m_allDevices.get(iDev-1).setIdentifyDevice(on)) {
+					RdmDevice dev = m_allDevices.get(iDev-1);
+					if (!on) {
+						ScheduledFuture offAction = m_pendingIdentOff.remove(dev.m_uid);
+						if (offAction != null) {
+							offAction.cancel(false);
+						}
+					}
+					if (!dev.setIdentifyDevice(on)) {
 						m_out.println(iDev + ": Set IDENTIFY failed.");
+					} else if (on && m_idHoldMS > 0) {
+						ScheduledFuture fut = schedAction(new SetIdentOff(dev), m_idHoldMS);
+						m_pendingIdentOff.put(dev.m_uid, fut);
 					}
 				}
 			}
+		}
+		
+		private ScheduledFuture schedAction(Runnable action, long millsec)
+		{
+			if (m_futureExec == null) {
+				m_futureExec = new ScheduledThreadPoolExecutor(1);
+			}
+			return m_futureExec.schedule(action, millsec, TimeUnit.MILLISECONDS);
 		}
 		
 		private void doSort(List<String> args)
@@ -1172,6 +1213,30 @@ public class ArtNetListDevices
 				}
 			}
 			return devNumList;
+		}
+	}
+	
+	/** 
+	 * Turn IDENTIFY off for the device given the the constructor.
+	 * Used to automatically turn identify off in the future.
+	 */
+	private class SetIdentOff implements Runnable
+	{
+		private RdmDevice m_rdmDevice;
+		private boolean m_verbose = false;
+		private SetIdentOff(RdmDevice rdmDevice)
+		{
+			m_rdmDevice = rdmDevice;
+		}
+		public void run()
+		{
+			if (m_rdmDevice != null) {
+				if (m_verbose) { System.out.println(" " + m_rdmDevice.m_uid + ": set IDENT off"); }
+				boolean ok = m_rdmDevice.setIdentifyDevice(false);
+				if (!ok && m_verbose) {
+					System.out.println(" " + m_rdmDevice.m_uid + ": set IDENT off FAILED");
+				}
+			}
 		}
 	}
 }
