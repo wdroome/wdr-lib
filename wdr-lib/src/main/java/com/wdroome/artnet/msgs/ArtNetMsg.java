@@ -187,7 +187,7 @@ public abstract class ArtNetMsg
 	public static int getProtoVers(byte[] buff, int off)
 	{
 		int v = ArtNetMsgUtil.getBigEndInt16(buff, off);
-		if (v < ArtNetConst.PROTO_VERS) {
+		if (false && v < ArtNetConst.PROTO_VERS) {
 			throw new IllegalArgumentException("ArtNetMsg: bad version " + v);
 		}
 		return v;

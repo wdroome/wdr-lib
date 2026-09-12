@@ -1028,6 +1028,7 @@ public class ArtNetManager implements Closeable
 		private void handleTodData(ArtNetTodData msg)
 		{
 			if (!m_polling) {
+				System.err.println("ArtNetManager: Got TodData when not polling: " + msg);  // XXX
 				return;
 			}
 			ArtNetTodData todData = (ArtNetTodData)msg;

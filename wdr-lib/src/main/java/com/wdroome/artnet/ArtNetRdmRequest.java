@@ -47,6 +47,31 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			m_sentParamId = sentParamId;
 			m_queuedParamId = queuedParamId;
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((m_queuedParamId == null) ? 0 : m_queuedParamId.hashCode());
+			result = prime * result + ((m_sentParamId == null) ? 0 : m_sentParamId.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			QueuedMsgSkipRule other = (QueuedMsgSkipRule) obj;
+			if (!m_queuedParamId.equals(other.m_queuedParamId))
+				return false;
+			if (!m_sentParamId.equals(other.m_sentParamId))
+				return false;
+			return true;
+		}
 	}
 	
 	private final ArtNetChannel m_channel;
