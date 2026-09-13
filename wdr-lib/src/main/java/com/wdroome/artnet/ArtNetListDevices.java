@@ -698,6 +698,7 @@ public class ArtNetListDevices
 		OPTIONS((String)null, "[timeoutMS=##] [maxRetries=##] [retryDelayMS=##]"
 						+ " [prtTimeoutErrors=[t|f]] [todcontrol=[t|f]]"
 						+ " [msgLog=[t|f]]"),
+		FLUSH((String)null, "node-ip-addr artnet-univ"),
 		HELP("?", null),
 		QUIT();
 		
@@ -849,26 +850,28 @@ public class ArtNetListDevices
 					case REFRESH:
 						m_out.println("Refreshing device list ....");
 						List<String> errors = new ArrayList<>();
-						boolean saveUseTodControl = m_manager.isUseTodControl();
+						Boolean flushThisPoll = null;
 						if (!args.isEmpty()) {
 							String flag = args.get(0).toLowerCase();
 							if (flag.startsWith("!fl")) {
-								m_manager.setUseTodControl(false);
+								flushThisPoll = Boolean.FALSE;
 							} else if (flag.startsWith("fl")) {
-								m_manager.setUseTodControl(true);
+								flushThisPoll = Boolean.TRUE;
 							} else {
 								m_out.println("Usage: refresh [![flush]]");
 								break;
 							}
 						}
 						try {
-							m_manager.refresh();
+							if (flushThisPoll != null) {
+								m_manager.refresh(flushThisPoll.booleanValue());
+							} else {
+								m_manager.refresh();
+							}
 							Map<ACN_UID, RdmDevice> deviceMap = getDeviceMap(errors);
 							m_allDevices = RdmDevice.sortByAddr(deviceMap.values());
 						} catch (IOException e) {
 							errors.add(e.toString());
-						} finally {
-							m_manager.setUseTodControl(saveUseTodControl);
 						}
 						m_selectedDevNums = makeIntList(1, m_allDevices.size());
 						m_out.println("Found " + m_allDevices.size() + " RDM devices.");
@@ -938,6 +941,9 @@ public class ArtNetListDevices
 						break;
 					case IDENTIFY:
 						doIdentify(devNums, args);
+						break;
+					case FLUSH:
+						doManualFlush(args);
 						break;
 					case HELP:
 						m_out.println("Commands:");
@@ -1120,6 +1126,19 @@ public class ArtNetListDevices
 				} else {
 					m_out.println("Unknown argument. Try on, off, print or clear");
 				}
+			}
+		}
+		
+		private void doManualFlush(List<String> args)
+		{
+			if (args.size() != 2) {
+				m_out.println("Usage: flush node-ipaddr univ");
+				return;
+			}
+			try {
+				m_manager.manualFlush(args.get(0), args.get(1));
+			} catch (UnknownHostException | IllegalArgumentException e) {
+				m_out.println("Illegal arguments: " + e.getLocalizedMessage());
 			}
 		}
 		

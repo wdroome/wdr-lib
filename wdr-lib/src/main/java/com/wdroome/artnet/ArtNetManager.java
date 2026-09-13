@@ -23,6 +23,8 @@ import java.util.TreeMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import java.util.function.BiConsumer;
+
 import com.wdroome.artnet.msgs.ArtNetMsg;
 import com.wdroome.artnet.msgs.ArtNetPoll;
 import com.wdroome.artnet.msgs.ArtNetPollReply;
@@ -82,9 +84,36 @@ public class ArtNetManager implements Closeable
 	
 	// Objects are ArtNetPollReply, ArtNetTodData, and MonitorCmd enum.
 	private final ArrayBlockingQueue<Object> m_monitorCmds = new ArrayBlockingQueue<>(200);
+		
+	private abstract class MonitorCmd2 {}
+	private class ShutdownCmd extends MonitorCmd2 {}
+	private class RefreshCmd extends MonitorCmd2
+	{
+		private final boolean m_flush;
+		private RefreshCmd(boolean flush) { m_flush = flush; }
+	}
+	private class ManualFlushCmd extends MonitorCmd2
+	{
+		private final InetSocketAddress m_sockAddr;
+		private final ArtNetUniv m_univ;
+		private final BiConsumer<ArtNetTodData, Long> m_todHandler;
+		private ManualFlushCmd(InetSocketAddress sockAddr, ArtNetUniv univ,
+					BiConsumer<ArtNetTodData, Long> todHandler)
+		{
+			m_sockAddr = sockAddr;
+			m_univ = univ;
+			m_todHandler = todHandler != null ? todHandler : new DefTodFlushHandler();
+		}
+	}
 	
-	private enum MonitorCmd { Refresh, Shutdown; }
-
+	public static class DefTodFlushHandler implements BiConsumer<ArtNetTodData, Long>
+	{
+		public void accept(ArtNetTodData msg, Long millisec)
+		{
+			System.out.println("TodFlush reply @" + millisec + "ms: " + msg);
+		}
+	}
+	
 	/**
 	 * Create a new manager. This c'tor creates and destroys an ArtNetChannel as needed.
 	 * @throws IOException 
@@ -139,6 +168,57 @@ public class ArtNetManager implements Closeable
 	public boolean refresh()
 	{
 		return m_monitorSync.refresh();
+	}
+	
+	/**
+	 * Send ArtNetPoll and ArtNetTodControl messages to discover the nodes and devices.
+	 * This method blocks until discovery is complete.
+	 * Discovery is timeout-based: the method waits a fixed time,
+	 * and assumes all nodes will reply within that time.
+	 * @see #setPollReplyWaitMS(long)
+	 * @see #setTodDataWaitMS(long)
+	 * @param flush If true, use TodControl/Flush to force discover.
+	 * @return True if discovery was successful.
+	 */
+	public boolean refresh(boolean flush)
+	{
+		return m_monitorSync.refresh(flush);
+	}
+	
+	/**
+	 * FOrce discovery on one universe of a node.
+	 * @param ipaddrport The ipaddr (with optional :port) of the node.
+	 * @param univ The Art-Net universe.
+	 * @param todHandler Call this consumer when TodData messages arrive. The long is the milliseconds
+	 * 		since sending the TodControl.
+	 * @return False if cannot send the request.
+	 * @throws NumberFormatException
+	 * @throws UnknownHostException
+	 * @throws IllegalArgumentException
+	 */
+	public boolean manualFlush(String ipaddrport, String univ, BiConsumer<ArtNetTodData,Long> todHandler)
+			throws NumberFormatException, UnknownHostException, IllegalArgumentException
+	{
+		return m_monitorSync.manualFlush(new ManualFlushCmd(
+				InetUtil.parseAddrPort(ipaddrport, ArtNetConst.ARTNET_PORT),
+				new ArtNetUniv(univ),
+				todHandler != null ? todHandler : new DefTodFlushHandler()));
+	}
+	
+	
+	/**
+	 * FOrce discovery on one universe of a node. Print any TodData message that the node sends.
+	 * @param ipaddrport The ipaddr (with optional :port) of the node.
+	 * @param univ The Art-Net universe.
+	 * @return False if cannot send the request.
+	 * @throws NumberFormatException
+	 * @throws UnknownHostException
+	 * @throws IllegalArgumentException
+	 */
+	public boolean manualFlush(String ipaddrport, String univ)
+			throws NumberFormatException, UnknownHostException, IllegalArgumentException
+	{
+		return manualFlush(ipaddrport, univ, null);
 	}
 	
 	/**
@@ -652,21 +732,48 @@ public class ArtNetManager implements Closeable
 		
 		/**
 		 * Send a "refresh" command to the MonitorThread, and wait for that
-		 * thread to call done() with the results.
+		 * thread to call done() with the results. Use default flag to determine whether
+		 * to force discovery.
 		 * @return
 		 */
 		private synchronized boolean refresh() 
 		{
+			return refresh(m_useTodControl);
+		}
+		
+		/**
+		 * Send a "refresh" command to the MonitorThread, and wait for that
+		 * thread to call done() with the results.
+		 * @param flush If true, use TodControl/Flush to force discovery.
+		 * @return
+		 */
+		private synchronized boolean refresh(boolean flush) 
+		{
 			try {
 				setupParam();
-				m_monitorCmds.put(MonitorCmd.Refresh);
+				m_monitorCmds.put(new RefreshCmd(flush));
 				wait();
 				return true;
 			} catch (Exception e) {
 				return false;
 			}
 		}
-	
+
+		/**
+		 * Manually force TodControl/Flush on a universe.
+		 * @param flushCmd The universe & node port.
+		 * @return False if we cannot add the request to the queue/
+		 */
+		private synchronized boolean manualFlush(ManualFlushCmd flushCmd)
+		{
+			try {
+				m_monitorCmds.put(flushCmd);
+				return true;
+			} catch (InterruptedException e) {
+				return false;
+			}
+		}
+		
 		/**
 		 * Called by the MonitorThread when discovery is complete.
 		 * This method saves the latest results, and wakes up the waiting refresh() call.
@@ -704,12 +811,14 @@ public class ArtNetManager implements Closeable
 		private synchronized void shutdown()
 		{
 			try {
-				m_monitorCmds.put(MonitorCmd.Shutdown);
+				m_monitorCmds.put(new ShutdownCmd());
 			} catch (Exception e) {
 				// ignore.
 			}		
 		}
 	}
+	
+	private enum MonitorState {IDLE, POLLING, FLUSHING};
 	
 	/**
 	 * A thread that sends the ArtNetPoll and ArtNetTodControl request messages
@@ -738,11 +847,14 @@ public class ArtNetManager implements Closeable
 		private Set<ArtNetUnivAddr> m_rdmPortAddrs = null;
 		private Map<ArtNetUnivAddr, Integer> m_portAddrsToTotUids = null;
 		
-		private boolean m_polling = false;
+		private MonitorState m_state = MonitorState.IDLE;
+		private boolean m_flushThisPoll = m_useTodControl;
 		private boolean m_pollRepliesDone = false;
 		private long m_startPollTS = 0;
 		private long m_pollReplyEndTS = 0;
 		private long m_todDataEndTS = 0;
+		private long m_lastManualFlushTS = 0;
+		private BiConsumer<ArtNetTodData, Long> m_manualFlushTodHandler = null;
 
 		/**
 		 * Create and start the thread.
@@ -779,7 +891,7 @@ public class ArtNetManager implements Closeable
 						running = false;
 						break;
 					}
-					if (cmd == null && m_polling) {
+					if (cmd == null && m_state == MonitorState.POLLING) {
 						long ts = System.currentTimeMillis();
 						if (m_pollRepliesDone) {
 							if (ts > m_todDataEndTS || haveAllUids()) {
@@ -794,17 +906,26 @@ public class ArtNetManager implements Closeable
 								m_verboseDiscovery.flush();
 							}
 							if (m_findRdmUids) {
-								sendTodRequest();
+								sendTodRequest(m_flushThisPoll);
 							}
 						}
-					} else if (cmd instanceof MonitorCmd) {
-						switch ((MonitorCmd) cmd) {
-						case Refresh:
-							startPolling();
-							break;
-						case Shutdown:
-							running = false;
-							break;
+					} else if (cmd instanceof RefreshCmd) {
+						startPolling(((RefreshCmd)cmd).m_flush);
+					} else if (cmd instanceof ShutdownCmd) {
+						running = false;
+					} else if (cmd instanceof ManualFlushCmd) {
+						if (m_state != MonitorState.IDLE) {
+							System.err.println("ArtNetManager: Manual flush attempt when not idle.");
+						} else {
+							ManualFlushCmd manualFlush = (ManualFlushCmd)cmd;
+							m_lastManualFlushTS = System.currentTimeMillis();
+							m_manualFlushTodHandler = manualFlush.m_todHandler;
+							try {
+								sendTodFlush(manualFlush.m_sockAddr, manualFlush.m_univ);
+							} catch (IOException e) {
+								System.err.println("ArtNetManager: exception sending manual flush "
+										+ InetUtil.toAddrPort(manualFlush.m_sockAddr) + " " + manualFlush.m_univ);
+							}
 						}
 					} else if (cmd instanceof ArtNetPollReply) {
 						handlePollReply((ArtNetPollReply) cmd);
@@ -813,7 +934,7 @@ public class ArtNetManager implements Closeable
 					}
 				} 
 			} finally {
-				m_polling = false;
+				m_state = MonitorState.IDLE;
 				// System.out.println("XXX: ArtNetManager.MonitorThread exiting.");
 			}
 		}
@@ -841,11 +962,12 @@ public class ArtNetManager implements Closeable
 			return true;
 		}
 		
-		private void startPolling()
+		private void startPolling(boolean flushThisPoll)
 		{
-			if (m_polling) {
+			if (m_state == MonitorState.POLLING) {
 				return;
 			}
+			m_flushThisPoll = flushThisPoll;
 			m_allNodes = new ArrayList<>();
 			m_uniqueNodes = new TreeSet<>();
 			m_mergedNodes = null; 	// Will be set after poll replies are done
@@ -859,8 +981,9 @@ public class ArtNetManager implements Closeable
 			m_startPollTS = System.currentTimeMillis();
 			m_pollReplyEndTS = m_startPollTS + m_pollReplyWaitMS;
 			m_todDataEndTS = m_pollReplyEndTS + (m_findRdmUids ? m_todDataWaitMS : 0);		
-			m_polling = true;
+			m_state = MonitorState.POLLING;
 			m_pollRepliesDone = false;
+			m_manualFlushTodHandler = null;
 			if (m_verboseDiscovery != null) {
 				m_verboseDiscovery.print("Sending ArtNet polls to");
 				for (InetSocketAddress addr: getSockAddrs()) {
@@ -885,7 +1008,7 @@ public class ArtNetManager implements Closeable
 		
 		private void stopPolling()
 		{
-			if (m_polling) {
+			if (m_state == MonitorState.POLLING) {
 				// System.out.println("XXX: Stop polling.");
 				Map<ArtNetUniv, Set<ArtNetNode>> portsToNodes
 								= ArtNetNode.getDmxPort2NodeMap(m_allNodes);
@@ -901,7 +1024,7 @@ public class ArtNetManager implements Closeable
 						new ImmutableMap<ArtNetUniv, Set<InetSocketAddress>>(m_univsToIpAddrs),
 						new ImmutableMap<ArtNetUniv, Set<InetSocketAddress>>(m_rdmUnivsToIpAddrs)
 						);
-				m_polling = false;
+				m_state = MonitorState.IDLE;
 				if (m_verboseDiscovery != null) {
 					m_verboseDiscovery.print("Discovery complete");
 					if (m_findRdmUids) {
@@ -923,10 +1046,11 @@ public class ArtNetManager implements Closeable
 		 * Send a request for the table of UIDs to all universes that support RDM.
 		 * Called after we've gotten all the Poll Replies.
 		 */
-		private void sendTodRequest()
+		private void sendTodRequest(boolean flush)
 		{
 			for (ArtNetUniv rdmUniv: m_rdmUnivs) {
-				if (m_useTodControl) {
+				if (flush) {
+					System.out.println("XXX: Using TodControl to flush univ " + rdmUniv);
 					ArtNetTodControl todCtlReq = new ArtNetTodControl();
 					todCtlReq.m_net = rdmUniv.m_net;
 					todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
@@ -953,6 +1077,7 @@ public class ArtNetManager implements Closeable
 						m_errorLogger.logError("ArtNetManager: Exception sendingg TODControl: " + e1);
 					}
 				} else {
+					System.out.println("XXX: Using TodRequest for univ " + rdmUniv);
 					ArtNetTodRequest todReqReq = new ArtNetTodRequest();
 					todReqReq.m_net = rdmUniv.m_net;
 					todReqReq.m_numSubnetUnivs = 1;
@@ -982,13 +1107,24 @@ public class ArtNetManager implements Closeable
 			}
 		}
 		
+		private void sendTodFlush(InetSocketAddress nodeAddr, ArtNetUniv rdmUniv) throws IOException
+		{
+			ArtNetTodControl todCtlReq = new ArtNetTodControl();
+			todCtlReq.m_net = rdmUniv.m_net;
+			todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
+			todCtlReq.m_subnetUniv = rdmUniv.subUniv();
+			if (!m_channel.send(todCtlReq, nodeAddr)) {
+				m_errorLogger.logError("ArtNetManager: send TODControl failed.");
+			}
+		}
+		
 		/**
 		 * Process an ArtNetPollReply from a node.
 		 * @param msg The reply message.
 		 */
 		private void handlePollReply(ArtNetPollReply msg)
 		{
-			if (!m_polling) {
+			if (m_state != MonitorState.POLLING) {
 				return;
 			}
 			if (m_prtReplies) {
@@ -1027,8 +1163,12 @@ public class ArtNetManager implements Closeable
 		 */
 		private void handleTodData(ArtNetTodData msg)
 		{
-			if (!m_polling) {
-				System.err.println("ArtNetManager: Got TodData when not polling: " + msg);  // XXX
+			if (m_state != MonitorState.POLLING) {
+				if (m_manualFlushTodHandler != null) {
+					m_manualFlushTodHandler.accept(msg, System.currentTimeMillis() - m_lastManualFlushTS);
+				} else {
+					System.err.println("ArtNetManager: Got TodData when not polling: " + msg);  // XXX
+				}
 				return;
 			}
 			ArtNetTodData todData = (ArtNetTodData)msg;

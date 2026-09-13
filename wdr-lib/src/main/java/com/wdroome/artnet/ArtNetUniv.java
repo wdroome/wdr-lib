@@ -103,7 +103,7 @@ public class ArtNetUniv implements Comparable<ArtNetUniv>
 				m_net = (netSubUniv & 0x7f00) >> 8;
 				m_subNet = (netSubUniv & 0xf0) >> 4;
 				m_universe = netSubUniv & 0x0f;		
-				break;
+				return;
 			}
 		} catch (Exception e) {
 			// number format exception -- fall thru
