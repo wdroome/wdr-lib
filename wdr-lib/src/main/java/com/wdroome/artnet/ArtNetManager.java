@@ -105,6 +105,19 @@ public class ArtNetManager implements Closeable
 			m_todHandler = todHandler != null ? todHandler : new DefTodFlushHandler();
 		}
 	}
+	private class ManualTodReqCmd extends MonitorCmd2
+	{
+		private final InetSocketAddress m_sockAddr;
+		private final ArtNetUniv m_univ;
+		private final BiConsumer<ArtNetTodData, Long> m_todHandler;
+		private ManualTodReqCmd(InetSocketAddress sockAddr, ArtNetUniv univ,
+					BiConsumer<ArtNetTodData, Long> todHandler)
+		{
+			m_sockAddr = sockAddr;
+			m_univ = univ;
+			m_todHandler = todHandler != null ? todHandler : new DefTodFlushHandler();
+		}
+	}
 	
 	public static class DefTodFlushHandler implements BiConsumer<ArtNetTodData, Long>
 	{
@@ -186,7 +199,7 @@ public class ArtNetManager implements Closeable
 	}
 	
 	/**
-	 * FOrce discovery on one universe of a node.
+	 * Force discovery on one universe of a node.
 	 * @param ipaddrport The ipaddr (with optional :port) of the node.
 	 * @param univ The Art-Net universe.
 	 * @param todHandler Call this consumer when TodData messages arrive. The long is the milliseconds
@@ -207,7 +220,7 @@ public class ArtNetManager implements Closeable
 	
 	
 	/**
-	 * FOrce discovery on one universe of a node. Print any TodData message that the node sends.
+	 * Force discovery on one universe of a node. Print any TodData message that the node sends.
 	 * @param ipaddrport The ipaddr (with optional :port) of the node.
 	 * @param univ The Art-Net universe.
 	 * @return False if cannot send the request.
@@ -219,6 +232,43 @@ public class ArtNetManager implements Closeable
 			throws NumberFormatException, UnknownHostException, IllegalArgumentException
 	{
 		return manualFlush(ipaddrport, univ, null);
+	}
+	
+	/**
+	 * Send a TodRequest for the UIDs on one universe of a node.
+	 * @param ipaddrport The ipaddr (with optional :port) of the node.
+	 * @param univ The Art-Net universe.
+	 * @param todHandler Call this consumer when TodData messages arrive. The long is the milliseconds
+	 * 		since sending the TodControl.
+	 * @return False if cannot send the request.
+	 * @throws NumberFormatException
+	 * @throws UnknownHostException
+	 * @throws IllegalArgumentException
+	 */
+	public boolean manualTodReq(String ipaddrport, String univ, BiConsumer<ArtNetTodData,Long> todHandler)
+			throws NumberFormatException, UnknownHostException, IllegalArgumentException
+	{
+		return m_monitorSync.manualTodReq(new ManualTodReqCmd(
+				InetUtil.parseAddrPort(ipaddrport, ArtNetConst.ARTNET_PORT),
+				new ArtNetUniv(univ),
+				todHandler != null ? todHandler : new DefTodFlushHandler()));
+	}
+	
+	/**
+	 * Send a TodRequest for the UIDs on one universe of a node.
+	 * @param ipaddrport The ipaddr (with optional :port) of the node.
+	 * @param univ The Art-Net universe.
+	 * @param todHandler Call this consumer when TodData messages arrive. The long is the milliseconds
+	 * 		since sending the TodControl.
+	 * @return False if cannot send the request.
+	 * @throws NumberFormatException
+	 * @throws UnknownHostException
+	 * @throws IllegalArgumentException
+	 */
+	public boolean manualTodReq(String ipaddrport, String univ)
+			throws NumberFormatException, UnknownHostException, IllegalArgumentException
+	{
+		return manualTodReq(ipaddrport, univ, null);
 	}
 	
 	/**
@@ -773,6 +823,21 @@ public class ArtNetManager implements Closeable
 				return false;
 			}
 		}
+
+		/**
+		 * Manually send a TodRequest on a universe.
+		 * @param flushCmd The universe & node port.
+		 * @return False if we cannot add the request to the queue/
+		 */
+		private synchronized boolean manualTodReq(ManualTodReqCmd reqCmd)
+		{
+			try {
+				m_monitorCmds.put(reqCmd);
+				return true;
+			} catch (InterruptedException e) {
+				return false;
+			}
+		}
 		
 		/**
 		 * Called by the MonitorThread when discovery is complete.
@@ -927,6 +992,20 @@ public class ArtNetManager implements Closeable
 										+ InetUtil.toAddrPort(manualFlush.m_sockAddr) + " " + manualFlush.m_univ);
 							}
 						}
+					} else if (cmd instanceof ManualTodReqCmd) {
+						if (m_state != MonitorState.IDLE) {
+							System.err.println("ArtNetManager: Manual TodRequest attempt when not idle.");
+						} else {
+							ManualTodReqCmd manualTodReq = (ManualTodReqCmd)cmd;
+							m_lastManualFlushTS = System.currentTimeMillis();
+							m_manualFlushTodHandler = manualTodReq.m_todHandler;
+							try {
+								sendTodFlush(manualTodReq.m_sockAddr, manualTodReq.m_univ);
+							} catch (IOException e) {
+								System.err.println("ArtNetManager: exception sending manual flush "
+										+ InetUtil.toAddrPort(manualTodReq.m_sockAddr) + " " + manualTodReq.m_univ);
+							}
+						}
 					} else if (cmd instanceof ArtNetPollReply) {
 						handlePollReply((ArtNetPollReply) cmd);
 					} else if (cmd instanceof ArtNetTodData) {
@@ -1050,7 +1129,7 @@ public class ArtNetManager implements Closeable
 		{
 			for (ArtNetUniv rdmUniv: m_rdmUnivs) {
 				if (flush) {
-					System.out.println("XXX: Using TodControl to flush univ " + rdmUniv);
+					// System.out.println("XXX: Using TodControl to flush univ " + rdmUniv);
 					ArtNetTodControl todCtlReq = new ArtNetTodControl();
 					todCtlReq.m_net = rdmUniv.m_net;
 					todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
@@ -1077,7 +1156,7 @@ public class ArtNetManager implements Closeable
 						m_errorLogger.logError("ArtNetManager: Exception sendingg TODControl: " + e1);
 					}
 				} else {
-					System.out.println("XXX: Using TodRequest for univ " + rdmUniv);
+					// System.out.println("XXX: Using TodRequest for univ " + rdmUniv);
 					ArtNetTodRequest todReqReq = new ArtNetTodRequest();
 					todReqReq.m_net = rdmUniv.m_net;
 					todReqReq.m_numSubnetUnivs = 1;
@@ -1114,7 +1193,18 @@ public class ArtNetManager implements Closeable
 			todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
 			todCtlReq.m_subnetUniv = rdmUniv.subUniv();
 			if (!m_channel.send(todCtlReq, nodeAddr)) {
-				m_errorLogger.logError("ArtNetManager: send TODControl failed.");
+				m_errorLogger.logError("ArtNetManager: send TodDControl failed.");
+			}
+		}
+		
+		private void sendToddRequest(InetSocketAddress nodeAddr, ArtNetUniv rdmUniv) throws IOException
+		{
+			ArtNetTodRequest todReqReq = new ArtNetTodRequest();
+			todReqReq.m_net = rdmUniv.m_net;
+			todReqReq.m_numSubnetUnivs = 1;
+			todReqReq.m_subnetUnivs[0] = (byte)rdmUniv.subUniv(); 
+			if (!m_channel.send(todReqReq, nodeAddr)) {
+				m_errorLogger.logError("ArtNetManager: send TodRequest failed.");
 			}
 		}
 		

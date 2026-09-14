@@ -698,7 +698,8 @@ public class ArtNetListDevices
 		OPTIONS((String)null, "[timeoutMS=##] [maxRetries=##] [retryDelayMS=##]"
 						+ " [prtTimeoutErrors=[t|f]] [todcontrol=[t|f]]"
 						+ " [msgLog=[t|f]]"),
-		FLUSH((String)null, "node-ip-addr artnet-univ"),
+		TOD_FLUSH("tod-flush", "node-ip-addr artnet-univ"),
+		TOD_REQUEST("tod-request", "node-ip-addr artnet-univ"),
 		HELP("?", null),
 		QUIT();
 		
@@ -942,8 +943,11 @@ public class ArtNetListDevices
 					case IDENTIFY:
 						doIdentify(devNums, args);
 						break;
-					case FLUSH:
+					case TOD_FLUSH:
 						doManualFlush(args);
+						break;
+					case TOD_REQUEST:
+						doManualTodReq(args);
 						break;
 					case HELP:
 						m_out.println("Commands:");
@@ -1132,11 +1136,24 @@ public class ArtNetListDevices
 		private void doManualFlush(List<String> args)
 		{
 			if (args.size() != 2) {
-				m_out.println("Usage: flush node-ipaddr univ");
+				m_out.println("Usage: tod-flush node-ipaddr univ");
 				return;
 			}
 			try {
 				m_manager.manualFlush(args.get(0), args.get(1));
+			} catch (UnknownHostException | IllegalArgumentException e) {
+				m_out.println("Illegal arguments: " + e.getLocalizedMessage());
+			}
+		}
+		
+		private void doManualTodReq(List<String> args)
+		{
+			if (args.size() != 2) {
+				m_out.println("Usage: tod-request node-ipaddr univ");
+				return;
+			}
+			try {
+				m_manager.manualTodReq(args.get(0), args.get(1));
 			} catch (UnknownHostException | IllegalArgumentException e) {
 				m_out.println("Illegal arguments: " + e.getLocalizedMessage());
 			}
