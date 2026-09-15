@@ -1275,7 +1275,7 @@ public class ArtNetManager implements Closeable
 			ArtNetNodeAddr nodeAddr = new ArtNetNodeAddr((Inet4Address)fromAddr, todData.m_bindIndex);
 			ArtNetUniv anUniv = new ArtNetUniv(todData.m_net, todData.m_subnetUniv);
 			ArtNetUnivAddr univAddr = new ArtNetUnivAddr(nodeAddr, anUniv);
-			if (todData.m_command == ArtNetTodRequest.COMMAND_TOD_NAK) {
+			if (todData.m_command == ArtNetTodData.COMMAND_TOD_NAK) {
 				System.out.println("ArtNetManager: NAK from " + univAddr + " #uids=" + todData.m_numUids);
 			}
 			if (m_prtReplies) {
@@ -1283,7 +1283,9 @@ public class ArtNetManager implements Closeable
 							+ " time=" + (System.currentTimeMillis() - m_startPollTS) + "ms");
 				System.out.println("   " + todData.toFmtString(null, "   "));
 			}
-			m_portAddrsToTotUids.put(univAddr, msg.m_numUidsTotal);
+			if (todData.m_command == ArtNetTodData.COMMAND_TOD_FULL) {
+				m_portAddrsToTotUids.put(univAddr, msg.m_numUidsTotal);
+			}
 			Set<ACN_UID> uids = m_portAddrsToUids.get(univAddr);
 			if (uids == null) {
 				uids = new HashSet<>();

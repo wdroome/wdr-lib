@@ -20,6 +20,9 @@ import com.wdroome.util.inet.InetUtil;
  */
 public class ArtNetTodData extends ArtNetMsg
 {
+	public static final int COMMAND_TOD_FULL = 0x00;
+	public static final int COMMAND_TOD_NAK = 0xff;
+	
 	public int m_protoVers = ArtNetConst.PROTO_VERS;
 	public int m_rdmVers = ArtNetTodRequest.RDM_VERS;
 	public int m_port = 0;
