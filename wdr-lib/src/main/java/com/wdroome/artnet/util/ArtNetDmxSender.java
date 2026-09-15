@@ -34,9 +34,10 @@ public class ArtNetDmxSender extends Thread
 	 * Create and start a new DMX sender thread.
 	 * @param channel Send messages via this channel. If null, create a private channel
 	 * 		and close it when done.
+	 * @param isDaemon If true, run the thread as a daemon.
 	 * @throws IOException If we cannot create a private channel.
 	 */
-	public ArtNetDmxSender(ArtNetChannel channel) throws IOException
+	public ArtNetDmxSender(ArtNetChannel channel, boolean isDaemon) throws IOException
 	{
 		if (channel != null) {
 			m_channel = channel;
@@ -45,8 +46,10 @@ public class ArtNetDmxSender extends Thread
 			m_channel = new ArtNetChannel();
 			m_isPrivateChannel = true;
 		}
+		setDaemon(isDaemon);
 		start();
 	}
+	
 	/**
 	 * Return the message transmit frequency (msgs/sec).
 	 * @return The transmit frequency (msgs/sec).
@@ -128,6 +131,9 @@ public class ArtNetDmxSender extends Thread
 						+ startChan + "-" + endChan);
 			}
 		}
+		if (m_running.get()) {
+			interrupt();
+		}
 	}
 	
 	public void run()
@@ -175,7 +181,7 @@ public class ArtNetDmxSender extends Thread
 				try {
 					Thread.sleep(freq > 0 ? (long)(1000.0/freq) : 500);
 				} catch (InterruptedException e) {
-					// Ignore this. Just wake up.
+					interrupted();	// clear interrupted flag.
 				}
 			} 
 		} finally {
@@ -192,7 +198,7 @@ public class ArtNetDmxSender extends Thread
 	 */
 	public static void main(String[] args) throws IOException
 	{
-		ArtNetDmxSender sender = new ArtNetDmxSender(null);
+		ArtNetDmxSender sender = new ArtNetDmxSender(null, false);
 		sender.setLevels(new ArtNetUniv(0), 1, 3, 127);
 		sender.setLevels(new ArtNetUniv(1), 4, 6, 255);
 		sender.setFreq(2);

@@ -37,6 +37,7 @@ import com.wdroome.artnet.msgs.RdmParamResp;
 import com.wdroome.artnet.msgs.RdmProductCategories;
 import com.wdroome.artnet.msgs.RdmPacket;
 
+import com.wdroome.artnet.util.ArtNetDmxSender;
 import com.wdroome.artnet.util.ArtNetTestNode;
 
 /**
@@ -53,6 +54,7 @@ public class ArtNetListDevices
 	private ArtNetManager m_manager = null;
 	private ArtNetRdmRequest m_rdmRequest = null;
 	private ArtNetTestNode m_testNode = null;
+	private ArtNetDmxSender m_dmxSender= null;
 	private long m_idHoldMS = 8000;
 	
 	public static void main(String[] args) throws JSONParseException, JSONValueTypeException, IOException
@@ -115,6 +117,9 @@ public class ArtNetListDevices
 				} catch (Exception e) {
 					// ignore
 				}
+			}
+			if (m_dmxSender != null) {
+				m_dmxSender.shutdown();
 			}
 		}
 	}
@@ -700,6 +705,8 @@ public class ArtNetListDevices
 						+ " [msgLog=[t|f]]"),
 		TOD_FLUSH("tod-flush", "node-ip-addr artnet-univ"),
 		TOD_REQUEST("tod-request", "node-ip-addr artnet-univ"),
+		SET_LEVELS("set-levels", "univ [chan | chan:chan] value(0-255)"),
+		SET_FREQ("set-freq", "[pkts/sec]  (<=0 pauses sending"),
 		HELP("?", null),
 		QUIT();
 		
@@ -949,6 +956,12 @@ public class ArtNetListDevices
 					case TOD_REQUEST:
 						doManualTodReq(args);
 						break;
+					case SET_LEVELS:
+						doDmxLevels(args);
+						break;
+					case SET_FREQ:
+						doDmxFreq(args);
+						break;
 					case HELP:
 						m_out.println("Commands:");
 						for (Command c : Command.values()) {
@@ -1157,6 +1170,53 @@ public class ArtNetListDevices
 			} catch (UnknownHostException | IllegalArgumentException e) {
 				m_out.println("Illegal arguments: " + e.getLocalizedMessage());
 			}
+		}
+		
+		private void doDmxLevels(List<String> args)
+		{
+			try {
+				ArtNetUniv univ = new ArtNetUniv(args.get(0));
+				String[] chanSpec = args.get(1).split("[:-]");
+				int startChan = Integer.parseInt(chanSpec[0]);
+				int endChan = chanSpec.length == 2 ? Integer.parseInt(chanSpec[1]) : startChan;
+				int value = Integer.parseInt(args.get(2));
+				if (startDmxSender()) {
+					m_dmxSender.setLevels(univ, startChan, endChan, value);
+				}
+			} catch (Exception e) {
+				m_out.println("Usage: dmx-levels univ [chan# | chan#:chan#] level");
+				return;
+			}
+		}
+		
+		private void doDmxFreq(List<String> args)
+		{
+			if (startDmxSender()) {
+				if (args.size() == 0) {
+					m_out.println("Dmx Sender frequency: " + m_dmxSender.getFreq());
+				} else {
+					try {
+						m_dmxSender.setFreq(Integer.parseInt(args.get(0)));
+					} catch (Exception e) {
+						m_out.println("Usage: dmx-freq [msgs/sec]");
+					}
+				}
+			}
+		}
+		
+		private boolean startDmxSender()
+		{
+			if (m_dmxSender == null) {
+				try {
+					m_dmxSender = new ArtNetDmxSender(m_channel, true);
+					if (m_dmxSender.getFreq() <= 0) {
+						m_dmxSender.setFreq(1);
+					}
+				} catch (IOException e) {
+					m_out.print("Cannot start DMX sender thread");
+				}
+			}
+			return m_dmxSender != null;
 		}
 		
 		private List<Integer> parseDevList(List<String> args, boolean parseAll)
