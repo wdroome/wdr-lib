@@ -971,6 +971,7 @@ public class ArtNetManager implements Closeable
 								m_verboseDiscovery.flush();
 							}
 							if (m_findRdmUids) {
+								/*XXX*/ System.out.println("RdmPortAddrs: " + m_rdmPortAddrs);
 								sendTodRequest(m_flushThisPoll);
 							}
 						}
@@ -1000,7 +1001,7 @@ public class ArtNetManager implements Closeable
 							m_lastManualFlushTS = System.currentTimeMillis();
 							m_manualFlushTodHandler = manualTodReq.m_todHandler;
 							try {
-								sendTodFlush(manualTodReq.m_sockAddr, manualTodReq.m_univ);
+								sendTodRequest(manualTodReq.m_sockAddr, manualTodReq.m_univ);
 							} catch (IOException e) {
 								System.err.println("ArtNetManager: exception sending manual flush "
 										+ InetUtil.toAddrPort(manualTodReq.m_sockAddr) + " " + manualTodReq.m_univ);
@@ -1034,10 +1035,13 @@ public class ArtNetManager implements Closeable
 					}
 					Set<ACN_UID> uids = m_portAddrsToUids.get(univAddr);
 					if (uids == null || uids.size() != totUids) {
+						System.out.println("XXX " + univAddr + ": tot=" + totUids + " uids=" + uids);
 						return false;
 					}
 				} 
 			}
+			// return false; // XXX
+			System.out.println("XXX Have all " + m_rdmPortAddrs.size() + " TodData resp.");
 			return true;
 		}
 		
@@ -1197,7 +1201,7 @@ public class ArtNetManager implements Closeable
 			}
 		}
 		
-		private void sendToddRequest(InetSocketAddress nodeAddr, ArtNetUniv rdmUniv) throws IOException
+		private void sendTodRequest(InetSocketAddress nodeAddr, ArtNetUniv rdmUniv) throws IOException
 		{
 			ArtNetTodRequest todReqReq = new ArtNetTodRequest();
 			todReqReq.m_net = rdmUniv.m_net;
@@ -1244,6 +1248,7 @@ public class ArtNetManager implements Closeable
 				}
 				addrs.add(nodeAddr);
 				m_rdmUnivs.add(rdmUniv);
+				m_rdmPortAddrs.add(new ArtNetUnivAddr(msg.m_nodeAddr, rdmUniv));
 			}
 		}
 		
@@ -1285,6 +1290,7 @@ public class ArtNetManager implements Closeable
 			}
 			if (todData.m_command == ArtNetTodData.COMMAND_TOD_FULL) {
 				m_portAddrsToTotUids.put(univAddr, msg.m_numUidsTotal);
+				System.out.println("XXX: tot uids: " + m_portAddrsToTotUids);
 			}
 			Set<ACN_UID> uids = m_portAddrsToUids.get(univAddr);
 			if (uids == null) {
@@ -1295,6 +1301,7 @@ public class ArtNetManager implements Closeable
 				uids.add(todData.m_uids[i]);
 				m_uidsToUnivAddrs.put(todData.m_uids[i], univAddr);
 			}
+			System.out.println("XXX: portAddrsToUids: " + m_portAddrsToUids);
 		}
 
 		/**
