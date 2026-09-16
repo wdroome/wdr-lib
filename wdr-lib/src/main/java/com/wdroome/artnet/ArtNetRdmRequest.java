@@ -226,7 +226,8 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			if (rdmPacket == null) {
 				break;
 			}
-			if (skipRules != null && skipRules.contains(new QueuedMsgSkipRule(origParamId, rdmPacket.getParamId()))) {
+			if (skipRules != null && skipRules.contains(
+							new QueuedMsgSkipRule(origParamId, rdmPacket.getParamId()))) {
 				continue;
 			}
 			queuedMsgs.add(rdmPacket);
