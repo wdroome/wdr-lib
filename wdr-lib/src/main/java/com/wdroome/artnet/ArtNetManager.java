@@ -58,6 +58,10 @@ public class ArtNetManager implements Closeable
 	public static final long MAX_TOD_DATA_MS = 120000;
 	public static final long DEF_TOD_DATA_MS = 10000;
 	
+	public static final long MIN_TOD_UNIV_DELAY_MS = 0;
+	public static final long MAX_TOD_UNIV_DELAY_MS = 120000;
+	public static final long DEF_TOD_UNIV_DELAY_MS = 3000;
+		
 	private final MonitorSync m_monitorSync = new MonitorSync();
 	private ArtNetRdmRequest m_rdmRequest = null;
 	private final MonitorThread m_monitorThread;
@@ -67,6 +71,7 @@ public class ArtNetManager implements Closeable
 	
 	private long m_pollReplyWaitMS = DEF_POLL_REPLY_MS;
 	private long m_todDataWaitMS = DEF_TOD_DATA_MS;
+	private long m_todUnivDelayMS = DEF_TOD_UNIV_DELAY_MS;
 	
 	private IErrorLogger m_errorLogger = new SystemErrorLogger();
 
@@ -116,6 +121,14 @@ public class ArtNetManager implements Closeable
 			m_sockAddr = sockAddr;
 			m_univ = univ;
 			m_todHandler = todHandler != null ? todHandler : new DefTodFlushHandler();
+		}
+	}
+	private class SendTodRequest extends MonitorCmd2
+	{
+		private final ArtNetUniv m_rdmUniv;
+		private SendTodRequest(ArtNetUniv rdmUniv)
+		{
+			m_rdmUniv = rdmUniv;
 		}
 	}
 	
@@ -459,6 +472,20 @@ public class ArtNetManager implements Closeable
 		}
 		return prevWait;
 	}
+	
+	public long setTodUnivDelayMS(long todUnivDelayMS)
+	{
+		long prevDelay = m_todUnivDelayMS;
+		if (todUnivDelayMS < 0) {
+			todUnivDelayMS = 0;
+		} else if (todUnivDelayMS > MAX_TOD_UNIV_DELAY_MS) {
+			todUnivDelayMS = MAX_TOD_UNIV_DELAY_MS;
+		}
+		m_todUnivDelayMS = todUnivDelayMS;
+		return prevDelay;
+	}
+	
+	public long getTodUnivDelayMS() { return m_todUnivDelayMS; }
 	
 	/**
 	 * Set the UDP ports on which ArtNetPoll messages will be sent.
@@ -808,6 +835,17 @@ public class ArtNetManager implements Closeable
 				return false;
 			}
 		}
+		
+		private synchronized boolean sendTodRequest(ArtNetUniv rmdUniv)
+		{
+			setupParam();
+			try {
+				m_monitorCmds.put(new SendTodRequest(rmdUniv));
+				return true;
+			} catch (Exception e) {
+				return false;
+			}
+		}
 
 		/**
 		 * Manually force TodControl/Flush on a universe.
@@ -883,7 +921,7 @@ public class ArtNetManager implements Closeable
 		}
 	}
 	
-	private enum MonitorState {IDLE, POLLING, FLUSHING};
+	private enum MonitorState {IDLE, POLLING};
 	
 	/**
 	 * A thread that sends the ArtNetPoll and ArtNetTodControl request messages
@@ -972,9 +1010,13 @@ public class ArtNetManager implements Closeable
 							}
 							if (m_findRdmUids) {
 								/*XXX*/ System.out.println("RdmPortAddrs: " + m_rdmPortAddrs);
-								sendTodRequest(m_flushThisPoll);
+								// sendTodRequest(m_flushThisPoll);
+								m_todDataEndTS += m_rdmUnivs.size() * m_todUnivDelayMS;
+								new TodRequestSender(m_rdmUnivs, m_todUnivDelayMS);
 							}
 						}
+					} else if (cmd instanceof SendTodRequest) {
+						sendTodRequest(((SendTodRequest)cmd).m_rdmUniv, m_flushThisPoll);
 					} else if (cmd instanceof RefreshCmd) {
 						startPolling(((RefreshCmd)cmd).m_flush);
 					} else if (cmd instanceof ShutdownCmd) {
@@ -1132,62 +1174,66 @@ public class ArtNetManager implements Closeable
 		private void sendTodRequest(boolean flush)
 		{
 			for (ArtNetUniv rdmUniv: m_rdmUnivs) {
-				if (flush) {
-					// System.out.println("XXX: Using TodControl to flush univ " + rdmUniv);
-					ArtNetTodControl todCtlReq = new ArtNetTodControl();
-					todCtlReq.m_net = rdmUniv.m_net;
-					todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
-					todCtlReq.m_subnetUniv = rdmUniv.subUniv();
-					try {
-						if (false) { // XXX
-							System.out.println("XXX: Send TodControl for " + rdmUniv);
-						}
-						if (isUseTodBcast()) {
-							if (!m_channel.broadcast(todCtlReq)) {
-								m_errorLogger.logError("ArtNetManager: B'cast TODControl failed.");
-							}
-						} else {
-							Set<InetSocketAddress> nodeAddrs = m_rdmUnivsToIpAddrs.get(rdmUniv);
-							if (nodeAddrs != null) {
-								for (InetSocketAddress nodeAddr: nodeAddrs) {
-									if (!m_channel.send(todCtlReq, nodeAddr)) {
-										m_errorLogger.logError("ArtNetManager: send TODControl failed.");
-									}
-								}
-							}
-						}
-					} catch (IOException e1) {
-						m_errorLogger.logError("ArtNetManager: Exception sendingg TODControl: " + e1);
-					}
-				} else {
-					// System.out.println("XXX: Using TodRequest for univ " + rdmUniv);
-					ArtNetTodRequest todReqReq = new ArtNetTodRequest();
-					todReqReq.m_net = rdmUniv.m_net;
-					todReqReq.m_numSubnetUnivs = 1;
-					todReqReq.m_subnetUnivs[0] = (byte)rdmUniv.subUniv(); 
-					try {
-						if (false) { // XXX
-							System.out.println("XXX: Send TodRequest for " + rdmUniv);
-						}
-						if (isUseTodBcast()) {
-							if (!m_channel.broadcast(todReqReq)) {
-								m_errorLogger.logError("ArtNetManager: B'cast TODRequest failed.");
-							} 
-						} else {
-							Set<InetSocketAddress> nodeAddrs = m_rdmUnivsToIpAddrs.get(rdmUniv);
-							if (nodeAddrs != null) {
-								for (InetSocketAddress nodeAddr: nodeAddrs) {
-									if (!m_channel.send(todReqReq, nodeAddr)) {
-										m_errorLogger.logError("ArtNetManager: send TODRequest failed.");
-									}
-								}
-							}
-						}
-					} catch (IOException e1) {
-						m_errorLogger.logError("ArtNetManager: Exception sending TODRequest: " + e1);
-					}
-				}
+				sendTodRequest(rdmUniv, flush);
 			}
+		}
+		
+		private void sendTodRequest(ArtNetUniv rdmUniv, boolean flush)
+		{
+			boolean prt = false;
+			if (flush) {
+				ArtNetTodControl todCtlReq = new ArtNetTodControl();
+				todCtlReq.m_net = rdmUniv.m_net;
+				todCtlReq.m_command = ArtNetTodControl.COMMAND_ATC_FLUSH;
+				todCtlReq.m_subnetUniv = rdmUniv.subUniv();
+				try {
+					if (prt) { // XXX
+						System.out.println("XXX: Send TodControl for " + rdmUniv + " " + System.currentTimeMillis());
+					}
+					if (isUseTodBcast()) {
+						if (!m_channel.broadcast(todCtlReq)) {
+							m_errorLogger.logError("ArtNetManager: B'cast TODControl failed.");
+						}
+					} else {
+						Set<InetSocketAddress> nodeAddrs = m_rdmUnivsToIpAddrs.get(rdmUniv);
+						if (nodeAddrs != null) {
+							for (InetSocketAddress nodeAddr: nodeAddrs) {
+								if (!m_channel.send(todCtlReq, nodeAddr)) {
+									m_errorLogger.logError("ArtNetManager: send TODControl failed.");
+								}
+							}
+						}
+					}
+				} catch (IOException e1) {
+					m_errorLogger.logError("ArtNetManager: Exception sendingg TODControl: " + e1);
+				}
+			} else {
+				ArtNetTodRequest todReqReq = new ArtNetTodRequest();
+				todReqReq.m_net = rdmUniv.m_net;
+				todReqReq.m_numSubnetUnivs = 1;
+				todReqReq.m_subnetUnivs[0] = (byte)rdmUniv.subUniv(); 
+				try {
+					if (prt) { // XXX
+						System.out.println("XXX: Send TodRequest for " + rdmUniv);
+					}
+					if (isUseTodBcast()) {
+						if (!m_channel.broadcast(todReqReq)) {
+							m_errorLogger.logError("ArtNetManager: B'cast TODRequest failed.");
+						} 
+					} else {
+						Set<InetSocketAddress> nodeAddrs = m_rdmUnivsToIpAddrs.get(rdmUniv);
+						if (nodeAddrs != null) {
+							for (InetSocketAddress nodeAddr: nodeAddrs) {
+								if (!m_channel.send(todReqReq, nodeAddr)) {
+									m_errorLogger.logError("ArtNetManager: send TODRequest failed.");
+								}
+							}
+						}
+					}
+				} catch (IOException e1) {
+					m_errorLogger.logError("ArtNetManager: Exception sending TODRequest: " + e1);
+				}
+			}		
 		}
 		
 		private void sendTodFlush(InetSocketAddress nodeAddr, ArtNetUniv rdmUniv) throws IOException
@@ -1336,6 +1382,36 @@ public class ArtNetManager implements Closeable
 			// Ignore
 		}
 	}
+
+	private class TodRequestSender extends Thread
+	{
+		private final Set<ArtNetUniv> m_rdmUnivs;
+		private final long m_delayMS;
+		private final long m_startTS = System.currentTimeMillis();
+		
+		private TodRequestSender(Set<ArtNetUniv> rdmUnivs, long delayMS)
+		{
+			m_rdmUnivs = rdmUnivs;
+			m_delayMS = delayMS;
+			setDaemon(true);
+			start();
+		}
+		
+		@Override
+		public void run()
+		{
+			for (ArtNetUniv rdmUniv: m_rdmUnivs) {
+				m_monitorSync.sendTodRequest(rdmUniv);
+				if (m_delayMS > 0) {
+					try {
+						Thread.sleep(m_delayMS);
+					} catch (InterruptedException e) {
+						System.err.println("TodRequestSender: interrupted sleep.");
+					}
+				}
+			}
+		}
+	}
 	
 	/**
 	 * Initiate node and device discovery, and print the results.
@@ -1406,6 +1482,8 @@ public class ArtNetManager implements Closeable
 					mgr.setUseTodControl(false);
 				} else if (arg.toLowerCase().startsWith("-todcon") || arg.startsWith("-todctl")) {
 					mgr.setUseTodControl(true);
+				} else if ((longVal = parseNumValueArg("-univDelayMS=", arg)) != null) {
+					mgr.setTodUnivDelayMS(longVal);
 				} else if (arg.startsWith("-")) {
 					System.out.println("Unknown flag argument '" + arg + "'");
 				}

@@ -1,7 +1,9 @@
 package com.wdroome.artnet;
 
+import java.util.List;
 import java.net.InetSocketAddress;
 
+import com.wdroome.util.MiscUtil;
 import com.wdroome.util.CircularBuffer;
 import com.wdroome.util.inet.InetUtil;
 
@@ -86,6 +88,29 @@ public class ArtNetMsgLogger
 					+ ":to=" + InetUtil.toAddrPort(m_toAddr)
 					+ ",from=" + InetUtil.toAddrPort(m_fromAddr);
 		}
+		
+		public boolean isMsgType(String msgName)
+		{
+			return isMsgType(List.of(msgName));
+		}
+		
+		public boolean isMsgType(List<String> msgNames)
+		{
+			ArtNetMsg msg = getMsg();
+			if (msg == null || msgNames == null) {
+				return false;
+			}
+			String msgClass = MiscUtil.getLeafClassName(msg).toLowerCase();
+			for (String test: msgNames) {
+				// System.out.println("XXX: type test '" + test + "' '" + msgClass + "'");
+				if (msgClass.contains(test.toLowerCase())) {
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		public ArtNetMsg getMsg() { return null; }
 	}
 	
 	public static class SendEvent extends MsgEvent
@@ -105,6 +130,9 @@ public class ArtNetMsgLogger
 					+ "\n  " + m_msg.toString() + "\n";
 					//  + m_msg.toFmtString(null, "\n  ");
 		}
+		
+		@Override
+		public ArtNetMsg getMsg() { return m_msg; }
 	}
 	
 	public static class RcvEvent extends MsgEvent
@@ -116,6 +144,9 @@ public class ArtNetMsgLogger
 			super(0, toAddr, fromAddr);
 			m_msg = msg;
 		}
+		
+		@Override
+		public ArtNetMsg getMsg() { return m_msg; }
 		
 		@Override
 		public String toString()

@@ -148,6 +148,8 @@ public class ArtNetListDevices
 			} else if ((longVal = parseNumValueArg("-tod=", arg)) != null) {
 				m_manager.setTodDataWaitMS(longVal);
 				iter.remove();
+			} else if ((longVal = parseNumValueArg("-univDelayMS=", arg)) != null) {
+				m_manager.setTodUnivDelayMS(longVal);
 			} else if (arg.matches("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+")) {
 				pollAddrs.add(InetAddress.getByName(arg));
 				iter.remove();
@@ -198,6 +200,8 @@ public class ArtNetListDevices
 						m_manager.setUseTodBcast(myParseBool(paramArr[1]));
 					} else if (paramArr[0].startsWith("msglog")) { 	// msglogger
 						ArtNetChannel.useMsgLogger(myParseBool(paramArr[1]));
+					} else if (paramArr[0].startsWith("univdel")) { // univDelayMS
+						m_manager.setTodUnivDelayMS(Long.parseLong(paramArr[1]));
 					} else if (paramArr[0].startsWith("idho")) {	// idHoldMS
 						long ms = Long.parseLong(paramArr[1]);
 						if (ms < 0) {
@@ -221,6 +225,7 @@ public class ArtNetListDevices
 		return
 				"idHoldMS=" + m_idHoldMS + " " +
 				"timeoutMS=" + m_rdmRequest.getTimeoutMS() + " " +
+				"univDelayMS=" + m_manager.getTodUnivDelayMS() + " " +
 				"maxRetries=" + m_rdmRequest.getMaxTries() + " " +
 				"retryDelayMS=" + m_rdmRequest.getRretryDelayMS() + " " +
 				"prtTimeouts=" + (m_rdmRequest.isPrtTimeouts() ? "t" : "f") + " " +
@@ -699,7 +704,7 @@ public class ArtNetListDevices
 		SELECT(),
 		ADD(),
 		REFRESH((String)null, "[flush|!flush]"),
-		MSGLOG((String)null, "[on|off|print|clear]"),
+		MSGLOG((String)null, "[on|off|print|clear] [msgType msgType ...]"),
 		OPTIONS((String)null, "[timeoutMS=##] [maxRetries=##] [retryDelayMS=##]"
 						+ " [prtTimeoutErrors=[t|f]] [todcontrol=[t|f]]"
 						+ " [msgLog=[t|f]]"),
@@ -1133,10 +1138,13 @@ public class ArtNetListDevices
 					ArtNetChannel.useMsgLogger(false);
 				} else if (arg.startsWith("p")) {
 					m_out.println(ArtNetMsgLogger.g_msgLogger.size() + " messages:");
+					List<String> msgClasses = args.size() > 1 ? args.subList(1, args.size()) : null;
 					int iMsg = 0;
 					for (ArtNetMsgLogger.MsgEvent msg: ArtNetMsgLogger.g_msgLogger.getEvents()) {
 						iMsg++;
-						m_out.println("[" + iMsg + "]: " + msg.toString());
+						if (msgClasses == null || msg.isMsgType(msgClasses)) {
+							m_out.println("[" + iMsg + "]: " + msg.toString());
+						}
 					}
 				} else if (arg.startsWith("c")) {
 					ArtNetMsgLogger.g_msgLogger.clear();
