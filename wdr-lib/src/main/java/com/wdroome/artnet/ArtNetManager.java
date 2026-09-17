@@ -1009,7 +1009,7 @@ public class ArtNetManager implements Closeable
 								m_verboseDiscovery.flush();
 							}
 							if (m_findRdmUids) {
-								/*XXX*/ System.out.println("RdmPortAddrs: " + m_rdmPortAddrs);
+								// System.out.println("RdmPortAddrs: " + m_rdmPortAddrs);
 								// sendTodRequest(m_flushThisPoll);
 								m_todDataEndTS += m_rdmUnivs.size() * m_todUnivDelayMS;
 								new TodRequestSender(m_rdmUnivs, m_todUnivDelayMS);

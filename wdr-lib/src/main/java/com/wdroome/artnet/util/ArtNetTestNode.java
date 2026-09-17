@@ -187,7 +187,7 @@ public class ArtNetTestNode implements ArtNetChannel.Receiver, Closeable
 	public static void main(String[] args)
 			throws JSONParseException, JSONValueTypeException, IOException, InterruptedException
 	{
-		if (args.length > 1) {
+		if (args.length != 1) {
 			System.out.println("Usage: ArtNetTestNode config-file.json");
 			System.exit(1);
 		}
