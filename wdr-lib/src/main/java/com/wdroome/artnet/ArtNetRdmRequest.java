@@ -47,6 +47,12 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			m_sentParamId = sentParamId;
 			m_queuedParamId = queuedParamId;
 		}
+		
+		@Override
+		public String toString()
+		{
+			return "SkipRule[" + m_sentParamId + "," + m_queuedParamId + "]";
+		}
 
 		@Override
 		public int hashCode() {
@@ -215,30 +221,36 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 		ArrayList<RdmPacket> queuedMsgs = new ArrayList<>(origMsgCount);
 		byte[] paramData = {RdmPacket.STATUS_TYPE_ERROR};
 		while (true) {
-			RdmPacket rdmPacket;
+			RdmPacket queuedMsg;
 			try {
-				rdmPacket = sendRequest(ipAddr, port, destUid, false,
+				queuedMsg = sendRequest(ipAddr, port, destUid, false,
 											RdmParamId.QUEUED_MESSAGE, paramData);
 			} catch (IOException e) {
 				System.out.println("ArtNetRmdRequest.getQueuedMsgs IOException " + e.getLocalizedMessage());
 				break;
 			}
-			if (rdmPacket == null) {
+			if (queuedMsg == null) {
 				break;
 			}
+			RdmParamId queuedMsgId = queuedMsg.getParamId();
+			System.out.println("XXX: got queued msg " + queuedMsgId);
 			if (skipRules != null && skipRules.contains(
-							new QueuedMsgSkipRule(origParamId, rdmPacket.getParamId()))) {
+							new QueuedMsgSkipRule(origParamId, queuedMsgId))) {
 				continue;
 			}
-			queuedMsgs.add(rdmPacket);
+			System.out.println("XXX: doesn't match skip rules");
+			queuedMsgs.add(queuedMsg);
 			if (prt != null) {
 				if (queuedMsgs.size() == 1) {
 					prt.println("ArtNetRdmRequest " + (origIsSet ? "GET/" : "SET/") + origParamId + " reply msgCount="
 							+ origMsgCount + ": getting queue:");
 				}
-				prt.println("ArtNetRdmRequest: Queued msg: " + rdmPacket);
+				prt.println("ArtNetRdmRequest: Queued msg: " + queuedMsg);
+				prt.println("XXX: skip rules " + skipRules);
+				prt.println("XXX: test rule: "
+							+ new QueuedMsgSkipRule(origParamId, queuedMsgId));
 			}
-			if (rdmPacket.m_msgCount <= 0 || queuedMsgs.size() > maxTries) {
+			if (queuedMsg.m_msgCount <= 0 || queuedMsgs.size() > maxTries) {
 				break;
 			}
 		}

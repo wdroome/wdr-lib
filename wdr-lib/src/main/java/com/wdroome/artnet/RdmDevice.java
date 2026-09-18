@@ -29,7 +29,9 @@ public class RdmDevice implements Comparable<RdmDevice>
 	
 	public static final Set<ArtNetRdmRequest.QueuedMsgSkipRule> QUEUED_MSG_SKIP_RULES
 			= Set.of(new ArtNetRdmRequest.QueuedMsgSkipRule(RdmParamId.IDENTIFY_DEVICE,
-															RdmParamId.IDENTIFY_DEVICE));
+															RdmParamId.IDENTIFY_DEVICE),
+					new ArtNetRdmRequest.QueuedMsgSkipRule(RdmParamId.IDENTIFY_DEVICE,
+															RdmParamId.STATUS_MESSAGES));
 	
 	public final ACN_UID m_uid;
 	public final ArtNetUnivAddr m_univAddr;
