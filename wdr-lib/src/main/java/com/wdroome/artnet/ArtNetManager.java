@@ -1077,13 +1077,13 @@ public class ArtNetManager implements Closeable
 					}
 					Set<ACN_UID> uids = m_portAddrsToUids.get(univAddr);
 					if (uids == null || uids.size() != totUids) {
-						System.out.println("XXX " + univAddr + ": tot=" + totUids + " uids=" + uids);
+						// System.out.println("XXX " + univAddr + ": tot=" + totUids + " uids=" + uids);
 						return false;
 					}
 				} 
 			}
 			// return false; // XXX
-			System.out.println("XXX Have all " + m_rdmPortAddrs.size() + " TodData resp.");
+			// System.out.println("XXX Have all " + m_rdmPortAddrs.size() + " TodData resp.");
 			return true;
 		}
 		
@@ -1336,7 +1336,7 @@ public class ArtNetManager implements Closeable
 			}
 			if (todData.m_command == ArtNetTodData.COMMAND_TOD_FULL) {
 				m_portAddrsToTotUids.put(univAddr, msg.m_numUidsTotal);
-				System.out.println("XXX: tot uids: " + m_portAddrsToTotUids);
+				// System.out.println("XXX: tot uids: " + m_portAddrsToTotUids);
 			}
 			Set<ACN_UID> uids = m_portAddrsToUids.get(univAddr);
 			if (uids == null) {
@@ -1347,7 +1347,7 @@ public class ArtNetManager implements Closeable
 				uids.add(todData.m_uids[i]);
 				m_uidsToUnivAddrs.put(todData.m_uids[i], univAddr);
 			}
-			System.out.println("XXX: portAddrsToUids: " + m_portAddrsToUids);
+			// System.out.println("XXX: portAddrsToUids: " + m_portAddrsToUids);
 		}
 
 		/**
