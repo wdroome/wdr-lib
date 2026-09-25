@@ -234,21 +234,20 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 			}
 			RdmParamId queuedMsgId = queuedMsg.getParamId();
 			System.out.println("XXX: got queued msg " + queuedMsgId);
-			if (skipRules != null && skipRules.contains(
-							new QueuedMsgSkipRule(origParamId, queuedMsgId))) {
-				continue;
-			}
-			System.out.println("XXX: doesn't match skip rules");
-			queuedMsgs.add(queuedMsg);
-			if (prt != null) {
-				if (queuedMsgs.size() == 1) {
-					prt.println("ArtNetRdmRequest " + (origIsSet ? "GET/" : "SET/") + origParamId + " reply msgCount="
-							+ origMsgCount + ": getting queue:");
+			if (skipRules == null
+					|| !skipRules.contains(new QueuedMsgSkipRule(origParamId, queuedMsgId))) {
+				System.out.println("XXX: doesn't match skip rules");
+				queuedMsgs.add(queuedMsg);
+				if (prt != null) {
+					if (queuedMsgs.size() == 1) {
+						prt.println("ArtNetRdmRequest " + (origIsSet ? "GET/" : "SET/") + origParamId + " reply msgCount="
+								+ origMsgCount + ": getting queue:");
+					}
+					prt.println("ArtNetRdmRequest: Queued msg: " + queuedMsg);
+					prt.println("XXX: skip rules " + skipRules);
+					prt.println("XXX: test rule: "
+								+ new QueuedMsgSkipRule(origParamId, queuedMsgId));
 				}
-				prt.println("ArtNetRdmRequest: Queued msg: " + queuedMsg);
-				prt.println("XXX: skip rules " + skipRules);
-				prt.println("XXX: test rule: "
-							+ new QueuedMsgSkipRule(origParamId, queuedMsgId));
 			}
 			if (queuedMsg.m_msgCount <= 0 || queuedMsgs.size() > maxTries) {
 				break;
