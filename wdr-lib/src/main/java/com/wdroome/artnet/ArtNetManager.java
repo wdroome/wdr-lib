@@ -60,7 +60,7 @@ public class ArtNetManager implements Closeable
 	
 	public static final long MIN_TOD_UNIV_DELAY_MS = 0;
 	public static final long MAX_TOD_UNIV_DELAY_MS = 120000;
-	public static final long DEF_TOD_UNIV_DELAY_MS = 3000;
+	public static final long DEF_TOD_UNIV_DELAY_MS = 0;
 		
 	private final MonitorSync m_monitorSync = new MonitorSync();
 	private ArtNetRdmRequest m_rdmRequest = null;

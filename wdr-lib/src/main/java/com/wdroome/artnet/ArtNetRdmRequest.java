@@ -233,7 +233,7 @@ public class ArtNetRdmRequest implements ArtNetChannel.Receiver, Closeable
 				break;
 			}
 			RdmParamId queuedMsgId = queuedMsg.getParamId();
-			System.out.println("XXX: got queued msg " + queuedMsgId);
+			// System.out.println("XXX: got queued msg " + queuedMsgId);
 			if (skipRules == null
 					|| !skipRules.contains(new QueuedMsgSkipRule(origParamId, queuedMsgId))) {
 				System.out.println("XXX: doesn't match skip rules");
